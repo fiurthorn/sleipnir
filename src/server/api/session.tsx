@@ -7,6 +7,15 @@ export function session(app: Sleipnir, path: string) {
   app.get(`${path}/set`, Set);
 }
 
+function jp(data: Record<string, unknown>) {
+  return new JSONPath(data, {
+    customFunctions: {
+      mask: (_) => "********",
+      currency: (val) => `${val.toFixed(2)} €`,
+    },
+  });
+}
+
 /**
  * generic api call
  *
@@ -17,7 +26,8 @@ async function Get(c: SleipnirContext) {
   const data = await getSessionData(c);
   const expr = c.req.query("expr") ?? "$";
   const select = c.req.query("select") ?? "coalesce";
-  const result = new JSONPath(data).query(expr, select);
+
+  const result = jp(data).query(expr, select);
   return c.json(result);
 }
 

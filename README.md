@@ -69,7 +69,7 @@ import { JSONPath } from "./src/jsonpath";
 
 const jp = new JSONPath(sessionData, {
   customFunctions: {
-    mask: (val) => "********",
+    mask: (_) => "********",
     currency: (val) => `${val.toFixed(2)} €`,
   },
 });
