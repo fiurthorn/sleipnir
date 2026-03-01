@@ -1,0 +1,60 @@
+@import "tailwindcss";
+@plugin "daisyui";
+
+@theme {
+  /* Nord Colors: Polar Night */
+  --color-nord-polar-night-0: #2e3440;
+  --color-nord-polar-night-1: #3b4252;
+  --color-nord-polar-night-2: #434c5e;
+  --color-nord-polar-night-3: #4c566a;
+
+  /* Nord Colors: Snow Storm */
+  --color-nord-snow-storm-4: #d8dee9;
+  --color-nord-snow-storm-5: #e5e9f0;
+  --color-nord-snow-storm-6: #eceff4;
+
+  /* Nord Colors: Frost */
+  --color-nord-frost-7: #8fbcbb;
+  --color-nord-frost-8: #88c0d0;
+  --color-nord-frost-9: #81a1c1;
+  --color-nord-frost-10: #5e81ac;
+
+  /* Nord Aurora - Die Akzentfarben */
+  --color-nord-aurora-red: #bf616a;    /* Aurora Red - Fehler / Löschen */
+  --color-nord-aurora-orange: #d08770; /* Aurora Orange - Warnungen / Fleisch */
+  --color-nord-aurora-yellow: #ebcb8b; /* Aurora Yellow - Favoriten / Bookmarks */
+  --color-nord-aurora-green: #a3be8c;  /* Aurora Green - Erfolg / Vegetarisch */
+  --color-nord-aurora-purple: #b48ead; /* Aurora Purple - Specials / Nachtisch */
+  --color-nord-aurora-brown: #8f644d; /* Aurora Brown - Specials / Nachtisch */
+
+  --color-nord-earth-brown: #5E4533; /* Tiefer Torf / Feuchte Erde */
+  --color-nord-earth-deep-brown: #4c3a31; /* Deep Brown - Archive / Lederjacke */
+
+  /* Mapping auf DaisyUI Variablen (v5 Standard) */
+  --color-primary: var(--color-nord-frost-10);
+  --color-secondary: var(--color-nord-frost-9);
+  --color-accent: var(--color-nord-frost-7);
+  --color-neutral: var(--color-nord-polar-night-0);
+  --color-base-100: var(--color-nord-snow-storm-6);
+}
+
+[x-cloak] {
+    display: none !important;
+}
+
+/* DaisyUI v5 Theme-Selector */
+[data-theme="corvus"] {
+  --color-primary: var(--color-nord-frost-10);   /* Primary: Das tiefe Frost-Blau */
+  --color-secondary: var(--color-nord-earth-brown); /* Secondary: Dein neues Torf-Braun */
+  --color-accent: var(--color-nord-aurora-yellow); /* Accent: Das Goldgelb */
+  --color-neutral: var(--color-nord-polar-night-0); /* Neutral: Fast Schwarz */
+  --color-base-100: var(--color-nord-snow-storm-4); /* Base: Dunkles Grau */
+
+  --color-background: var(--color-nord-snow-storm-4);
+  --color-foreground: var(--color-nord-polar-night-0);
+
+  --color-info: var(--color-nord-frost-8);
+  --color-success: var(--color-nord-aurora-green);
+  --color-warning: var(--color-nord-aurora-orange);
+  --color-error: var(--color-nord-aurora-red);
+}

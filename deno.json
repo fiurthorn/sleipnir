@@ -1,0 +1,39 @@
+{
+  "nodeModulesDir": "auto",
+  "tasks": {
+    "dev": "deno run --watch main.ts"
+  },
+  "imports": {
+    "@std/assert": "jsr:@std/assert@^1.0.19",
+    "@tailwindcss/cli": "npm:@tailwindcss/cli@^4.2.1",
+    "hono": "npm:hono@^4.12.3",
+    "@hono/session": "npm:@hono/session@^0.2.0",
+    "autoprefixer": "npm:autoprefixer@^10.4.27",
+    "daisyui": "npm:daisyui@^5.5.19",
+    "postcss": "npm:postcss@^8.5.6",
+    "tailwindcss": "npm:tailwindcss@^4.2.1"
+  },
+  "unstable": [
+    "kv"
+  ],
+  "permissions": {
+    "app": {
+      "all": true
+    }
+  },
+  "compilerOptions": {
+    "module": "ESNext",
+    "jsx": "react-jsx",
+    "jsxImportSource": "hono/jsx",
+    "strict": true,
+    "skipLibCheck": true,
+    "lib": [
+      "deno.ns",
+      "ESNext",
+      "DOM",
+      "DOM.Iterable",
+      "DOM.AsyncIterable",
+      "deno.unstable"
+    ]
+  }
+}
