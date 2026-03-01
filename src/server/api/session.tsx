@@ -1,5 +1,5 @@
 import { JSONPath } from "../../lib/jsonpath.ts";
-import { getSessionData } from "../session.ts";
+import { getSessionData, updateSessionData } from "../session.ts";
 import { Sleipnir, SleipnirContext } from "../sleipnir.ts";
 
 export function session(app: Sleipnir, path: string) {
@@ -31,6 +31,18 @@ async function Get(c: SleipnirContext) {
   return c.json(result);
 }
 
-function Set(c: SleipnirContext) {
-  return c.text("not implemented yet!", 404);
+async function Set(c: SleipnirContext) {
+  const data = await getSessionData(c);
+  const expr = c.req.query("expr") ?? "$";
+  const select = c.req.query("select") ?? "coalesce";
+  const key = c.req.query("key");
+
+  if (!key) return c.text("no key sent", 400);
+  const value = c.req.query("value");
+  if (!value) return c.text("no value sent", 400);
+
+  const result = jp(data).query(expr, select);
+  result[key] = JSON.parse(value);
+
+  return updateSessionData(c, result).then(() => c.status(201));
 }
