@@ -2,3 +2,4 @@ node_modules/
 static/styles.css
 static/vendor/
 sleipnir.db*
+doc/*draft*.md
