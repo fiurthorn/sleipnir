@@ -20,14 +20,14 @@
   --color-nord-frost-10: #5e81ac;
 
   /* Nord Aurora - Die Akzentfarben */
-  --color-nord-aurora-red: #bf616a;    /* Aurora Red - Fehler / Löschen */
+  --color-nord-aurora-red: #bf616a; /* Aurora Red - Fehler / Löschen */
   --color-nord-aurora-orange: #d08770; /* Aurora Orange - Warnungen / Fleisch */
   --color-nord-aurora-yellow: #ebcb8b; /* Aurora Yellow - Favoriten / Bookmarks */
-  --color-nord-aurora-green: #a3be8c;  /* Aurora Green - Erfolg / Vegetarisch */
+  --color-nord-aurora-green: #a3be8c; /* Aurora Green - Erfolg / Vegetarisch */
   --color-nord-aurora-purple: #b48ead; /* Aurora Purple - Specials / Nachtisch */
   --color-nord-aurora-brown: #8f644d; /* Aurora Brown - Specials / Nachtisch */
 
-  --color-nord-earth-brown: #5E4533; /* Tiefer Torf / Feuchte Erde */
+  --color-nord-earth-brown: #5e4533; /* Tiefer Torf / Feuchte Erde */
   --color-nord-earth-deep-brown: #4c3a31; /* Deep Brown - Archive / Lederjacke */
 
   /* Mapping auf DaisyUI Variablen (v5 Standard) */
@@ -39,13 +39,17 @@
 }
 
 [x-cloak] {
-    display: none !important;
+  display: none !important;
 }
 
 /* DaisyUI v5 Theme-Selector */
 [data-theme="corvus"] {
-  --color-primary: var(--color-nord-frost-10);   /* Primary: Das tiefe Frost-Blau */
-  --color-secondary: var(--color-nord-earth-brown); /* Secondary: Dein neues Torf-Braun */
+  --color-primary: var(
+    --color-nord-frost-10
+  ); /* Primary: Das tiefe Frost-Blau */
+  --color-secondary: var(
+    --color-nord-earth-brown
+  ); /* Secondary: Dein neues Torf-Braun */
   --color-accent: var(--color-nord-aurora-yellow); /* Accent: Das Goldgelb */
   --color-neutral: var(--color-nord-polar-night-0); /* Neutral: Fast Schwarz */
   --color-base-100: var(--color-nord-snow-storm-4); /* Base: Dunkles Grau */

@@ -9,6 +9,7 @@
     "npm:autoprefixer@^10.4.27": "10.4.27_postcss@8.5.6",
     "npm:daisyui@^5.5.19": "5.5.19",
     "npm:hono@^4.12.3": "4.12.3",
+    "npm:minisearch@^7.2.0": "7.2.0",
     "npm:postcss@^8.5.6": "8.5.6",
     "npm:tailwindcss@^4.2.1": "4.2.1"
   },
@@ -402,6 +403,9 @@
       "dependencies": [
         "@jridgewell/sourcemap-codec"
       ]
+    },
+    "minisearch@7.2.0": {
+      "integrity": "sha512-dqT2XBYUOZOiC5t2HRnwADjhNS2cecp9u+TJRiJ1Qp/f5qjkeT5APcGPjHw+bz89Ms8Jp+cG4AlE+QZ/QnDglg=="
     },
     "mri@1.2.0": {
       "integrity": "sha512-tzzskb3bG8LvYGFF/mDTpq3jpI6Q9wc3LEmBaghu+DdCssd1FakN7Bc0hVNmEyGq1bq3RgfkCb3cmQLpNPOroA=="

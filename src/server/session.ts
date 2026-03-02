@@ -1,6 +1,6 @@
 import { useSession, useSessionStorage } from "@hono/session";
 import { randomId } from "../lib/utils.ts";
-import { SleipnirSessionData } from "./session_data.d.ts";
+import { SleipnirSessionData } from "./interfaces.ts";
 import { SleipnirContext } from "./sleipnir.ts";
 
 export const DefaultSessionData: SleipnirSessionData = {

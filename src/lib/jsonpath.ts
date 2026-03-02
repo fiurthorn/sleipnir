@@ -294,7 +294,9 @@ export class JSONPath {
     } catch (err: any) {
       console.error("Error evaluating expression:", expression, err);
       throw new SyntaxError(
-        `jsonPath: ${"message" in err ? err?.message : ""}: in expression "${expression}"`,
+        `jsonPath: ${
+          "message" in err ? err?.message : ""
+        }: in expression "${expression}"`,
       );
     }
   }

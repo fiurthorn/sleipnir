@@ -9,15 +9,18 @@
       const ca = document.cookie.split(";");
       for (let i = 0; i < ca.length; i++) {
         const c = ca[i].trim();
-        if (c.indexOf(name) == 0)
+        if (c.indexOf(name) == 0) {
           return JSON.parse(
             decodeURIComponent(c.substring(name.length, c.length)),
           );
+        }
       }
       return null;
     },
     setItem: (key, value) => {
-      document.cookie = `${key}=${encodeURIComponent(JSON.stringify(value))};path=/;max-age=${maxAge};SameSite=Lax`;
+      document.cookie = `${key}=${
+        encodeURIComponent(JSON.stringify(value))
+      };path=/;max-age=${maxAge};SameSite=Lax`;
     },
   };
 
@@ -32,11 +35,11 @@
             u = g(o, n) ? p(o, n) : i;
           return (
             l(u),
-            t.effect(() => {
-              const c = e();
-              (m(o, c, n), l(c));
-            }),
-            u
+              t.effect(() => {
+                const c = e();
+                (m(o, c, n), l(c));
+              }),
+              u
           );
         },
         (i) => {
