@@ -17,16 +17,18 @@ export const Index = ({ title = "Corvus Corax", content }: PageProps) => {
         />
         <link href="./static/styles.css" rel="stylesheet" />
 
+        <script type="module" src="./static/client.js"></script>
+
         <script defer src="./static/vendor/htmx.min.js"></script>
 
         <script defer src="./static/vendor/alpine-collapse.min.js"></script>
         <script defer src="./static/vendor/alpine-focus.min.js"></script>
         <script defer src="./static/vendor/alpine-mask.min.js"></script>
         <script defer src="./static/alpine-cookie-persist.js"></script>
+        <script defer src="./static/alpine-addons.js"></script>
         <script defer src="./static/vendor/alpine-persist.min.js"></script>
         <script defer src="./static/vendor/alpine.min.js"></script>
 
-        <script type="module" src="./static/client.js"></script>
         <script dangerouslySetInnerHTML={{ __html: `(${proxyRedirect})();` }} />
         <title>{title}</title>
       </head>

@@ -4,9 +4,8 @@ export function alertApi(app: Sleipnir, path: string) {
   app.get(path, (c) =>
     c.html(
       <div
-        x-data="{ show: true }"
         x-show="show"
-        x-init="setTimeout(() => show = false, 5000)"
+        x-data="autoHide(5000)"
         x-transition:leave="transition ease-in duration-500"
         x-transition:leave-start="opacity-100 scale-100"
         x-transition:leave-end="opacity-0 scale-90"

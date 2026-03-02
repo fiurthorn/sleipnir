@@ -8,9 +8,9 @@
  * Licensed under the MIT (MIT-LICENSE.txt) licence.
  */
 
-type CustomFunction = (val: any) => any;
-type CollectorFunction = (result: any[], joiner?: string) => any[] | any;
-type ResultType = "VALUE" | "PATH";
+export type CustomFunction = (val: any) => any;
+export type CollectorFunction = (result: any[], joiner?: string) => any[] | any;
+export type ResultType = "VALUE" | "PATH";
 
 export const customFunctions: { [key: string]: CustomFunction } = {
   lowercase: (val: any) => (typeof val === "string" ? val.toLowerCase() : val),

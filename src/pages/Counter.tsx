@@ -23,7 +23,11 @@ export const CounterPage = async ({ context }: CounterParameter) => {
         <AlpineCounterFragment />
       </div>
 
-      <div class="card-actions justify-between mt-6">
+      <div
+        x-init
+        x-data="globalActions"
+        class="card-actions justify-between mt-6"
+      >
         <button
           type="button"
           class="btn btn-secondary"
@@ -34,7 +38,7 @@ export const CounterPage = async ({ context }: CounterParameter) => {
           Abbrechen
         </button>
 
-        <button type="button" class="btn btn-primary" hx-on:click="hello()">
+        <button type="button" class="btn btn-primary" x-on:click="hello()">
           Ok
         </button>
       </div>

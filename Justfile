@@ -40,7 +40,7 @@ update-libs:
     just update-vendor "https://cdn.jsdelivr.net/npm/@alpinejs/persist@3.x.x/dist/cdn.min.js"  "alpine-persist.min.js"
     just update-vendor "https://cdn.jsdelivr.net/npm/@alpinejs/focus@3.x.x/dist/cdn.min.js"    "alpine-focus.min.js"
     just update-vendor "https://cdn.jsdelivr.net/npm/@alpinejs/collapse@3.x.x/dist/cdn.min.js" "alpine-collapse.min.js"
-    just update-vendor "https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"           "alpine.min.js"
+    just update-vendor "https://cdn.jsdelivr.net/npm/@alpinejs/csp@3.x.x/dist/cdn.min.js"           "alpine.min.js"
 
 watch-css:
     deno run -A "npm:@tailwindcss/cli" -i ./src/input.css -o ./static/styles.css --watch

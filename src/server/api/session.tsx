@@ -1,4 +1,4 @@
-import { JSONPath } from "../../lib/jsonpath.ts";
+import { JSONPath, ResultType } from "../../lib/jsonpath.ts";
 import { getSessionData, updateSessionData } from "../session.ts";
 import { Sleipnir, SleipnirContext } from "../sleipnir.ts";
 
@@ -24,10 +24,13 @@ function jp(data: Record<string, unknown>) {
  */
 async function Get(c: SleipnirContext) {
   const data = await getSessionData(c);
-  const expr = c.req.query("expr") ?? "$";
-  const select = c.req.query("select") ?? "coalesce";
 
-  const result = jp(data).query(expr, select);
+  const expr = c.req.query("expr") ?? "counter";
+  const select = c.req.query("select") ?? "$..*";
+  const joiner = c.req.query("joiner") ?? "coalesce";
+  const resultType = (c.req.query("resultType") ?? "PATH") as ResultType;
+
+  const result = jp(data).query(expr, select, joiner, resultType);
   return c.json(result);
 }
 
