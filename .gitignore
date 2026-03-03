@@ -3,3 +3,4 @@ static/styles.css
 static/vendor/
 sleipnir.db*
 doc/*draft*.md
+*.g.ts

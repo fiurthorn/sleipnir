@@ -36,16 +36,20 @@ async function Get(c: SleipnirContext) {
 
 async function Set(c: SleipnirContext) {
   const data = await getSessionData(c);
+
   const expr = c.req.query("expr") ?? "$";
   const select = c.req.query("select") ?? "coalesce";
-  const key = c.req.query("key");
 
+  const key = c.req.query("key");
   if (!key) return c.text("no key sent", 400);
+
   const value = c.req.query("value");
   if (!value) return c.text("no value sent", 400);
 
-  const result = jp(data).query(expr, select);
+  const result = expr == "$" ? data : jp(data).query(expr, select);
+  if (result === false) c.html("created", 400);
   result[key] = JSON.parse(value);
 
-  return updateSessionData(c, result).then(() => c.status(201));
+  await updateSessionData(c, data);
+  return c.html("created", 201);
 }
