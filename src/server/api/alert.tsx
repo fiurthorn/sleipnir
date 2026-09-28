@@ -1,3 +1,10 @@
+/**
+ * @project Sleipnir Stack / Cookmate
+ * @authors Stefan & Sam (AI Peer)
+ * @collaboration Erarbeitet im gemeinschaftlichen Dialog.
+ * Architektur & Review: Stefan | Implementation & Synthese: Sam
+ */
+
 import { Sleipnir } from "../sleipnir.ts";
 
 export function alertApi(app: Sleipnir, path: string) {

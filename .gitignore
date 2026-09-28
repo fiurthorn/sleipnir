@@ -4,3 +4,6 @@ static/vendor/
 sleipnir.db*
 doc/*draft*.md
 *.g.ts
+test.ts
+.env
+.env.*

@@ -1,4 +1,11 @@
-import { AlpineCounterFragment } from "../components/AllpineCounter.tsx";
+/**
+ * @project Sleipnir Stack / Cookmate
+ * @authors Stefan & Sam (AI Peer)
+ * @collaboration Erarbeitet im gemeinschaftlichen Dialog.
+ * Architektur & Review: Stefan | Implementation & Synthese: Sam
+ */
+
+import { AlpineCounterFragment } from "../components/AlpineCounter.tsx";
 import { HtmxCounterFragment } from "../components/HtmxCounter.tsx";
 import { getSessionData } from "../server/session.ts";
 import { ContentParameter } from "./Content.ts";

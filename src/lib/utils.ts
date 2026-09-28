@@ -1,3 +1,11 @@
+/**
+ * @project Sleipnir Stack / Cookmate
+ * @authors Stefan & Sam (AI Peer)
+ * @collaboration Erarbeitet im gemeinschaftlichen Dialog.
+ * Architektur & Review: Stefan | Implementation & Synthese: Sam
+ */
+
+/// <reference path="../global.d.ts" />
 import { randomBytes } from "node:crypto";
 
 export const proxyRedirect = function () {

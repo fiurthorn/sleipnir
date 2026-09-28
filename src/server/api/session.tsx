@@ -1,3 +1,10 @@
+/**
+ * @project Sleipnir Stack / Cookmate
+ * @authors Stefan & Sam (AI Peer)
+ * @collaboration Erarbeitet im gemeinschaftlichen Dialog.
+ * Architektur & Review: Stefan | Implementation & Synthese: Sam
+ */
+
 import { JSONPath, ResultType } from "../../lib/jsonpath.ts";
 import { getSessionData, updateSessionData } from "../session.ts";
 import { Sleipnir, SleipnirContext } from "../sleipnir.ts";
@@ -35,20 +42,33 @@ async function Get(c: SleipnirContext) {
 }
 
 async function Set(c: SleipnirContext) {
-  const data = await getSessionData(c);
+  const key = c.req.query("key");
+  if (!key) {
+    return c.text("no key sent", 400);
+  }
 
+  const value = c.req.query("value");
+  if (!value) {
+    return c.text("no value sent", 400);
+  }
+
+  let parsedValue: unknown;
+  try {
+    parsedValue = JSON.parse(value);
+  } catch {
+    return c.text("invalid JSON value", 400);
+  }
+
+  const data = await getSessionData(c);
   const expr = c.req.query("expr") ?? "$";
   const select = c.req.query("select") ?? "coalesce";
 
-  const key = c.req.query("key");
-  if (!key) return c.text("no key sent", 400);
+  const target = expr === "$" ? data : jp(data).query(expr, select);
+  if (typeof target !== "object" || target === null) {
+    return c.text("target path not found or invalid", 400);
+  }
 
-  const value = c.req.query("value");
-  if (!value) return c.text("no value sent", 400);
-
-  const result = expr == "$" ? data : jp(data).query(expr, select);
-  if (result === false) c.html("created", 400);
-  result[key] = JSON.parse(value);
+  (target as Record<string, unknown>)[key] = parsedValue;
 
   await updateSessionData(c, data);
   return c.html("created", 201);

@@ -1,3 +1,10 @@
+/**
+ * @project Sleipnir Stack / Cookmate
+ * @authors Stefan & Sam (AI Peer)
+ * @collaboration Erarbeitet im gemeinschaftlichen Dialog.
+ * Architektur & Review: Stefan | Implementation & Synthese: Sam
+ */
+
 import { serveStatic } from "hono/deno";
 
 import { VERSION } from "../version.g.ts";
@@ -18,11 +25,12 @@ export function cache() {
       c.header("Cache-Control", "no-cache");
       c.header("Pragma", "no-cache");
       c.header("Expires", "0");
-    } else {
-      c.header("ETag", ETag);
-      c.header("Cache-Control", "public, max-age=0, must-revalidate");
+      await next();
+      return;
     }
 
+    c.header("ETag", ETag);
+    c.header("Cache-Control", "public, max-age=0, must-revalidate");
     await next();
   };
 }

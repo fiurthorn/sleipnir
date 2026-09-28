@@ -1,3 +1,10 @@
+/**
+ * @project Sleipnir Stack / Cookmate
+ * @authors Stefan & Sam (AI Peer)
+ * @collaboration Erarbeitet im gemeinschaftlichen Dialog.
+ * Architektur & Review: Stefan | Implementation & Synthese: Sam
+ */
+
 import { useSession, useSessionStorage } from "@hono/session";
 import { randomId } from "../lib/utils.ts";
 import { SleipnirSessionData } from "./interfaces.ts";

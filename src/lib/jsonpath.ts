@@ -1,3 +1,10 @@
+/**
+ * @project Sleipnir Stack / Cookmate
+ * @authors Stefan & Sam (AI Peer)
+ * @collaboration Erarbeitet im gemeinschaftlichen Dialog.
+ * Architektur & Review: Stefan | Implementation & Synthese: Sam
+ */
+
 // deno-lint-ignore-file no-explicit-any
 
 /** JSONPath 0.8.0 - XPath for JSON
@@ -39,7 +46,7 @@ export class JSONPath {
   private joiner: string;
   private customFunctions: { [key: string]: CustomFunction };
   private collectorFunctions: { [key: string]: CollectorFunction };
-  private evaluators: { [expr: string]: Function } = {};
+  private evaluators: { [expr: string]: (...args: unknown[]) => unknown } = {};
 
   /**
    * Initialisiert die JSONPath-Instanz mit dem Datenobjekt und den Konfigurationsargumenten.
@@ -108,12 +115,11 @@ export class JSONPath {
     select ||= this.select;
     joiner ||= this.joiner;
 
-    if (this.collectorFunctions.hasOwnProperty(select)) {
+    if (Object.hasOwn(this.collectorFunctions, select)) {
       // Verwende die spezifizierte Sammlerfunktion, wenn sie definiert ist.
       return this.collectorFunctions[select](this.trim(result), joiner);
-    } else {
-      return this.trim(result);
     }
+    return this.trim(result);
   }
 
   private trim(result: any | any[]): any[] | any {
@@ -133,12 +139,12 @@ export class JSONPath {
     return expr
       .replace(
         /[\['](\??\(.*?\))[\]']/g,
-        ($0, $1) => "[#" + (subx.push($1) - 1) + "]",
+        (_$0, $1) => "[#" + (subx.push($1) - 1) + "]",
       )
       .replace(/'?\.'?|\['?/g, ";")
       .replace(/;;;|;;/g, ";..;")
       .replace(/;$|'?\]|'$/g, "")
-      .replace(/#([0-9]+)/g, ($0, $1) => subx[parseInt($1, 10)]);
+      .replace(/#([0-9]+)/g, (_$0, $1) => subx[parseInt($1, 10)]);
   }
 
   private asPath(path: string) {
@@ -226,12 +232,12 @@ export class JSONPath {
     ) {
       this.trace(result, x, val[loc], path + ";" + loc, resultType);
     } else if (loc === "*") {
-      this.walk(loc, x, val, path, (m, l, x_walk, v_walk, p_walk) => {
+      this.walk(loc, x, val, path, (m, _l, x_walk, v_walk, p_walk) => {
         this.trace(result, m + ";" + x_walk, v_walk, p_walk, resultType);
       });
     } else if (loc === "..") {
       this.trace(result, x, val, path, resultType);
-      this.walk(loc, x, val, path, (m, l, x_walk, v_walk, p_walk) => {
+      this.walk(loc, x, val, path, (m, _l, x_walk, v_walk, p_walk) => {
         if (typeof v_walk[m] === "object" && v_walk[m] !== null) {
           this.trace(
             result,
@@ -277,8 +283,8 @@ export class JSONPath {
 
   private eval(expression: string, val: any[], name: string) {
     try {
-      if (!this.evaluators.hasOwnProperty(expression)) {
-        let expr = expression
+      if (!Object.hasOwn(this.evaluators, expression)) {
+        const expr = expression
           .replace(/^\(?(.*?)\)?$/, "$1")
           .replace(/@/g, "$current");
         this.evaluators[expression] = new Function(
@@ -286,17 +292,16 @@ export class JSONPath {
           "$current",
           "$",
           `return (${expr});`,
-        );
+        ) as (...args: unknown[]) => unknown;
       }
 
       const evaluator = this.evaluators[expression];
       return evaluator(name, val, this._data);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Error evaluating expression:", expression, err);
+      const message = err instanceof Error ? err.message : String(err);
       throw new SyntaxError(
-        `jsonPath: ${
-          "message" in err ? err?.message : ""
-        }: in expression "${expression}"`,
+        `jsonPath: ${message}: in expression "${expression}"`,
       );
     }
   }
