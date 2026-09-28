@@ -4,7 +4,6 @@
     "jsr:@std/assert@^1.0.19": "1.0.19",
     "jsr:@std/internal@^1.0.12": "1.0.12",
     "jsr:@std/path@^1.0.8": "1.1.4",
-    "npm:@hono/session@~0.2.1": "0.2.1_hono@4.13.10",
     "npm:@tailwindcss/cli@*": "4.3.3",
     "npm:@tailwindcss/cli@^4.3.3": "4.3.3",
     "npm:daisyui@^5.7.46": "5.7.46",
@@ -162,13 +161,6 @@
       "integrity": "sha512-4uJGhsxuptu3OcpVAzli+/gWusVGwZZHTlS63hh++ehExkVT8SgiEf7/uC/PclrPPkLhZqGgCTjd0VWLo6xMqA==",
       "os": ["win32"],
       "cpu": ["x64"]
-    },
-    "@hono/session@0.2.1_hono@4.13.10": {
-      "integrity": "sha512-9bEkT8DnQDM0KNOrSokXMvx4wp1uLmopu0BCLrHjw5DMWPAEDcONuqyn/1dqosQktcNYA3HwUHGK8WT86JtnYA==",
-      "dependencies": [
-        "hono",
-        "jose"
-      ]
     },
     "@jridgewell/gen-mapping@0.3.13": {
       "integrity": "sha512-2kkt/7niJ6MgEPxF0bYdQ6etZaA+fQvDcLKckhy1yIQOzaoKjBBjSj63/aLVjYE3qhRt5dvM+uUyfCg6UKCBbA==",
@@ -472,9 +464,6 @@
       "integrity": "sha512-AC/7JofJvZGrrneWNaEnJeOLUx+JlGt7tNa0wZiRPT4MY1wmfKjt2+6O2p2uz2+skll8OZZmJMNqeke7kKbNgQ==",
       "bin": true
     },
-    "jose@6.2.12": {
-      "integrity": "sha512-9NiFmJEex0sy2Dk58j2UGBSHgUs2ypF9eZSu4L6vjOX3Dp96Sw1F3uL+H+D1sx02jZZdzUT0HgvCy59CuvXcWw=="
-    },
     "lightningcss-android-arm64@1.32.0": {
       "integrity": "sha512-YK7/ClTt4kAK0vo6w3X+Pnm0D2cf2vPHbhOXdoNti1Ga0al1P4TBZhwjATvjNwLEBCnKvjJc2jQgHXH0NEwlAg==",
       "os": ["android"],
@@ -623,7 +612,6 @@
       "packages/sleipnir": {
         "dependencies": [
           "jsr:@std/assert@^1.0.19",
-          "npm:@hono/session@~0.2.1",
           "npm:hono@^4.13.10"
         ]
       }

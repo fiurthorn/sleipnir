@@ -1,0 +1,4 @@
+static/vendor/
+static/*.gz
+static/*.bz
+static/styles.css

@@ -1,11 +1,9 @@
 node_modules/
-static/styles.css
-static/vendor/
-sleipnir.db*
+data/
+shelf/
+
 doc/*draft*.md
 *.g.ts
 test.ts
 .env
 .env.*
-data/
-shelf/

@@ -93,6 +93,31 @@ document.addEventListener("alpine:init", () => {
         this.chats[0];
     },
 
+    get configuredProviders() {
+      const seen = new Set();
+      const list = [];
+      for (const m of this.models) {
+        if (!seen.has(m.provider)) {
+          seen.add(m.provider);
+          list.push({ id: m.provider, name: m.providerName || m.provider });
+        }
+      }
+      return list;
+    },
+
+    get activeProviders() {
+      return this.configuredProviders.filter((p) => p.id !== "fallback");
+    },
+
+    getModelsForProvider(providerId) {
+      return this.models.filter((m) => m.provider === providerId);
+    },
+
+    getChatIcon(chat) {
+      if (!chat || !Array.isArray(chat.messages)) return "💬";
+      return chat.messages.some((m) => m.type === "image") ? "🎨" : "💬";
+    },
+
     createWelcomeChat() {
       const welcomeChat = {
         id: "chat_" + Date.now(),

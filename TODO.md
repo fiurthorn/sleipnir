@@ -58,3 +58,41 @@
     Alpine.js und DaisyUI (Port 3003, Befehl: `just dev-notemate`).
   - Keine relationale Monster-Datenbank nötig – die Filesystem-Struktur ist die
     Single Source of Truth.
+
+---
+
+## 3. Drittes Modul: `scanmate` (Mobile Document & Receipt Scanner)
+
+> **Vision:** Mobile-First Web-Anwendung zur schnellen Erfassung von Dokumenten,
+> Belegen, Quittungen und Rezepten direkt vom Smartphone im Tailscale-Netzwerk.
+> Digitalisieren, zuschneiden, bündeln, per KI analysieren und als PDF mit
+> JSON-Sidecar ablegen.
+
+### Workflow & Kernfunktionen:
+
+- [ ] **Kamera & Bild-Erfassung (Mobile-First):**
+  - Direkter Kamera-Zugriff über HTML5 Capture / MediaStream API.
+  - Multi-Page-Modus: Mehrere Seiten nacheinander fotografieren.
+- [ ] **Perspektiv-Korrektur & Cropping:**
+  - Manuelles und/oder automatisches Kantenerkennen und Entzerren (z. B. via
+    Canvas / `jscanify`).
+  - Drehen, Kontrastanpassung (Schwarz/Weiß- oder Dokumenten-Filter).
+- [ ] **PDF-Bündelung:**
+  - Zusammenschluss der zugeschnittenen Seiten zu einer kompakten PDF-Datei (z.
+    B. via `pdf-lib`).
+- [ ] **KI-Metadaten-Synthese (Vision LLM):**
+  - Übergabe der Scans an ein multimodales Vision-Modell (OpenRouter / Venice /
+    lokal).
+  - Automatisches Extrahieren strukturierter Metadaten als JSON:
+    - **Kategorie:** (z. B. _Rechnung_, _Quittung_, _Vertrag_, _Rezept_,
+      _Brief_)
+    - **Datum & Aussteller / Absender**
+    - **Beträge / Posten** (bei Quittungen & Rechnungen)
+    - **Tags / Stichwörter**
+    - **Extrahierter OCR-Volltext & Kurz-Zusammenfassung**
+- [ ] **Sidecar-Ablage (Filesystem als Single Source of Truth):**
+  - Ablage des Dokuments als `[YYYY-MM-DD]_[Titel].pdf`.
+  - Sidecar-Datei `[YYYY-MM-DD]_[Titel].json` direkt daneben im Verzeichnis.
+- [ ] **Indizierung & Suche:**
+  - Schnelle Suche und Filterung über die JSON-Metadaten und Volltexte via
+    `minisearch`.

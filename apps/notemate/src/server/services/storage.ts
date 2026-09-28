@@ -47,11 +47,10 @@ export class NoteStorage {
   private attachmentsDir: string;
 
   constructor(config?: StorageConfig) {
-    const rawDir = config?.dataDir ||
-      Deno.env.get("NOTEMATE_DATA_DIR") ||
+    const rawDir = config?.dataDir || Deno.env.get("NOTEMATE_DATA_DIR") ||
       "./data/notes";
     this.baseDir = resolve(rawDir);
-    this.attachmentsDir = join(this.baseDir, "attachments");
+    this.attachmentsDir = join(this.baseDir, ".attachments");
     this.ensureBaseDirs();
   }
 
@@ -85,7 +84,12 @@ Notemate ist deine **hierarchische, ablenkungsfreie Markdown-Ablage** – direkt
 ---
 *Viel Spaß beim Organisieren deiner Gedanken!*
 `;
-    this.saveNote("Willkommen.md", welcomeContent);
+    const targetPath = join(this.baseDir, "Willkommen.md");
+    try {
+      Deno.writeTextFileSync(targetPath, welcomeContent);
+    } catch (e) {
+      console.warn("Could not create initial welcome note:", e);
+    }
   }
 
   /**

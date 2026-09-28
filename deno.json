@@ -3,9 +3,6 @@
     "./packages/*",
     "./apps/*"
   ],
-  "unstable": [
-    "kv"
-  ],
   "permissions": {
     "app": {
       "all": true

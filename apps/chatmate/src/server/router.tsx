@@ -7,11 +7,10 @@
 
 import {
   assets,
-  session,
-  sessionStore,
   Sleipnir,
   type SleipnirContext,
   sleipnirCors,
+  VERSION,
 } from "@sleipnir/core";
 import { compress } from "hono/compress";
 import { secureHeaders } from "hono/secure-headers";
@@ -21,7 +20,7 @@ import { chatApi } from "./api/chat.ts";
 import { imageApi } from "./api/image.ts";
 import { modelsApi } from "./api/models.ts";
 
-export default function App(kv: Deno.Kv, basePath?: string) {
+export default function App(basePath?: string) {
   const app = new Sleipnir().basePath(basePath ?? "");
   app.use("*", compress());
   app.use("*", sleipnirCors());
@@ -46,7 +45,6 @@ export default function App(kv: Deno.Kv, basePath?: string) {
       },
     }),
   );
-  app.use(sessionStore(kv), session());
 
   const rootHandler = (c: SleipnirContext) =>
     c.html(<Index content={<ChatPage />} />);
@@ -55,7 +53,7 @@ export default function App(kv: Deno.Kv, basePath?: string) {
   modelsApi(app, "/api/models");
   chatApi(app, "/api/chat");
   imageApi(app, "/api/image");
-  assets(app, basePath, "0.1.0", "./apps/chatmate");
+  assets(app, basePath, VERSION, "./apps/chatmate");
 
   return app;
 }

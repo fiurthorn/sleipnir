@@ -27,28 +27,22 @@ export const ChatPage = () => {
               </div>
             </div>
             <div class="flex items-center gap-1.5" title="Provider Status">
-              <div
-                class="tooltip tooltip-bottom"
-                data-tip="OpenRouter API Key Status"
+              <template
+                x-for="p in activeProviders"
+                x-bind:key="p.id"
               >
-                <span
-                  class="badge badge-xs"
-                  x-bind:class="providerStatus.openrouter ? 'badge-success' : 'badge-ghost opacity-40'"
+                <div
+                  class="tooltip tooltip-bottom"
+                  x-bind:data-tip="p.name + (providerStatus[p.id] ? ': Bereit' : ': Kein API-Key')"
                 >
-                  OR
-                </span>
-              </div>
-              <div
-                class="tooltip tooltip-bottom"
-                data-tip="Venice AI Key Status"
-              >
-                <span
-                  class="badge badge-xs"
-                  x-bind:class="providerStatus.venice ? 'badge-success' : 'badge-ghost opacity-40'"
-                >
-                  VN
-                </span>
-              </div>
+                  <span
+                    class="badge badge-xs uppercase font-mono"
+                    x-bind:class="providerStatus[p.id] ? 'badge-success' : 'badge-ghost opacity-40'"
+                    x-text="p.id.slice(0, 2)"
+                  >
+                  </span>
+                </div>
+              </template>
             </div>
           </div>
 
@@ -88,7 +82,7 @@ export const ChatPage = () => {
                 <div class="flex items-center gap-2.5 truncate flex-1 min-w-0">
                   <span
                     class="text-xs opacity-70 shrink-0"
-                    x-text="chat.messages.some(m => m.type === 'image') ? '🎨' : '💬'"
+                    x-text="getChatIcon(chat)"
                   >
                   </span>
                   <span class="truncate" x-text="chat.title"></span>
@@ -155,39 +149,19 @@ export const ChatPage = () => {
               class="select select-bordered select-sm max-w-xs font-mono text-xs"
               x-model="activeModel"
             >
-              <optgroup label="OpenRouter (Text & Code)">
-                <option value="openrouter:anthropic/claude-3.5-sonnet">
-                  Claude 3.5 Sonnet
-                </option>
-                <option value="openrouter:openai/gpt-4o">GPT-4o</option>
-                <option value="openrouter:meta-llama/llama-3.3-70b-instruct">
-                  Llama 3.3 70B
-                </option>
-                <option value="openrouter:deepseek/deepseek-r1">
-                  DeepSeek R1
-                </option>
-              </optgroup>
-              <optgroup label="Venice AI (Privacy & Uncensored)">
-                <option value="venice:llama-3.3-70b">Venice Llama 3.3</option>
-                <option value="venice:deepseek-r1-671b">
-                  Venice DeepSeek R1
-                </option>
-                <option value="venice:mistral-codestral-22b">
-                  Venice Codestral 22B
-                </option>
-              </optgroup>
-              <optgroup label="Bildgenerierung">
-                <option value="venice:flux-dev">Flux Dev (Venice)</option>
-                <option value="venice:flux-dev-uncensored">
-                  Flux Dev Uncensored
-                </option>
-                <option value="venice:fluently-xl">
-                  Fluently XL (Venice)
-                </option>
-                <option value="fallback:pollinations">
-                  Pollinations (Fallback)
-                </option>
-              </optgroup>
+              <template
+                x-for="provider in configuredProviders"
+                x-bind:key="provider.id"
+              >
+                <optgroup x-bind:label="provider.name">
+                  <template
+                    x-for="m in getModelsForProvider(provider.id)"
+                    x-bind:key="m.id"
+                  >
+                    <option x-bind:value="m.id" x-text="m.name"></option>
+                  </template>
+                </optgroup>
+              </template>
             </select>
 
             <button

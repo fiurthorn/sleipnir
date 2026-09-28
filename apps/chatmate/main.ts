@@ -5,7 +5,6 @@
  * Architektur & Review: Stefan | Implementation & Synthese: Sam
  */
 
-import { kv } from "@sleipnir/core";
 import app from "./src/server/router.tsx";
 
 const rawPort = Deno.env.get("PORT") ?? "3002";
@@ -17,4 +16,4 @@ const port =
 
 const basePath = Deno.env.get("BASE_PATH");
 
-Deno.serve({ port }, app(kv, basePath).fetch);
+Deno.serve({ port }, app(basePath).fetch);

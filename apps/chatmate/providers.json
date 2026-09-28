@@ -1,0 +1,77 @@
+{
+  "$schema": "./schema.json",
+  "providers": [
+    {
+      "id": "openrouter",
+      "name": "OpenRouter",
+      "baseUrl": "https://openrouter.ai/api/v1",
+      "apiKey": "{{OPENROUTER_API_KEY}}",
+      "textModels": [
+        {
+          "id": "anthropic/claude-3.5-sonnet",
+          "name": "Claude 3.5 Sonnet"
+        },
+        {
+          "id": "openai/gpt-4o",
+          "name": "GPT-4o"
+        },
+        {
+          "id": "meta-llama/llama-3.3-70b-instruct",
+          "name": "Llama 3.3 70B"
+        },
+        {
+          "id": "deepseek/deepseek-r1",
+          "name": "DeepSeek R1"
+        }
+      ],
+      "imageModels": []
+    },
+    {
+      "id": "venice",
+      "name": "Venice AI",
+      "baseUrl": "https://api.venice.ai/api/v1",
+      "apiKey": "{{VENICE_API_KEY}}",
+      "textModels": [
+        {
+          "id": "llama-3.3-70b",
+          "name": "Venice Llama 3.3 70B"
+        },
+        {
+          "id": "deepseek-r1-671b",
+          "name": "Venice DeepSeek R1 (671B)"
+        },
+        {
+          "id": "mistral-codestral-22b",
+          "name": "Venice Codestral 22B"
+        }
+      ],
+      "imageModels": [
+        {
+          "id": "flux-dev",
+          "name": "Flux Dev (Venice)"
+        },
+        {
+          "id": "flux-dev-uncensored",
+          "name": "Flux Dev Uncensored"
+        },
+        {
+          "id": "fluently-xl",
+          "name": "Fluently XL (Venice)"
+        }
+      ]
+    },
+    {
+      "id": "fallback",
+      "name": "Pollinations (Fallback)",
+      "baseUrl": "https://image.pollinations.ai",
+      "apiKey": "",
+      "textModels": [],
+      "imageModels": [
+        {
+          "id": "pollinations",
+          "name": "Pollinations (Keyless Fallback)"
+        }
+      ]
+    }
+  ]
+}

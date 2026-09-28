@@ -5,22 +5,17 @@
  * Architektur & Review: Stefan | Implementation & Synthese: Sam
  */
 
-import {
-  assets,
-  session,
-  sessionStore,
-  Sleipnir,
-  type SleipnirContext,
-  sleipnirCors,
-} from "@sleipnir/core";
+import { type SleipnirContext } from "@sleipnir/core";
+
+import { assets, Sleipnir, sleipnirCors, VERSION } from "@sleipnir/core";
 import { compress } from "hono/compress";
 import { secureHeaders } from "hono/secure-headers";
 import { Index } from "../pages/Index.tsx";
 import { NotesPage } from "../pages/Notes.tsx";
-import { NoteStorage } from "./services/storage.ts";
 import { notesApi } from "./api/notes.ts";
+import { NoteStorage } from "./services/storage.ts";
 
-export default function App(kv: Deno.Kv, basePath?: string) {
+export default function App(basePath?: string) {
   const app = new Sleipnir().basePath(basePath ?? "");
   const storage = new NoteStorage();
 
@@ -41,7 +36,6 @@ export default function App(kv: Deno.Kv, basePath?: string) {
       },
     }),
   );
-  app.use(sessionStore(kv), session());
 
   // Main UI
   const rootHandler = (c: SleipnirContext) =>
@@ -53,7 +47,7 @@ export default function App(kv: Deno.Kv, basePath?: string) {
   notesApi(app, storage);
 
   // Static Assets
-  assets(app, basePath, "0.1.0", "./apps/notemate");
+  assets(app, basePath, VERSION, "./apps/notemate");
 
   return app;
 }

@@ -3,16 +3,13 @@
   "version": "0.1.0",
   "exports": {
     ".": "./mod.ts",
-    "./session": "./src/session.ts",
     "./sleipnir": "./src/sleipnir.ts",
     "./assets": "./src/assets.ts",
     "./jsonpath": "./src/jsonpath.ts",
     "./utils": "./src/utils.ts",
-    "./kv": "./src/kv.ts",
     "./cors": "./src/cors.ts"
   },
   "imports": {
-    "@hono/session": "npm:@hono/session@^0.2.1",
     "@std/assert": "jsr:@std/assert@^1.0.19",
     "hono": "npm:hono@^4.13.10"
   },
