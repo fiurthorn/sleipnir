@@ -16,6 +16,7 @@ document.addEventListener("alpine:init", () => {
 
     // Transient state (not saved in localStorage)
     inputPrompt: "",
+    attachedImage: null,
     isLoading: false,
     models: [],
     providerStatus: { openrouter: false, venice: false },
@@ -68,7 +69,7 @@ document.addEventListener("alpine:init", () => {
             id: "msg_welcome",
             role: "assistant",
             content:
-              "Willkommen bei **Chatmate**!\n\n- 🔒 **Zero-Logging & Login-frei:** Alle Daten bleiben ausschließlich in deinem Browser-Speicher (`localStorage`).\n- 💬 **Text & Code:** Nutze OpenRouter oder Venice für schnelle Antworten.\n- 🎨 **Bildgenerierung:** Tippe `/image <Beschreibung>` (z.B. `/image Ein Espresso auf einer italienischen Marmorplatte`), um direkt Bilder zu erzeugen.",
+              "Willkommen bei **Chatmate**!\n\n- 🔒 **Zero-Logging & Login-frei:** Alle Daten bleiben ausschließlich in deinem Browser-Speicher (`localStorage`).\n- 💬 **Text, Code & Vision:** Bilder einfach per `Strg+V` in das Eingabefeld einfügen oder anhängen.\n- 🎨 **Bildgenerierung:** Tippe `/image <Beschreibung>` (z.B. `/image Ein Espresso auf einer italienischen Marmorplatte`), um direkt Bilder zu erzeugen.",
             type: "text",
             timestamp: Date.now(),
           },
@@ -123,11 +124,92 @@ document.addEventListener("alpine:init", () => {
       return text.replace(/\n/g, "<br>");
     },
 
+    processImageFile(file) {
+      if (!file || !file.type.startsWith("image/")) return;
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          // Scale down image if dimensions exceed 1600px to conserve localStorage & token bandwidth
+          const maxDim = 1600;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > maxDim || height > maxDim) {
+            if (width > height) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            } else {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+          }
+
+          const canvas = document.createElement("canvas");
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) return;
+          ctx.drawImage(img, 0, 0, width, height);
+
+          // Convert to JPEG data URL for compact size
+          const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
+          this.attachedImage = dataUrl;
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    },
+
+    removeAttachedImage() {
+      this.attachedImage = null;
+    },
+
+    handlePaste(event) {
+      const items = event.clipboardData?.items;
+      if (!items) return;
+
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if (item.type.indexOf("image") !== -1) {
+          const file = item.getAsFile();
+          if (file) {
+            event.preventDefault();
+            this.processImageFile(file);
+            return;
+          }
+        }
+      }
+    },
+
+    handleDrop(event) {
+      event.preventDefault();
+      const files = event.dataTransfer?.files;
+      if (!files || files.length === 0) return;
+
+      for (let i = 0; i < files.length; i++) {
+        if (files[i].type.startsWith("image/")) {
+          this.processImageFile(files[i]);
+          break;
+        }
+      }
+    },
+
+    handleFileSelect(event) {
+      const file = event.target.files?.[0];
+      if (!file) return;
+      this.processImageFile(file);
+      event.target.value = "";
+    },
+
     async submitMessage() {
       const prompt = this.inputPrompt.trim();
-      if (!prompt || this.isLoading) return;
+      const image = this.attachedImage;
+      if ((!prompt && !image) || this.isLoading) return;
 
       this.inputPrompt = "";
+      this.attachedImage = null;
       const chat = this.currentChat;
       if (!chat) return;
 
@@ -136,17 +218,30 @@ document.addEventListener("alpine:init", () => {
         chat.messages.filter((m) => m.role === "user").length === 0 &&
         chat.title === "Neuer Dialog"
       ) {
-        chat.title = prompt.length > 25 ? prompt.slice(0, 25) + "..." : prompt;
+        const titleSource = prompt || "Bildanalyse";
+        chat.title = titleSource.length > 25
+          ? titleSource.slice(0, 25) + "..."
+          : titleSource;
       }
 
-      // Check for image generation command
-      if (prompt.startsWith("/image ") || this.isImageModelSelected()) {
+      // Check for image generation command (only when no image is attached)
+      if (!image && (prompt.startsWith("/image ") || this.isImageModelSelected())) {
         await this.handleImageGeneration(prompt);
         return;
       }
 
-      // Standard Chat completion (Streaming)
-      await this.handleChatStream(prompt);
+      // Auto-switch to vision-capable model if user attached an image while an image-generation model was selected
+      if (image && this.isImageModelSelected()) {
+        const visionModel = this.models.find((m) =>
+          m.id === "openrouter:anthropic/claude-3.5-sonnet"
+        ) || this.models.find((m) => m.type === "text");
+        if (visionModel) {
+          this.activeModel = visionModel.id;
+        }
+      }
+
+      // Standard Chat completion (Streaming) with optional attached image
+      await this.handleChatStream(prompt, image);
     },
 
     isImageModelSelected() {
@@ -207,15 +302,16 @@ document.addEventListener("alpine:init", () => {
       }
     },
 
-    async handleChatStream(prompt) {
+    async handleChatStream(prompt, image = null) {
       const chat = this.currentChat;
 
-      // 1. Append user message
+      // 1. Append user message (multimodal if image present)
       chat.messages.push({
         id: "msg_" + Date.now(),
         role: "user",
         content: prompt,
-        type: "text",
+        imageUrl: image,
+        type: image ? "multimodal" : "text",
         timestamp: Date.now(),
       });
 
@@ -234,9 +330,23 @@ document.addEventListener("alpine:init", () => {
 
       // Prepare context: last 10 messages for context window
       const messagesPayload = chat.messages
-        .filter((m) => m.type === "text" && m.content)
+        .filter((m) =>
+          (m.type === "text" || m.type === "multimodal" || m.imageUrl) &&
+          (m.content || m.imageUrl)
+        )
         .slice(-10)
-        .map((m) => ({ role: m.role, content: m.content }));
+        .map((m) => {
+          if (m.imageUrl) {
+            return {
+              role: m.role,
+              content: [
+                { type: "text", text: m.content || "Beschreibe dieses Bild." },
+                { type: "image_url", image_url: { url: m.imageUrl } },
+              ],
+            };
+          }
+          return { role: m.role, content: m.content };
+        });
 
       try {
         const response = await fetch("./api/chat", {

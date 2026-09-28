@@ -9,8 +9,36 @@ import { Sleipnir, SleipnirContext } from "@sleipnir/core";
 import {
   ChatMessage,
   ChatRequest,
+  MessageContent,
   streamChatCompletion,
 } from "../services/provider.ts";
+
+function isValidContent(content: unknown): content is MessageContent {
+  if (typeof content === "string") {
+    return content.trim().length > 0;
+  }
+  if (!Array.isArray(content) || content.length === 0) {
+    return false;
+  }
+  return content.every((part) => {
+    if (typeof part !== "object" || part === null || !("type" in part)) {
+      return false;
+    }
+    const record = part as Record<string, unknown>;
+    if (record.type === "text" && typeof record.text === "string") {
+      return true;
+    }
+    if (
+      record.type === "image_url" &&
+      typeof record.image_url === "object" &&
+      record.image_url !== null &&
+      typeof (record.image_url as Record<string, unknown>).url === "string"
+    ) {
+      return true;
+    }
+    return false;
+  });
+}
 
 export function chatApi(app: Sleipnir, basePath: string) {
   app.post(basePath, handleChat);
@@ -51,12 +79,12 @@ async function handleChat(c: SleipnirContext) {
       m !== null &&
       "role" in m &&
       "content" in m &&
-      typeof m.role === "string" &&
-      typeof m.content === "string"
+      (m.role === "user" || m.role === "assistant" || m.role === "system") &&
+      isValidContent(m.content)
     ) {
       validMessages.push({
-        role: m.role as "user" | "assistant" | "system",
-        content: m.content,
+        role: m.role,
+        content: m.content as ChatMessage["content"],
       });
     }
   }

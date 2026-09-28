@@ -213,10 +213,17 @@ export const ChatPage = () => {
               <template x-if="msg.role === 'user'">
                 <div class="chat chat-end animate-fadeIn">
                   <div class="chat-header text-xs opacity-50 mb-1">Du</div>
-                  <div
-                    class="chat-bubble chat-bubble-secondary text-sm whitespace-pre-wrap leading-relaxed shadow-sm"
-                    x-text="msg.content"
-                  >
+                  <div class="chat-bubble chat-bubble-secondary text-sm whitespace-pre-wrap leading-relaxed shadow-sm flex flex-col gap-2">
+                    <template x-if="msg.imageUrl">
+                      <div class="rounded-lg overflow-hidden max-w-xs max-h-60 bg-base-300">
+                        <img
+                          x-bind:src="msg.imageUrl"
+                          alt="Angehängtes Bild"
+                          class="w-full h-full object-cover"
+                        />
+                      </div>
+                    </template>
+                    <span x-show="msg.content" x-text="msg.content"></span>
                   </div>
                 </div>
               </template>
@@ -329,14 +336,71 @@ export const ChatPage = () => {
         {/* Prompt Input Box */}
         <footer class="p-4 bg-base-200/50 border-t border-base-content/10">
           <div class="max-w-4xl mx-auto flex flex-col gap-2">
+            {/* Image Preview if attachedImage exists */}
+            <template x-if="attachedImage">
+              <div class="relative inline-flex items-center gap-3 p-2 bg-base-300 rounded-lg w-fit border border-base-content/10 animate-fadeIn">
+                <img
+                  x-bind:src="attachedImage"
+                  alt="Vorschau"
+                  class="h-16 w-16 object-cover rounded-md border border-base-content/10"
+                />
+                <div class="text-xs flex flex-col justify-center pr-6">
+                  <span class="font-medium text-base-content">
+                    Bild im Zwischenspeicher
+                  </span>
+                  <span class="opacity-60 text-[10px]">
+                    Wird mit deiner Nachricht analysiert
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  class="btn btn-circle btn-xs btn-ghost absolute top-1 right-1 text-base-content/70 hover:text-error"
+                  x-on:click="removeAttachedImage()"
+                  title="Bild entfernen"
+                >
+                  ✕
+                </button>
+              </div>
+            </template>
+
             <form
               x-on:submit="$event.preventDefault(); submitMessage()"
               class="flex gap-2 items-end"
             >
+              {/* Attachment Button */}
+              <label
+                class="btn btn-square btn-ghost border border-base-content/20 hover:border-primary shrink-0"
+                title="Bild anhängen (oder per Strg+V einfügen)"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="h-5 w-5 opacity-70"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                  />
+                </svg>
+                <input
+                  type="file"
+                  class="hidden"
+                  accept="image/*"
+                  x-on:change="handleFileSelect($event)"
+                />
+              </label>
+
               <textarea
                 x-model="inputPrompt"
                 x-on:keydown="if ($event.key === 'Enter' && !$event.shiftKey) { $event.preventDefault(); submitMessage(); }"
-                placeholder="Nachricht schreiben... (/image für Bilder, Shift+Enter für Zeilenumbruch)"
+                x-on:paste="handlePaste($event)"
+                x-on:drop="handleDrop($event)"
+                x-on:dragover="$event.preventDefault()"
+                placeholder="Nachricht schreiben... (Bilder per Strg+V pasten, /image für Generierung)"
                 class="textarea textarea-bordered flex-1 min-h-[52px] max-h-36 resize-none focus:outline-primary leading-snug"
                 rows={1}
                 x-bind:disabled="isLoading"
@@ -346,7 +410,7 @@ export const ChatPage = () => {
               <button
                 type="submit"
                 class="btn btn-primary px-5 shadow-sm"
-                x-bind:disabled="isLoading || !inputPrompt.trim()"
+                x-bind:disabled="isLoading || (!inputPrompt.trim() && !attachedImage)"
               >
                 <span x-show="!isLoading">Senden 🚀</span>
                 <span
@@ -359,9 +423,9 @@ export const ChatPage = () => {
 
             <div class="flex justify-between items-center px-1 text-[11px] opacity-60">
               <span>
-                💡 Tipp: Schreibe <code>/image Ein futuristisches Schiff</code>
+                💡 Tipp: Bilder direkt per <code>Strg+V</code> einfügen oder
                 {" "}
-                oder wähle ein Bildmodell oben rechts.
+                <code>/image Prompt</code> nutzen.
               </span>
               <span>100% Client-Side Storage</span>
             </div>

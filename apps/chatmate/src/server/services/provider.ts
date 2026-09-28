@@ -5,9 +5,15 @@
  * Architektur & Review: Stefan | Implementation & Synthese: Sam
  */
 
+export type ContentPart =
+  | { type: "text"; text: string }
+  | { type: "image_url"; image_url: { url: string } };
+
+export type MessageContent = string | ContentPart[];
+
 export interface ChatMessage {
   role: "user" | "assistant" | "system";
-  content: string;
+  content: MessageContent;
 }
 
 export interface ChatRequest {
