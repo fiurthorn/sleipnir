@@ -37,14 +37,26 @@ export function assets(
   app: Sleipnir,
   basePath: string = "",
   version: string = "0.1.0",
+  rootPath: string = "./",
 ): void {
+  let staticRoot = rootPath;
+  try {
+    const candidate = `${staticRoot.replace(/\/+$/, "")}/static`;
+    if (!Deno.statSync(candidate).isDirectory) {
+      staticRoot = "./";
+    }
+  } catch {
+    staticRoot = "./";
+  }
+
   const param: ServeStaticOptions = {
-    root: "./",
+    root: staticRoot,
     precompressed: true,
   };
 
   if (basePath) {
-    param.rewriteRequestPath = (path) => path.replace(`${basePath}`, "./");
+    const cleanBase = basePath.replace(/\/+$/, "");
+    param.rewriteRequestPath = (path) => path.replace(cleanBase, "./");
   }
 
   app.use("/static/*", cache(version));

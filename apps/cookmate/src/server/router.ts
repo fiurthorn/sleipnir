@@ -54,7 +54,7 @@ export default function App(kv: Deno.Kv, basePath?: string) {
   app.get("/", rootHandler);
   if (basePath) app.get("", rootHandler);
   pages(app);
-  assets(app, basePath);
+  assets(app, basePath, "0.1.0", "./apps/cookmate");
   api(app, "/api");
   return app;
 }

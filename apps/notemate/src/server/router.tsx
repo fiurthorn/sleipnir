@@ -51,7 +51,7 @@ export default function App(kv: Deno.Kv, basePath?: string) {
   notesApi(app, storage);
 
   // Static Assets
-  assets(app, basePath);
+  assets(app, basePath, "0.1.0", "./apps/notemate");
 
   return app;
 }

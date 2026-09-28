@@ -53,7 +53,7 @@ export default function App(kv: Deno.Kv, basePath?: string) {
   modelsApi(app, "/api/models");
   chatApi(app, "/api/chat");
   imageApi(app, "/api/image");
-  assets(app, basePath);
+  assets(app, basePath, "0.1.0", "./apps/chatmate");
 
   return app;
 }

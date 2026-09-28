@@ -334,7 +334,7 @@ export const NotesPage = () => {
             x-show="viewMode === 'preview' || viewMode === 'split'"
           >
             <article
-              class="prose prose-sm md:prose-base max-w-3xl mx-auto"
+              class="prose prose-sm md:prose-base markdown-body max-w-3xl mx-auto"
               x-html="renderMarkdown(currentNote.content)"
             >
             </article>

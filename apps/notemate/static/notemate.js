@@ -35,12 +35,14 @@ document.addEventListener("alpine:init", () => {
       await this.refreshTree();
 
       // Open active note or first available note
+      let loaded = false;
       if (this.activePath) {
-        await this.loadNote(this.activePath);
-      } else {
+        loaded = await this.loadNote(this.activePath, false);
+      }
+      if (!loaded) {
         const firstFile = this.findFirstFile(this.tree);
         if (firstFile) {
-          await this.loadNote(firstFile.path);
+          await this.loadNote(firstFile.path, false);
         }
       }
 
@@ -86,7 +88,8 @@ document.addEventListener("alpine:init", () => {
     },
 
     isFolderExpanded(folderPath) {
-      return this.expandedFolders.includes(folderPath);
+      return Array.isArray(this.expandedFolders) &&
+        this.expandedFolders.includes(folderPath);
     },
 
     toggleFolder(folderPath) {
@@ -95,7 +98,7 @@ document.addEventListener("alpine:init", () => {
           (p) => p !== folderPath,
         );
       } else {
-        this.expandedFolders.push(folderPath);
+        this.expandedFolders = [...(this.expandedFolders || []), folderPath];
       }
     },
 
@@ -118,13 +121,13 @@ document.addEventListener("alpine:init", () => {
       return list;
     },
 
-    async loadNote(path) {
-      if (!path) return;
-      if (this.currentNote.dirty) {
+    async loadNote(path, checkDirty = true) {
+      if (!path) return false;
+      if (checkDirty && this.currentNote.dirty) {
         const confirmSwitch = confirm(
           "Du hast ungespeicherte Änderungen. Möchtest du trotzdem wechseln?",
         );
-        if (!confirmSwitch) return;
+        if (!confirmSwitch) return false;
       }
 
       this.isLoading = true;
@@ -150,12 +153,15 @@ document.addEventListener("alpine:init", () => {
           for (const part of parts) {
             currentAcc = currentAcc ? `${currentAcc}/${part}` : part;
             if (!this.expandedFolders.includes(currentAcc)) {
-              this.expandedFolders.push(currentAcc);
+              this.expandedFolders = [...this.expandedFolders, currentAcc];
             }
           }
+          return true;
         }
+        return false;
       } catch (err) {
         this.showToast("Fehler beim Laden der Notiz: " + err.message);
+        return false;
       } finally {
         this.isLoading = false;
       }
