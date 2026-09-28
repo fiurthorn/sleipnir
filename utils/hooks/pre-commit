@@ -43,7 +43,7 @@ echo -e "${GREEN}✓ Typen fehlerfrei.${NC}"
 
 # 4. Automatisierte Tests
 echo -e "${YELLOW}⚙️  Führe Test-Suite aus (deno test)...${NC}"
-if ! deno test; then
+if ! deno test -P=app; then
   echo -e "${RED}❌ Tests fehlgeschlagen! Commit wird abgebrochen.${NC}"
   exit 1
 fi

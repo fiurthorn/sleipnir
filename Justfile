@@ -34,7 +34,7 @@ check:
 
 [group('lifecycle')]
 test:
-    deno test
+    deno test -P=app
 
 [group('lifecycle')]
 lint:

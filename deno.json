@@ -17,7 +17,7 @@
     "dev:chatmate": "deno run -P=app --watch apps/chatmate/main.ts",
     "check": "deno check packages/**/*.ts apps/**/*.ts apps/**/*.tsx",
     "lint": "deno lint",
-    "test": "deno test"
+    "test": "deno test -P=app"
   },
   "exclude": [
     "dist/",
