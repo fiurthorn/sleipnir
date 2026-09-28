@@ -447,6 +447,15 @@ document.addEventListener("alpine:init", () => {
       return content.replace(/\n/g, "<br>");
     },
 
+    get charCount() {
+      return this.currentNote?.content ? this.currentNote.content.length : 0;
+    },
+
+    get wordCount() {
+      if (!this.currentNote?.content) return 0;
+      return this.currentNote.content.trim().split(/\s+/).filter(Boolean).length;
+    },
+
     formatDate(timestamp) {
       if (!timestamp) return "";
       return new Date(timestamp).toLocaleString("de-DE", {

@@ -310,14 +310,10 @@ export const NotesPage = () => {
             <div class="px-6 py-2 border-t border-base-content/5 bg-base-200/30 flex justify-between items-center text-[11px] opacity-60 font-mono">
               <div class="flex gap-4">
                 <span>
-                  Zeichen:{" "}
-                  <strong x-text="currentNote.content ? currentNote.content.length : 0">
-                  </strong>
+                  Zeichen: <strong x-text="charCount"></strong>
                 </span>
                 <span>
-                  Wörter:{" "}
-                  <strong x-text="currentNote.content ? currentNote.content.trim().split(/\s+/).filter(Boolean).length : 0">
-                  </strong>
+                  Wörter: <strong x-text="wordCount"></strong>
                 </span>
               </div>
               <div>

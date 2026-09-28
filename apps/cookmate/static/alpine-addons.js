@@ -22,5 +22,20 @@ document.addEventListener("alpine:init", () => {
   Alpine.data("globalActions", () => ({
     hello: globalThis.hello,
   }));
+
+  /**
+   * Safe x-html directive for the Alpine.js CSP build.
+   * Re-enables innerHTML binding without unsafe-eval or recursive template scanning.
+   */
+  Alpine.directive("html", (el, { expression }, { effect, evaluateLater }) => {
+    const evaluate = evaluateLater(expression);
+    effect(() => {
+      evaluate((value) => {
+        Alpine.mutateDom(() => {
+          el.innerHTML = value ?? "";
+        });
+      });
+    });
+  });
 });
 
