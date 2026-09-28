@@ -25,6 +25,7 @@ export const Index = (
           content="width=device-width, initial-scale=1.0"
         />
         <link href="./static/styles.css" rel="stylesheet" />
+        <link href="./static/vendor/nord.min.css" rel="stylesheet" />
 
         <script type="module" src="./static/client.js"></script>
         <script defer src="./static/vendor/htmx.min.js"></script>
@@ -35,6 +36,7 @@ export const Index = (
         <script defer src="./static/alpine-addons.js"></script>
         <script defer src="./static/vendor/alpine-persist.min.js"></script>
         <script defer src="./static/vendor/marked.min.js"></script>
+        <script defer src="./static/vendor/highlight.min.js"></script>
         <script defer src="./static/chatmate.js"></script>
         <script defer src="./static/vendor/alpine.min.js"></script>
 

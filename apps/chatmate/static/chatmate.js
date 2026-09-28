@@ -5,6 +5,41 @@
  * Architektur & Review: Stefan | Implementation & Synthese: Sam
  */
 
+// Configure marked with highlight.js for syntax highlighting
+function configureMarkedHighlight() {
+  if (typeof window.marked !== "undefined") {
+    window.marked.use({
+      renderer: {
+        code({ text, lang }) {
+          let highlighted = text;
+          const hasHljs = typeof window.hljs !== "undefined";
+          const validLang = lang && hasHljs && window.hljs.getLanguage(lang) ? lang : null;
+
+          if (hasHljs) {
+            try {
+              if (validLang) {
+                highlighted = window.hljs.highlight(text, { language: validLang, ignoreIllegals: true }).value;
+              } else {
+                highlighted = window.hljs.highlightAuto(text).value;
+              }
+            } catch {
+              highlighted = text;
+            }
+          }
+
+          const langBadge = lang
+            ? `<span class="absolute top-2 right-2 text-[10px] uppercase font-mono opacity-50 px-1.5 py-0.5 rounded bg-base-300/80 select-none">${lang}</span>`
+            : "";
+          const langClass = validLang ? ` language-${validLang}` : "";
+
+          return `<div class="relative group my-3"><pre class="hljs rounded-lg p-4 overflow-x-auto text-xs font-mono leading-relaxed"><code class="${langClass}">${highlighted}</code></pre>${langBadge}</div>`;
+        },
+      },
+    });
+  }
+}
+configureMarkedHighlight();
+
 document.addEventListener("alpine:init", () => {
   Alpine.data("chatmate", () => ({
     // Persistent state (Browser LocalStorage)

@@ -137,3 +137,42 @@
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
   margin: 1rem 0;
 }
+
+/* Tables */
+.markdown-body table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.25rem 0;
+  font-size: 0.875rem;
+  border-radius: 0.5rem;
+  overflow: hidden;
+  border: 1px solid rgba(125, 125, 125, 0.2);
+}
+.markdown-body thead {
+  background-color: rgba(125, 125, 125, 0.12);
+  border-bottom: 2px solid rgba(125, 125, 125, 0.25);
+}
+.markdown-body th {
+  padding: 0.6rem 0.85rem;
+  font-weight: 700;
+  text-align: left;
+  border: 1px solid rgba(125, 125, 125, 0.2);
+}
+.markdown-body th[align="center"],
+.markdown-body td[align="center"] {
+  text-align: center;
+}
+.markdown-body th[align="right"],
+.markdown-body td[align="right"] {
+  text-align: right;
+}
+.markdown-body td {
+  padding: 0.55rem 0.85rem;
+  border: 1px solid rgba(125, 125, 125, 0.15);
+}
+.markdown-body tr:nth-child(even) td {
+  background-color: rgba(125, 125, 125, 0.04);
+}
+.markdown-body tr:hover td {
+  background-color: rgba(125, 125, 125, 0.08);
+}
