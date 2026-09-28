@@ -30,7 +30,7 @@ install-hooks:
 
 [group('lifecycle')]
 check:
-    deno check packages/sleipnir/mod.ts apps/chatmate/main.ts apps/notemate/main.ts
+    deno check packages/sleipnir/mod.ts packages/sleipnir/src/client/main.ts apps/chatmate/main.ts apps/notemate/main.ts
 
 [group('lifecycle')]
 test:
@@ -52,3 +52,15 @@ update-dependencies:
 build-css:
     @just chatmate build-css
     @just notemate build-css
+
+[group('lifecycle')]
+build-client:
+    deno run -A npm:esbuild packages/sleipnir/src/client/main.ts --bundle --format=iife --outfile=packages/sleipnir/static/sleipnir-client.min.js --minify
+    @cp packages/sleipnir/static/sleipnir-client.min.js apps/notemate/static/sleipnir-client.min.js
+    @cp packages/sleipnir/static/sleipnir-client.min.js apps/chatmate/static/sleipnir-client.min.js
+    @echo "✅ Sleipnir Client gebündelt und verteilt."
+
+[group('lifecycle')]
+build: build-client build-css
+
+

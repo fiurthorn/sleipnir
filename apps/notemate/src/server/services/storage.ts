@@ -13,6 +13,7 @@ import {
   relative,
   resolve,
 } from "@std/path";
+import { formatMarkdown } from "./formatter.ts";
 
 export interface TreeNode {
   name: string;
@@ -190,14 +191,16 @@ Notemate ist deine **hierarchische, ablenkungsfreie Markdown-Ablage** – direkt
     const fullPath = this.resolveSafePath(normalizedRel);
     const parentDir = resolve(fullPath, "..");
 
+    const formattedContent = await formatMarkdown(content);
+
     await Deno.mkdir(parentDir, { recursive: true });
-    await Deno.writeTextFile(fullPath, content);
+    await Deno.writeTextFile(fullPath, formattedContent);
     const stat = await Deno.stat(fullPath);
 
     return {
       path: normalizedRel,
       title: basename(normalizedRel, ".md"),
-      content,
+      content: formattedContent,
       updatedAt: stat.mtime?.getTime() ?? Date.now(),
     };
   }

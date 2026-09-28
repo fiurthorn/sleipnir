@@ -5,6 +5,8 @@
  * Architektur & Review: Stefan | Implementation & Synthese: Sam
  */
 
+import { ThemeToggle } from "@sleipnir/core";
+
 export const NotesPage = () => {
   return (
     <div x-data="notemate" class="flex h-screen overflow-hidden">
@@ -53,6 +55,14 @@ export const NotesPage = () => {
                 title="Neue Notiz im Stammverzeichnis"
               >
                 +
+              </button>
+              <button
+                type="button"
+                class="btn btn-ghost btn-xs btn-square md:hidden ml-1 opacity-70 hover:opacity-100"
+                x-on:click="mobileMenuOpen = false"
+                title="Menü schließen"
+              >
+                ✕
               </button>
             </div>
           </div>
@@ -221,9 +231,9 @@ export const NotesPage = () => {
       {/* Main Workspace Area */}
       <main class="flex-1 flex flex-col bg-base-100 overflow-hidden relative">
         {/* Top Navbar: Breadcrumbs & View Controls */}
-        <header class="navbar bg-base-100 border-b border-base-content/10 px-6 py-2 flex justify-between z-10 min-h-12">
+        <header class="navbar bg-base-100 border-b border-base-content/10 px-3 md:px-6 py-2 flex justify-between z-10 min-h-12 gap-2">
           {/* Breadcrumbs & Title */}
-          <div class="flex items-center gap-2 truncate">
+          <div class="flex items-center gap-1.5 md:gap-2 truncate min-w-0">
             <button
               type="button"
               class="btn btn-ghost btn-xs btn-square md:hidden shrink-0"
@@ -232,34 +242,34 @@ export const NotesPage = () => {
             >
               ☰
             </button>
-            <span class="text-xs font-mono opacity-50 hidden sm:inline">
+            <span class="text-xs font-mono opacity-50 hidden md:inline">
               Root /
             </span>
             <span
-              class="font-bold text-sm md:text-base text-base-content truncate"
+              class="font-bold text-xs sm:text-sm md:text-base text-base-content truncate"
               x-text="notePath ? notePath : 'Keine Notiz gewählt'"
             >
             </span>
             <span
               x-show="isDirty"
-              class="badge badge-warning badge-xs font-mono"
+              class="badge badge-warning badge-xs font-mono shrink-0"
             >
               ungespeichert
             </span>
           </div>
 
           {/* Right Toolbar Controls */}
-          <div class="flex items-center gap-3">
+          <div class="flex items-center gap-1.5 sm:gap-3 shrink-0">
             {/* View Mode Toggle: Edit | Split | Preview */}
             <div class="join border border-base-content/20 rounded-lg p-0.5 bg-base-200">
               <button
                 type="button"
-                class="join-item btn btn-xs px-2.5 font-normal"
+                class="join-item btn btn-xs px-2 sm:px-2.5 font-normal"
                 x-bind:class="viewMode === 'edit' ? 'btn-primary font-medium' : 'btn-ghost'"
                 x-on:click="viewMode = 'edit'"
                 title="Reiner Editor"
               >
-                ✏️ Edit
+                ✏️<span class="hidden sm:inline ml-1">Edit</span>
               </button>
               <button
                 type="button"
@@ -268,34 +278,39 @@ export const NotesPage = () => {
                 x-on:click="viewMode = 'split'"
                 title="Split View (Editor & Vorschau)"
               >
-                🌓 Split
+                🌓<span class="ml-1">Split</span>
               </button>
               <button
                 type="button"
-                class="join-item btn btn-xs px-2.5 font-normal"
+                class="join-item btn btn-xs px-2 sm:px-2.5 font-normal"
                 x-bind:class="viewMode === 'preview' ? 'btn-primary font-medium' : 'btn-ghost'"
                 x-on:click="viewMode = 'preview'"
                 title="Reine Vorschau"
               >
-                👁️ Preview
+                👁️<span class="hidden sm:inline ml-1">Preview</span>
               </button>
             </div>
 
             {/* Save Button */}
             <button
               type="button"
-              class="btn btn-primary btn-sm px-4 gap-1.5 shadow-sm"
+              class="btn btn-primary btn-sm px-2.5 sm:px-4 gap-1 shadow-sm"
               x-on:click="saveCurrentNote()"
               x-bind:disabled="!notePath || isSaving"
-              title="Notiz speichern (Strg+S)"
+              title="Notiz speichern & formatieren (Strg+S)"
             >
-              <span x-show="!isSaving">Speichern 💾</span>
+              <span x-show="!isSaving" class="flex items-center gap-1">
+                <span class="hidden sm:inline">Speichern</span> 💾
+              </span>
               <span
                 x-show="isSaving"
                 class="loading loading-spinner loading-xs"
               >
               </span>
             </button>
+
+            {/* Theme Toggle */}
+            <ThemeToggle />
           </div>
         </header>
 
@@ -314,14 +329,14 @@ export const NotesPage = () => {
               x-on:drop="handleDrop($event)"
               x-on:dragover="$event.preventDefault()"
               placeholder="Beginne hier zu schreiben... (Markdown unterstützt. Bilder direkt per Strg+V einfügen!)"
-              class="flex-1 p-6 font-mono text-sm leading-relaxed outline-none resize-none bg-transparent text-base-content/90 placeholder:opacity-40"
+              class="flex-1 p-3 sm:p-6 font-mono text-xs sm:text-sm leading-relaxed outline-none resize-none bg-transparent text-base-content/90 placeholder:opacity-40"
               x-bind:disabled="!notePath || isLoading"
             >
             </textarea>
 
             {/* Footer Statusbar */}
-            <div class="px-6 py-2 border-t border-base-content/5 bg-base-200/30 flex justify-between items-center text-[11px] opacity-60 font-mono">
-              <div class="flex gap-4">
+            <div class="px-3 sm:px-6 py-2 border-t border-base-content/5 bg-base-200/30 flex justify-between items-center text-[10px] sm:text-[11px] opacity-60 font-mono">
+              <div class="flex gap-3 sm:gap-4">
                 <span>
                   Zeichen: <strong x-text="charCount"></strong>
                 </span>
@@ -329,7 +344,7 @@ export const NotesPage = () => {
                   Wörter: <strong x-text="wordCount"></strong>
                 </span>
               </div>
-              <div>
+              <div class="hidden sm:inline">
                 💡 <code>Strg+V</code> für Bilder • <code>Strg+S</code>{" "}
                 zum Speichern
               </div>
@@ -338,7 +353,7 @@ export const NotesPage = () => {
 
           {/* Preview Pane */}
           <div
-            class="flex-1 overflow-y-auto p-6 md:p-8 bg-base-100 text-base-content"
+            class="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8 bg-base-100 text-base-content"
             x-show="viewMode === 'preview' || viewMode === 'split'"
           >
             <div class="max-w-3xl mx-auto">

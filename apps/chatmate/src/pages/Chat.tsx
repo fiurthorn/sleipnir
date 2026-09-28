@@ -5,6 +5,8 @@
  * Architektur & Review: Stefan | Implementation & Synthese: Sam
  */
 
+import { ThemeToggle } from "@sleipnir/core";
+
 export const ChatPage = () => {
   return (
     <div x-data="chatmate" class="flex h-screen overflow-hidden">
@@ -196,6 +198,9 @@ export const ChatPage = () => {
             >
               🗑️
             </button>
+
+            {/* Theme Toggle */}
+            <ThemeToggle />
           </div>
         </header>
 

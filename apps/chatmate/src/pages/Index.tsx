@@ -6,7 +6,7 @@
  */
 
 import { Child } from "hono/jsx";
-import { AlertZone, proxyRedirect } from "@sleipnir/core";
+import { AlertZone, proxyRedirect, themeInit } from "@sleipnir/core";
 
 interface PageProps {
   title?: string;
@@ -27,19 +27,21 @@ export const Index = (
         <link href="./static/styles.css" rel="stylesheet" />
         <link href="./static/vendor/nord.min.css" rel="stylesheet" />
 
-        <script type="module" src="./static/client.js"></script>
         <script defer src="./static/vendor/alpine-collapse.min.js"></script>
         <script defer src="./static/vendor/alpine-focus.min.js"></script>
         <script defer src="./static/vendor/alpine-mask.min.js"></script>
-        <script defer src="./static/alpine-cookie-persist.js"></script>
-        <script defer src="./static/alpine-addons.js"></script>
         <script defer src="./static/vendor/alpine-persist.min.js"></script>
+        <script defer src="./static/sleipnir-client.min.js"></script>
         <script defer src="./static/vendor/marked.min.js"></script>
         <script defer src="./static/vendor/highlight.min.js"></script>
         <script defer src="./static/chatmate.js"></script>
         <script defer src="./static/vendor/alpine.min.js"></script>
 
-        <script dangerouslySetInnerHTML={{ __html: `(${proxyRedirect})();` }} />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(${proxyRedirect})();(${themeInit})();`,
+          }}
+        />
         <title>{title}</title>
       </head>
 

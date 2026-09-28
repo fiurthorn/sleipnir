@@ -14,3 +14,5 @@ export * from "./src/utils.ts";
 export * from "./src/kv.ts";
 export * from "./src/cors.ts";
 export * from "./src/components/Alerts.tsx";
+export * from "./src/components/ThemeToggle.tsx";
+export type * from "./src/client/types.ts";

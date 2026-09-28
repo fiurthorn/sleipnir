@@ -43,7 +43,9 @@ configureMarkedHighlight();
 document.addEventListener("alpine:init", () => {
   Alpine.data("notemate", () => ({
     // Persistent view settings
-    viewMode: Alpine.$persist("split").as("notemate_view_mode_v1"),
+    viewMode: Alpine.$persist(
+      window.innerWidth < 1024 ? "preview" : "split",
+    ).as("notemate_view_mode_v1"),
     expandedFolders: Alpine.$persist([]).as("notemate_expanded_v1"),
     activePath: Alpine.$persist("Willkommen.md").as("notemate_active_path_v1"),
 
@@ -261,9 +263,13 @@ document.addEventListener("alpine:init", () => {
         }
 
         const data = await res.json();
+        if (data.note?.content) {
+          this.noteContent = data.note.content;
+          this.detectRecipe(this.noteContent);
+        }
         this.noteUpdatedAt = data.note.updatedAt;
         this.isDirty = false;
-        this.showToast("✓ Notiz gespeichert");
+        this.showToast("✓ Notiz formatiert & gespeichert");
         await this.refreshTree();
       } catch (err) {
         this.showToast("Fehler beim Speichern: " + err.message);

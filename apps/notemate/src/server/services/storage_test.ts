@@ -67,3 +67,19 @@ Deno.test("NoteStorage - path traversal protection", async () => {
     await Deno.remove(tempDir, { recursive: true });
   }
 });
+
+Deno.test("NoteStorage - formats markdown and tables on save", async () => {
+  const tempDir = await Deno.makeTempDir();
+  try {
+    const storage = new NoteStorage({ dataDir: tempDir });
+    const unformatted = `# Test\n\n|A|B|\n|---|---|\n|1|2|\n`;
+    const note = await storage.saveNote("table.md", unformatted);
+
+    assertEquals(
+      note.content,
+      `# Test\n\n| A   | B   |\n| --- | --- |\n| 1   | 2   |\n`,
+    );
+  } finally {
+    await Deno.remove(tempDir, { recursive: true });
+  }
+});

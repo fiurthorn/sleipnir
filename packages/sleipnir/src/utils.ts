@@ -13,7 +13,29 @@ export const proxyRedirect: string = function () {
   if (path.match(/.*\/proxy\/\d+$/) && !path.endsWith("/")) {
     globalThis.location.replace(path + "/");
   }
-  globalThis.HTMX_BASE_PATH = path.endsWith("/") ? path : path + "/";
+}.toString();
+
+export const themeInit: string = function () {
+  try {
+    const g = globalThis as unknown as {
+      localStorage?: { getItem(k: string): string | null };
+      matchMedia?: (q: string) => { matches: boolean };
+      document?: {
+        documentElement: { setAttribute(k: string, v: string): void };
+      };
+    };
+    const saved = g.localStorage?.getItem("sleipnir_theme");
+    const prefersDark = g.matchMedia &&
+      g.matchMedia("(prefers-color-scheme: dark)").matches;
+    const isDark = saved === "dark" || saved === "corvus-dark" ||
+      (!saved && prefersDark);
+    g.document?.documentElement.setAttribute(
+      "data-theme",
+      isDark ? "corvus-dark" : "corvus",
+    );
+  } catch (_) {
+    // ignore
+  }
 }.toString();
 
 export function parseInteger(input: string | undefined = "0"): number {

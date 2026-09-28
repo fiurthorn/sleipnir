@@ -62,3 +62,24 @@
   --color-warning: var(--color-nord-aurora-orange);
   --color-error: var(--color-nord-aurora-red);
 }
+
+[data-theme="corvus-dark"] {
+  color-scheme: dark;
+  --color-primary: var(--color-nord-frost-8);
+  --color-secondary: var(--color-nord-frost-9);
+  --color-accent: var(--color-nord-aurora-yellow);
+  --color-neutral: #1e222a;
+
+  --color-base-100: var(--color-nord-polar-night-1);
+  --color-base-200: var(--color-nord-polar-night-0);
+  --color-base-300: #242933;
+  --color-base-content: var(--color-nord-snow-storm-6);
+
+  --color-background: #242933;
+  --color-foreground: var(--color-nord-snow-storm-6);
+
+  --color-info: var(--color-nord-frost-8);
+  --color-success: var(--color-nord-aurora-green);
+  --color-warning: var(--color-nord-aurora-orange);
+  --color-error: var(--color-nord-aurora-red);
+}

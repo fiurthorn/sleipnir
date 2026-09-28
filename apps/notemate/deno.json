@@ -12,6 +12,7 @@
     "@tailwindcss/cli": "npm:@tailwindcss/cli@^4.3.3",
     "daisyui": "npm:daisyui@^5.7.46",
     "hono": "npm:hono@^4.13.10",
+    "prettier": "npm:prettier@^3.5.2",
     "tailwindcss": "npm:tailwindcss@^4.3.3"
   },
   "permissions": {
