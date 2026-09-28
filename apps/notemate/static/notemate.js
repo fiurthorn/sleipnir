@@ -29,6 +29,7 @@ document.addEventListener("alpine:init", () => {
         dirty: this.isDirty,
       };
     },
+    mobileMenuOpen: false,
     isLoading: false,
     isSaving: false,
     toastMessage: null,
@@ -108,6 +109,23 @@ document.addEventListener("alpine:init", () => {
       } else {
         this.expandedFolders = [...(this.expandedFolders || []), folderPath];
       }
+    },
+
+    selectTreeItem(item) {
+      if (!item) return;
+      if (item.type === "directory") {
+        this.toggleFolder(item.path);
+      } else {
+        this.loadNote(item.path);
+        this.mobileMenuOpen = false;
+      }
+    },
+
+    selectSearchResult(path) {
+      if (!path) return;
+      this.loadNote(path);
+      this.clearSearch();
+      this.mobileMenuOpen = false;
     },
 
     get visibleTreeItems() {
@@ -207,7 +225,8 @@ document.addEventListener("alpine:init", () => {
       }
     },
 
-    async createNewNote(parentDir = "") {
+    async createNewNote(parentDir = "", event = null) {
+      if (event && event.stopPropagation) event.stopPropagation();
       const defaultName = "Neue Notiz";
       const name = prompt("Name der neuen Notiz:", defaultName);
       if (!name || !name.trim()) return;
@@ -267,7 +286,8 @@ document.addEventListener("alpine:init", () => {
       }
     },
 
-    async deleteItem(path, isDirectory = false) {
+    async deleteItem(path, isDirectory = false, event = null) {
+      if (event && event.stopPropagation) event.stopPropagation();
       const label = isDirectory ? "diesen Ordner inklusive Inhalt" : "diese Notiz";
       if (!confirm(`Möchtest du ${label} wirklich löschen?`)) return;
 
@@ -298,7 +318,8 @@ document.addEventListener("alpine:init", () => {
       }
     },
 
-    async renameItem(oldPath) {
+    async renameItem(oldPath, event = null) {
+      if (event && event.stopPropagation) event.stopPropagation();
       const currentName = oldPath.split("/").pop() || "";
       const isFile = oldPath.endsWith(".md");
       const defaultName = isFile ? currentName.replace(/\.md$/, "") : currentName;
@@ -440,6 +461,12 @@ document.addEventListener("alpine:init", () => {
       this.searchQuery = "";
       this.searchResults = [];
       this.isSearching = false;
+    },
+
+    onSearchKeydown(event) {
+      if (event && event.key === "Escape") {
+        this.clearSearch();
+      }
     },
 
     // Markdown rendering

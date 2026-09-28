@@ -95,7 +95,7 @@ export const ChatPage = () => {
                 <button
                   type="button"
                   class="opacity-0 group-hover:opacity-100 hover:text-error transition px-1.5 text-xs shrink-0"
-                  x-on:click="$event.stopPropagation(); deleteChat(chat.id)"
+                  x-on:click="deleteChat(chat.id, $event)"
                   title="Löschen"
                 >
                   ✕
@@ -364,7 +364,7 @@ export const ChatPage = () => {
             </template>
 
             <form
-              x-on:submit="$event.preventDefault(); submitMessage()"
+              x-on:submit="onSubmitForm($event)"
               class="flex gap-2 items-end"
             >
               {/* Attachment Button */}
@@ -396,10 +396,10 @@ export const ChatPage = () => {
 
               <textarea
                 x-model="inputPrompt"
-                x-on:keydown="if ($event.key === 'Enter' && !$event.shiftKey) { $event.preventDefault(); submitMessage(); }"
+                x-on:keydown="onPromptKeydown($event)"
                 x-on:paste="handlePaste($event)"
                 x-on:drop="handleDrop($event)"
-                x-on:dragover="$event.preventDefault()"
+                x-on:dragover="onDragOver($event)"
                 placeholder="Nachricht schreiben... (Bilder per Strg+V pasten, /image für Generierung)"
                 class="textarea textarea-bordered flex-1 min-h-[52px] max-h-36 resize-none focus:outline-primary leading-snug"
                 rows={1}

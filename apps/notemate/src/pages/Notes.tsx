@@ -17,8 +17,20 @@ export const NotesPage = () => {
       >
       </div>
 
+      {/* Mobile Backdrop */}
+      <div
+        x-show="mobileMenuOpen"
+        x-on:click="mobileMenuOpen = false"
+        class="fixed inset-0 bg-black/50 z-40 md:hidden"
+        style="display: none;"
+      >
+      </div>
+
       {/* Sidebar: Hierarchischer Verzeichnisbaum & Suche */}
-      <aside class="w-80 bg-base-200 border-r border-base-content/10 flex flex-col justify-between hidden md:flex z-10">
+      <aside
+        class="w-80 bg-base-200 border-r border-base-content/10 flex flex-col justify-between z-50 md:z-10 md:relative"
+        x-bind:class="mobileMenuOpen ? 'fixed inset-y-0 left-0 shadow-2xl flex' : 'hidden md:flex'"
+      >
         <div class="p-4 flex flex-col gap-3 flex-1 overflow-hidden">
           {/* Logo & Header */}
           <div class="flex items-center justify-between">
@@ -62,7 +74,7 @@ export const NotesPage = () => {
               class="input input-bordered input-sm w-full pl-8 text-xs font-sans"
               x-model="searchQuery"
               x-on:input="performSearch()"
-              x-on:keydown="if ($event.key === 'Escape') clearSearch()"
+              x-on:keydown="onSearchKeydown($event)"
             />
             <span class="absolute left-2.5 top-2 text-xs opacity-50">🔍</span>
             <button
@@ -89,7 +101,7 @@ export const NotesPage = () => {
               <div
                 class="p-2 rounded-lg text-xs hover:bg-base-300 cursor-pointer transition flex flex-col gap-0.5 border border-base-content/5"
                 x-bind:class="notePath === res.path ? 'bg-primary/10 border-primary/30' : ''"
-                x-on:click="loadNote(res.path); clearSearch()"
+                x-on:click="selectSearchResult(res.path)"
               >
                 <div class="font-semibold text-primary truncate flex items-center gap-1.5">
                   <span>📄</span>
@@ -129,7 +141,7 @@ export const NotesPage = () => {
                 class="group flex items-center justify-between py-1.5 px-2 rounded-md transition cursor-pointer"
                 x-bind:class="notePath === item.path ? 'bg-primary text-primary-content font-medium shadow-sm' : 'hover:bg-base-300 text-base-content/85'"
                 x-bind:style="'padding-left: ' + (item.depth * 14 + 8) + 'px'"
-                x-on:click="if (item.type === 'directory') toggleFolder(item.path); else loadNote(item.path);"
+                x-on:click="selectTreeItem(item)"
               >
                 <div class="flex items-center gap-1.5 truncate flex-1 min-w-0">
                   {/* Folder Toggle Icon */}
@@ -162,7 +174,7 @@ export const NotesPage = () => {
                     <button
                       type="button"
                       class="hover:text-primary p-0.5"
-                      x-on:click="$event.stopPropagation(); createNewNote(item.path)"
+                      x-on:click="createNewNote(item.path, $event)"
                       title="Notiz in diesem Ordner anlegen"
                     >
                       +
@@ -173,7 +185,7 @@ export const NotesPage = () => {
                   <button
                     type="button"
                     class="hover:text-primary p-0.5"
-                    x-on:click="$event.stopPropagation(); renameItem(item.path)"
+                    x-on:click="renameItem(item.path, $event)"
                     title="Umbenennen"
                   >
                     ✏️
@@ -183,7 +195,7 @@ export const NotesPage = () => {
                   <button
                     type="button"
                     class="hover:text-error p-0.5"
-                    x-on:click="$event.stopPropagation(); deleteItem(item.path, item.type === 'directory')"
+                    x-on:click="deleteItem(item.path, item.type === 'directory', $event)"
                     title="Löschen"
                   >
                     ✕
@@ -221,7 +233,17 @@ export const NotesPage = () => {
         <header class="navbar bg-base-100 border-b border-base-content/10 px-6 py-2 flex justify-between z-10 min-h-12">
           {/* Breadcrumbs & Title */}
           <div class="flex items-center gap-2 truncate">
-            <span class="text-xs font-mono opacity-50">Root /</span>
+            <button
+              type="button"
+              class="btn btn-ghost btn-xs btn-square md:hidden shrink-0"
+              x-on:click="mobileMenuOpen = !mobileMenuOpen"
+              title="Menü öffnen"
+            >
+              ☰
+            </button>
+            <span class="text-xs font-mono opacity-50 hidden sm:inline">
+              Root /
+            </span>
             <span
               class="font-bold text-sm md:text-base text-base-content truncate"
               x-text="notePath ? notePath : 'Keine Notiz gewählt'"

@@ -98,7 +98,8 @@ document.addEventListener("alpine:init", () => {
       this.$nextTick(() => this.scrollToBottom());
     },
 
-    deleteChat(id) {
+    deleteChat(id, event = null) {
+      if (event && event.stopPropagation) event.stopPropagation();
       if (this.chats.length <= 1) {
         this.createWelcomeChat();
         return;
@@ -113,6 +114,22 @@ document.addEventListener("alpine:init", () => {
       if (this.currentChat) {
         this.currentChat.messages = [];
       }
+    },
+
+    onSubmitForm(event) {
+      if (event && event.preventDefault) event.preventDefault();
+      this.submitMessage();
+    },
+
+    onPromptKeydown(event) {
+      if (event && event.key === "Enter" && !event.shiftKey) {
+        if (event.preventDefault) event.preventDefault();
+        this.submitMessage();
+      }
+    },
+
+    onDragOver(event) {
+      if (event && event.preventDefault) event.preventDefault();
     },
 
     renderMarkdown(text) {
