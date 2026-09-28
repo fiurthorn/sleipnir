@@ -350,11 +350,74 @@ export const NotesPage = () => {
             class="flex-1 overflow-y-auto p-6 md:p-8 bg-base-100 text-base-content"
             x-show="viewMode === 'preview' || viewMode === 'split'"
           >
-            <article
-              class="prose prose-sm md:prose-base markdown-body max-w-3xl mx-auto"
-              x-html="renderMarkdown(noteContent)"
-            >
-            </article>
+            <div class="max-w-3xl mx-auto">
+              {/* Recipe Portion Scaler Banner */}
+              <template x-if="recipeBaseServings">
+                <div class="mb-6 p-3.5 rounded-xl bg-base-200/60 border border-primary/20 flex flex-wrap items-center justify-between gap-3 shadow-sm select-none">
+                  <div class="flex items-center gap-2.5">
+                    <span class="text-2xl">🍳</span>
+                    <div>
+                      <div class="font-bold text-xs text-primary flex items-center gap-1.5">
+                        <span>Rezept-Skalierung</span>
+                        <span
+                          x-show="recipeCurrentServings !== recipeBaseServings"
+                          class="badge badge-warning badge-xs font-mono font-medium"
+                        >
+                          skaliert
+                        </span>
+                      </div>
+                      <div class="text-[11px] opacity-60">
+                        Basis: <strong x-text="recipeBaseServings"></strong>
+                        {" "}
+                        Portionen
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="flex items-center gap-2">
+                    <div class="join border border-base-content/20 rounded-lg bg-base-100 shadow-sm">
+                      <button
+                        type="button"
+                        class="join-item btn btn-xs btn-ghost px-2.5 font-bold"
+                        x-on:click="decrementServings()"
+                        x-bind:disabled="recipeCurrentServings <= 1"
+                        title="Eine Portion weniger"
+                      >
+                        -
+                      </button>
+                      <div class="join-item px-3 py-1 text-xs font-mono font-bold flex items-center min-w-16 justify-center">
+                        <span x-text="recipeCurrentServings"></span>
+                        <span class="opacity-60 ml-1 font-normal">Port.</span>
+                      </div>
+                      <button
+                        type="button"
+                        class="join-item btn btn-xs btn-ghost px-2.5 font-bold"
+                        x-on:click="incrementServings()"
+                        title="Eine Portion mehr"
+                      >
+                        +
+                      </button>
+                    </div>
+
+                    <button
+                      type="button"
+                      x-show="recipeCurrentServings !== recipeBaseServings"
+                      class="btn btn-ghost btn-xs text-[11px] opacity-60 hover:opacity-100 font-mono"
+                      x-on:click="resetServings()"
+                      title="Auf Original zurücksetzen"
+                    >
+                      ↺ Reset
+                    </button>
+                  </div>
+                </div>
+              </template>
+
+              <article
+                class="prose prose-sm md:prose-base markdown-body"
+                x-html="renderMarkdown(noteContent, recipeCurrentServings)"
+              >
+              </article>
+            </div>
           </div>
         </div>
       </main>

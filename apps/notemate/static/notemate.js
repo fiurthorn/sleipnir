@@ -55,6 +55,10 @@ document.addEventListener("alpine:init", () => {
     noteUpdatedAt: null,
     isDirty: false,
 
+    // Recipe Servings Scaling Module
+    recipeBaseServings: null,
+    recipeCurrentServings: null,
+
     get currentNote() {
       return {
         path: this.notePath,
@@ -205,6 +209,11 @@ document.addEventListener("alpine:init", () => {
           this.isDirty = false;
           this.activePath = data.note.path;
 
+          // Detect recipe frontmatter
+          this.recipeBaseServings = null;
+          this.recipeCurrentServings = null;
+          this.detectRecipe(data.note.content);
+
           // Auto-expand parent folders
           const parts = path.split("/");
           parts.pop(); // remove filename
@@ -228,6 +237,7 @@ document.addEventListener("alpine:init", () => {
 
     markDirty() {
       this.isDirty = true;
+      this.detectRecipe(this.noteContent);
     },
 
     async saveCurrentNote() {
@@ -504,15 +514,237 @@ document.addEventListener("alpine:init", () => {
       }
     },
 
+    // Recipe Scaling Module Methods
+    detectRecipe(content) {
+      if (!content) {
+        this.recipeBaseServings = null;
+        this.recipeCurrentServings = null;
+        return;
+      }
+      const fmMatch = content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+      if (!fmMatch) {
+        this.recipeBaseServings = null;
+        this.recipeCurrentServings = null;
+        return;
+      }
+      const servingsMatch = fmMatch[1].match(
+        /(?:servings|portionen|portions|menge|yield):\s*(\d+(?:[.,]\d+)?)/i,
+      );
+      if (servingsMatch) {
+        const base = parseFloat(servingsMatch[1].replace(",", "."));
+        if (!isNaN(base) && base > 0) {
+          if (this.recipeBaseServings !== base) {
+            this.recipeBaseServings = base;
+            this.recipeCurrentServings = base;
+          }
+          return;
+        }
+      }
+      this.recipeBaseServings = null;
+      this.recipeCurrentServings = null;
+    },
+
+    incrementServings() {
+      if (typeof this.recipeCurrentServings === "number") {
+        this.recipeCurrentServings =
+          Math.round((this.recipeCurrentServings + 1) * 10) / 10;
+      }
+    },
+
+    decrementServings() {
+      if (
+        typeof this.recipeCurrentServings === "number" &&
+        this.recipeCurrentServings > 1
+      ) {
+        this.recipeCurrentServings =
+          Math.round((this.recipeCurrentServings - 1) * 10) / 10;
+      }
+    },
+
+    resetServings() {
+      this.recipeCurrentServings = this.recipeBaseServings;
+    },
+
+    formatNumber(val) {
+      if (Math.abs(val - Math.round(val)) < 0.005) {
+        return Math.round(val).toString();
+      }
+      const rounded = (Math.round(val * 100) / 100).toFixed(2).replace(
+        /\.?0+$/,
+        "",
+      );
+      return rounded.replace(".", ",");
+    },
+
+    scaleQuantityString(str, multiplier) {
+      if (!str) return str;
+      const clean = str.replace(/\*/g, "").trim();
+
+      // Fraction e.g. 1/2
+      const fracMatch = clean.match(/^(\d+)\/(\d+)$/);
+      if (fracMatch) {
+        const val = parseInt(fracMatch[1], 10) / parseInt(fracMatch[2], 10);
+        return this.formatNumber(val * multiplier);
+      }
+
+      // Mixed fraction e.g. 1 1/2
+      const mixedFracMatch = clean.match(/^(\d+)\s+(\d+)\/(\d+)$/);
+      if (mixedFracMatch) {
+        const val = parseInt(mixedFracMatch[1], 10) +
+          (parseInt(mixedFracMatch[2], 10) / parseInt(mixedFracMatch[3], 10));
+        return this.formatNumber(val * multiplier);
+      }
+
+      // Range e.g. 2-3 or 2 - 3
+      const rangeMatch = clean.match(
+        /^(\d+(?:[.,]\d+)?)\s*[-–]\s*(\d+(?:[.,]\d+)?)$/,
+      );
+      if (rangeMatch) {
+        const v1 = parseFloat(rangeMatch[1].replace(",", "."));
+        const v2 = parseFloat(rangeMatch[2].replace(",", "."));
+        return `${this.formatNumber(v1 * multiplier)} - ${
+          this.formatNumber(v2 * multiplier)
+        }`;
+      }
+
+      const hasDigits = /\d/.test(clean);
+      if (!hasDigits) return str;
+
+      return clean.replace(/(\d+(?:[.,]\d+)?)/g, (match) => {
+        const num = parseFloat(match.replace(",", "."));
+        if (isNaN(num)) return match;
+        return this.formatNumber(num * multiplier);
+      });
+    },
+
+    scaleIngredientsTable(content, multiplier) {
+      if (!multiplier || multiplier === 1) return content;
+
+      const lines = content.split("\n");
+      let tableStart = -1;
+      let delimiterIdx = -1;
+      let tableEnd = -1;
+
+      for (let i = 0; i < lines.length - 1; i++) {
+        const line = lines[i].trim();
+        const nextLine = lines[i + 1].trim();
+
+        if (
+          line.includes("|") &&
+          /^\|?(\s*:?-+:?\s*\|)+\s*:?-+:?\s*\|?$/.test(nextLine)
+        ) {
+          tableStart = i;
+          delimiterIdx = i + 1;
+          break;
+        }
+      }
+
+      if (tableStart === -1 || delimiterIdx === -1) {
+        return content;
+      }
+
+      for (let i = delimiterIdx + 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line || !line.includes("|")) {
+          tableEnd = i;
+          break;
+        }
+      }
+      if (tableEnd === -1) {
+        tableEnd = lines.length;
+      }
+
+      const headerLine = lines[tableStart];
+      const hasOuterPipes = headerLine.trim().startsWith("|") &&
+        headerLine.trim().endsWith("|");
+      const rawHeaders = hasOuterPipes
+        ? headerLine.trim().slice(1, -1).split("|")
+        : headerLine.split("|");
+      const headers = rawHeaders.map((h) => h.trim().toLowerCase());
+
+      let qtyCol = headers.findIndex((h) =>
+        /^(?:menge|amount|qty|anzahl|portionen?)$/i.test(h)
+      );
+
+      if (qtyCol === -1) {
+        qtyCol = headers.findIndex((h) =>
+          /(?:menge|amount|qty|anzahl)/i.test(h)
+        );
+      }
+
+      if (qtyCol === -1 && delimiterIdx + 1 < tableEnd) {
+        const firstRow = lines[delimiterIdx + 1].trim();
+        const firstCells = hasOuterPipes
+          ? firstRow.slice(1, -1).split("|")
+          : firstRow.split("|");
+        for (let c = 0; c < firstCells.length; c++) {
+          if (/^\s*\d+(?:[.,]\d+)?\s*$/.test(firstCells[c])) {
+            qtyCol = c;
+            break;
+          }
+        }
+      }
+
+      if (qtyCol === -1) return content;
+
+      for (let i = delimiterIdx + 1; i < tableEnd; i++) {
+        const line = lines[i];
+        const trimmed = line.trim();
+        if (!trimmed) continue;
+
+        const rowHasOuterPipes = trimmed.startsWith("|") &&
+          trimmed.endsWith("|");
+        const rawCells = rowHasOuterPipes
+          ? trimmed.slice(1, -1).split("|")
+          : line.split("|");
+
+        if (qtyCol < rawCells.length) {
+          const orig = rawCells[qtyCol].trim();
+          const scaled = this.scaleQuantityString(orig, multiplier);
+          if (scaled !== orig) {
+            rawCells[qtyCol] = ` **${scaled}** `;
+            lines[i] = rowHasOuterPipes
+              ? `|${rawCells.join("|")}|`
+              : rawCells.join("|");
+          }
+        }
+      }
+
+      return lines.join("\n");
+    },
+
+    get renderedMarkdown() {
+      return this.renderMarkdown(this.noteContent, this.recipeCurrentServings);
+    },
+
     // Markdown rendering
-    renderMarkdown(content) {
+    renderMarkdown(content, servings) {
       if (!content) return "";
-      // Normalize absolute /attachments/ paths to relative ./attachments/
+      let processed = content;
+
+      // 1. Strip YAML frontmatter for rendering
+      processed = processed.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, "");
+
+      // 2. Recipe table scaling
+      const currentServings = typeof servings === "number"
+        ? servings
+        : this.recipeCurrentServings;
+      if (
+        this.recipeBaseServings &&
+        currentServings &&
+        currentServings !== this.recipeBaseServings
+      ) {
+        const multiplier = currentServings / this.recipeBaseServings;
+        processed = this.scaleIngredientsTable(processed, multiplier);
+      }
+
+      // 3. Normalize absolute /attachments/ paths to relative ./attachments/
       // so images load smoothly behind reverse proxies, Tailscale, and code-server
-      const normalized = content.replace(
+      const normalized = processed.replace(
         /(\!\[.*?\]\()(?:\/|\.\/)?attachments\/([^)]+)(\))/g,
         "$1./attachments/$2$3",
       );
+
       if (typeof window.marked !== "undefined" && window.marked.parse) {
         return window.marked.parse(normalized);
       }
