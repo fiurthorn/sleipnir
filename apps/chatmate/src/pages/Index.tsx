@@ -34,6 +34,8 @@ export const Index = (
         <script defer src="./static/alpine-cookie-persist.js"></script>
         <script defer src="./static/alpine-addons.js"></script>
         <script defer src="./static/vendor/alpine-persist.min.js"></script>
+        <script defer src="./static/vendor/marked.min.js"></script>
+        <script defer src="./static/chatmate.js"></script>
         <script defer src="./static/vendor/alpine.min.js"></script>
 
         <script dangerouslySetInnerHTML={{ __html: `(${proxyRedirect})();` }} />
