@@ -49,41 +49,8 @@ fmt:
 update-dependencies:
     deno update
 
-[group('cookmate')]
-dev-cookmate:
-    deno run -P=app --watch apps/cookmate/main.ts
-
-[group('cookmate')]
-build-css-cookmate:
-    deno run -A "npm:@tailwindcss/cli" -i ./apps/cookmate/src/input.css -o ./apps/cookmate/static/styles.css
-
-[group('cookmate')]
-watch-css-cookmate:
-    deno run -A "npm:@tailwindcss/cli" -i ./apps/cookmate/src/input.css -o ./apps/cookmate/static/styles.css --watch
-
-[group('chatmate')]
-dev-chatmate:
-    deno run -P=app --watch apps/chatmate/main.ts
-
-[group('chatmate')]
-build-css-chatmate:
-    deno run -A "npm:@tailwindcss/cli" -i ./apps/chatmate/src/input.css -o ./apps/chatmate/static/styles.css
-
-[group('chatmate')]
-watch-css-chatmate:
-    deno run -A "npm:@tailwindcss/cli" -i ./apps/chatmate/src/input.css -o ./apps/chatmate/static/styles.css --watch
-
-[group('notemate')]
-dev-notemate:
-    deno run -P=app --watch apps/notemate/main.ts
-
-[group('notemate')]
-build-css-notemate:
-    deno run -A "npm:@tailwindcss/cli" -i ./apps/notemate/src/input.css -o ./apps/notemate/static/styles.css
-
-[group('notemate')]
-watch-css-notemate:
-    deno run -A "npm:@tailwindcss/cli" -i ./apps/notemate/src/input.css -o ./apps/notemate/static/styles.css --watch
-
 [group('lifecycle')]
-build-css: build-css-cookmate build-css-chatmate build-css-notemate
+build-css:
+    @just cookmate build-css
+    @just chatmate build-css
+    @just notemate build-css

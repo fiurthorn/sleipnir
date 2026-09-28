@@ -119,21 +119,29 @@ if (user.isAuthenticated) {
 ```text
 cookmate/
 ├── deno.json                       # Workspace-Root ("workspace": ["./packages/*", "./apps/*"])
-├── Justfile                        # Zentrale Lifecycle-Orchestrierung
+├── Justfile                        # Zentrale Lifecycle-Orchestrierung (Module: cookmate, chatmate, notemate)
 ├── packages/
 │   └── sleipnir/                   # @sleipnir/core
 │       ├── mod.ts                  # Öffentliche Schnittstelle des Core-Frameworks
 │       └── src/                    # Sleipnir (Hono-Wrapper), Sessions, KV, JSONPath, Assets
 └── apps/
     ├── cookmate/                   # Kochbuch (Port 3001)
+    │   ├── Justfile                # App-Justfile (serve, check, build-css, watch-css)
     │   ├── main.ts                 # App-Einstieg
     │   ├── src/                    # Pages, Components, Recipe-Search Worker
     │   └── static/                 # Styles, Vendor-Scripts
     │
-    └── chatmate/                   # NextChat-Klon & Bildgenerator (Port 3002)
+    ├── chatmate/                   # NextChat-Klon & Bildgenerator (Port 3002)
+    │   ├── Justfile                # App-Justfile (serve, check, build-css, watch-css)
+    │   ├── main.ts                 # App-Einstieg
+    │   ├── src/                    # Chat-UI, SSE / Prompt-Handling, Image-Gen
+    │   └── static/                 # Styles, Vendor-Scripts
+    │
+    └── notemate/                   # Hierarchische Markdown-Notizen (Port 3003)
+        ├── Justfile                # App-Justfile (serve, check, build-css, watch-css)
         ├── main.ts                 # App-Einstieg
-        ├── src/                    # Chat-UI, SSE / Prompt-Handling, Image-Gen
-        └── static/                 # Styles, Vendor-Scripts
+        ├── src/                    # Notes-UI, Storage-Service, Attachments
+        └── static/                 # Styles, Client-Script
 ```
 
 ### Abhängigkeits-Richtung (Clean Architecture):
@@ -147,19 +155,19 @@ cookmate/
 
 ## 🛠 4. Lifecycle & Entwickler-Befehle
 
-Alle Operationen werden über das [`Justfile`](file:///Justfile) gesteuert:
+Alle Operationen werden über das [`Justfile`](file:///Justfile) gesteuert. Durch Just-Submodule können Apps entweder direkt aus dem Root oder im App-Ordner gesteuert werden:
 
-| Task                     | Befehl                    | Zweck                                                     |
-| ------------------------ | ------------------------- | --------------------------------------------------------- |
-| **Cookmate starten**     | `just dev-cookmate`       | Startet Cookmate auf `http://localhost:3001` (Watch-Mode) |
-| **Chatmate starten**     | `just dev-chatmate`       | Startet Chatmate auf `http://localhost:3002` (Watch-Mode) |
-| **CSS kompilieren**      | `just build-css`          | Baut Tailwind v4 + DaisyUI für beide Apps                 |
-| **CSS beobachten**       | `just watch-css-cookmate` | Watch-Mode für Tailwind-Styles in Cookmate                |
-| **Type Check**           | `just check`              | Führt `deno check` über das gesamte Monorepo aus          |
-| **Tests ausführen**      | `just test`               | Führt die Unit-Testsuite aus (`deno test`)                |
-| **Linting**              | `just lint`               | Prüft alle Workspace-Dateien auf Code-Smells              |
-| **Formatierung**         | `just fmt`                | Formatiert das Monorepo nach Deno-Standard                |
-| **Git-Hooks einrichten** | `just install-hooks`      | Aktiviert den Pre-Commit Hook via Symlink                 |
+| Task                     | Befehl (Root)          | Befehl (App-Verzeichnis) | Zweck                                                     |
+| ------------------------ | ---------------------- | ------------------------ | --------------------------------------------------------- |
+| **Cookmate starten**     | `just cookmate serve`  | `just serve`             | Startet Cookmate auf `http://localhost:3001` (Watch-Mode) |
+| **Chatmate starten**     | `just chatmate serve`  | `just serve`             | Startet Chatmate auf `http://localhost:3002` (Watch-Mode) |
+| **Notemate starten**     | `just notemate serve`  | `just serve`             | Startet Notemate auf `http://localhost:3003` (Watch-Mode) |
+| **CSS kompilieren**      | `just build-css`       | `just build-css`         | Baut Tailwind v4 + DaisyUI für alle Apps                  |
+| **Type Check**           | `just check`           | `just check`             | Führt `deno check` über das gesamte Monorepo aus          |
+| **Tests ausführen**      | `just test`            | -                        | Führt die Unit-Testsuite aus (`deno test`)                |
+| **Linting**              | `just lint`            | -                        | Prüft alle Workspace-Dateien auf Code-Smells              |
+| **Formatierung**         | `just fmt`             | -                        | Formatiert das Monorepo nach Deno-Standard                |
+| **Git-Hooks einrichten** | `just install-hooks`   | -                        | Aktiviert den Pre-Commit Hook via Symlink                 |
 
 ---
 
