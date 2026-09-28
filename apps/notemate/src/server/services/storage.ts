@@ -50,7 +50,7 @@ export class NoteStorage {
       Deno.env.get("NOTEMATE_DATA_DIR") ||
       "./data/notes";
     this.baseDir = resolve(rawDir);
-    this.attachmentsDir = join(this.baseDir, ".attachments");
+    this.attachmentsDir = join(this.baseDir, "attachments");
     this.ensureBaseDirs();
   }
 
@@ -120,8 +120,8 @@ Notemate ist deine **hierarchische, ablenkungsfreie Markdown-Ablage** – direkt
 
     try {
       for await (const entry of Deno.readDir(currentDir)) {
-        // Skip hidden files and the .attachments directory
-        if (entry.name.startsWith(".")) {
+        // Skip hidden files and the attachments directory
+        if (entry.name.startsWith(".") || entry.name === "attachments") {
           continue;
         }
 
@@ -211,7 +211,25 @@ Notemate ist deine **hierarchische, ablenkungsfreie Markdown-Ablage** – direkt
   }
 
   /**
+   * Computes the hierarchical attachments subdirectory for a note.
+   * Example: "Hallo Welt.md" -> "Hallo_Welt"
+   * Example: "Rezepte/Pasta/Carbonara.md" -> "Rezepte/Pasta/Carbonara"
+   */
+  getAttachmentSubdir(notePath?: string): string {
+    if (!notePath || typeof notePath !== "string") {
+      return "default";
+    }
+    const clean = notePath.replace(/^(\/|\\)+/, "").replace(/\.md$/i, "");
+    return clean
+      .split("/")
+      .map((part) => part.trim().replace(/\s+/g, "_"))
+      .filter(Boolean)
+      .join("/");
+  }
+
+  /**
    * Deletes a note or folder recursively.
+   * Also cleans up associated attachments subdirectory if a note is deleted.
    */
   async deleteItem(relPath: string): Promise<void> {
     const fullPath = this.resolveSafePath(relPath);
@@ -219,10 +237,20 @@ Notemate ist deine **hierarchische, ablenkungsfreie Markdown-Ablage** – direkt
       throw new Error("Cannot delete root directory");
     }
     await Deno.remove(fullPath, { recursive: true });
+
+    // Clean up note-specific attachments folder if it exists
+    const attachSubdir = this.getAttachmentSubdir(relPath);
+    const attachFolder = join(this.attachmentsDir, attachSubdir);
+    try {
+      await Deno.remove(attachFolder, { recursive: true });
+    } catch {
+      // Ignore if folder does not exist
+    }
   }
 
   /**
    * Renames or moves a file or directory.
+   * Also renames any associated attachments subdirectory and updates references inside note.
    */
   async renameItem(oldRelPath: string, newRelPath: string): Promise<void> {
     const oldFull = this.resolveSafePath(oldRelPath);
@@ -231,55 +259,118 @@ Notemate ist deine **hierarchische, ablenkungsfreie Markdown-Ablage** – direkt
     const parentDir = resolve(newFull, "..");
     await Deno.mkdir(parentDir, { recursive: true });
     await Deno.rename(oldFull, newFull);
+
+    // Also rename note-specific attachments folder if it exists
+    const oldAttachSubdir = this.getAttachmentSubdir(oldRelPath);
+    const newAttachSubdir = this.getAttachmentSubdir(newRelPath);
+    if (oldAttachSubdir !== newAttachSubdir) {
+      const oldAttachFolder = join(this.attachmentsDir, oldAttachSubdir);
+      const newAttachFolder = join(this.attachmentsDir, newAttachSubdir);
+      try {
+        const stat = await Deno.stat(oldAttachFolder);
+        if (stat.isDirectory) {
+          await Deno.mkdir(resolve(newAttachFolder, ".."), { recursive: true });
+          await Deno.rename(oldAttachFolder, newAttachFolder);
+        }
+      } catch {
+        // Ignore if old attachments directory does not exist
+      }
+
+      // Update markdown references inside the renamed file if it is a note
+      if (newRelPath.endsWith(".md")) {
+        try {
+          let content = await Deno.readTextFile(newFull);
+          const oldRef = `attachments/${oldAttachSubdir}`;
+          const newRef = `attachments/${newAttachSubdir}`;
+          if (content.includes(oldRef)) {
+            content = content.replaceAll(oldRef, newRef);
+            await Deno.writeTextFile(newFull, content);
+          }
+        } catch {
+          // Ignore
+        }
+      }
+    }
   }
 
   /**
-   * Saves an attachment (e.g. pasted image) into .attachments/
+   * Saves an attachment (e.g. pasted image) into attachments/<noteSubdir>/
    * and returns the public asset URL.
    */
   async saveAttachment(
     suggestedName: string,
     bytes: Uint8Array,
-  ): Promise<{ filename: string; url: string }> {
+    notePath?: string,
+  ): Promise<{ filename: string; url: string; relPath: string }> {
     const ext = extname(suggestedName) || ".png";
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
     const rand = Math.random().toString(36).substring(2, 7);
     const cleanFilename = `img_${timestamp}_${rand}${ext}`;
 
-    const filePath = join(this.attachmentsDir, cleanFilename);
+    const subDir = this.getAttachmentSubdir(notePath);
+    const targetDir = join(this.attachmentsDir, subDir);
+    await Deno.mkdir(targetDir, { recursive: true });
+
+    const filePath = join(targetDir, cleanFilename);
     await Deno.writeFile(filePath, bytes);
+
+    const relUrlPath = subDir ? `${subDir}/${cleanFilename}` : cleanFilename;
 
     return {
       filename: cleanFilename,
-      url: `./attachments/${cleanFilename}`,
+      relPath: relUrlPath,
+      url: `./attachments/${relUrlPath}`,
     };
   }
 
   /**
    * Retrieves an attachment file for serving.
+   * Supports nested paths (e.g. "Rezepte/Pasta/Carbonara/img_123.png")
+   * and falls back to the legacy .attachments/ directory.
    */
   async getAttachment(
-    filename: string,
+    relPath: string,
   ): Promise<{ data: Uint8Array; contentType: string } | null> {
-    // Sanitize filename: alphanumeric, dashes, dots, underscores only
-    const safeName = basename(filename);
-    const filePath = join(this.attachmentsDir, safeName);
+    if (!relPath || typeof relPath !== "string") {
+      return null;
+    }
+
+    const clean = relPath.replace(/^(\/|\\)+/, "");
+    const filePath = resolve(this.attachmentsDir, normalize(clean));
+
+    // Guard Clause: Prevent path traversal outside attachmentsDir
+    if (!filePath.startsWith(this.attachmentsDir)) {
+      return null;
+    }
 
     try {
       const data = await Deno.readFile(filePath);
-      const ext = extname(safeName).toLowerCase();
-      let contentType = "application/octet-stream";
-
-      if (ext === ".png") contentType = "image/png";
-      else if (ext === ".jpg" || ext === ".jpeg") contentType = "image/jpeg";
-      else if (ext === ".webp") contentType = "image/webp";
-      else if (ext === ".gif") contentType = "image/gif";
-      else if (ext === ".svg") contentType = "image/svg+xml";
-
-      return { data, contentType };
+      const ext = extname(filePath).toLowerCase();
+      return { data, contentType: this.getContentType(ext) };
     } catch {
+      // Fallback: check legacy .attachments directory in baseDir
+      const legacyBase = join(this.baseDir, ".attachments");
+      const legacyPath = resolve(legacyBase, normalize(clean));
+      if (legacyPath.startsWith(legacyBase)) {
+        try {
+          const data = await Deno.readFile(legacyPath);
+          const ext = extname(legacyPath).toLowerCase();
+          return { data, contentType: this.getContentType(ext) };
+        } catch {
+          return null;
+        }
+      }
       return null;
     }
+  }
+
+  private getContentType(ext: string): string {
+    if (ext === ".png") return "image/png";
+    if (ext === ".jpg" || ext === ".jpeg") return "image/jpeg";
+    if (ext === ".webp") return "image/webp";
+    if (ext === ".gif") return "image/gif";
+    if (ext === ".svg") return "image/svg+xml";
+    return "application/octet-stream";
   }
 
   /**

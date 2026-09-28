@@ -155,6 +155,7 @@ export function notesApi(app: Sleipnir, storage: NoteStorage) {
         const body = await c.req.json() as {
           filename?: string;
           dataUrl?: string;
+          notePath?: string;
         };
         if (!body.dataUrl || typeof body.dataUrl !== "string") {
           return c.json({ error: "Missing 'dataUrl'" }, 400);
@@ -181,7 +182,11 @@ export function notesApi(app: Sleipnir, storage: NoteStorage) {
         else if (mime.includes("gif")) ext = ".gif";
 
         const filename = body.filename || `pasted_image${ext}`;
-        const result = await storage.saveAttachment(filename, rawBytes);
+        const result = await storage.saveAttachment(
+          filename,
+          rawBytes,
+          body.notePath,
+        );
 
         return c.json({
           ok: true,
@@ -198,8 +203,13 @@ export function notesApi(app: Sleipnir, storage: NoteStorage) {
         return c.json({ error: "No file uploaded" }, 400);
       }
 
+      const notePath = form.get("notePath");
       const bytes = new Uint8Array(await file.arrayBuffer());
-      const result = await storage.saveAttachment(file.name, bytes);
+      const result = await storage.saveAttachment(
+        file.name,
+        bytes,
+        typeof notePath === "string" ? notePath : undefined,
+      );
 
       return c.json({
         ok: true,
@@ -213,14 +223,15 @@ export function notesApi(app: Sleipnir, storage: NoteStorage) {
     }
   });
 
-  // Serve Attachments directly
+  // Serve Attachments directly (including nested paths e.g. /attachments/Rezepte/Pasta/Carbonara/img.png)
   const attachmentHandler = async (c: SleipnirContext) => {
-    const filename = c.req.param("filename");
-    if (!filename) {
+    const rawPath = c.req.path.replace(/^\/(?:api\/)?attachments\/?/, "");
+    const decoded = decodeURIComponent(rawPath);
+    if (!decoded) {
       return c.text("Not found", 404);
     }
 
-    const attachment = await storage.getAttachment(filename);
+    const attachment = await storage.getAttachment(decoded);
     if (!attachment) {
       return c.text("Attachment not found", 404);
     }
@@ -234,6 +245,8 @@ export function notesApi(app: Sleipnir, storage: NoteStorage) {
     });
   };
 
+  app.get("/attachments/*", attachmentHandler);
+  app.get("/api/attachments/*", attachmentHandler);
   app.get("/attachments/:filename", attachmentHandler);
   app.get("/api/attachments/:filename", attachmentHandler);
 }

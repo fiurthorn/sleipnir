@@ -444,6 +444,7 @@ document.addEventListener("alpine:init", () => {
             body: JSON.stringify({
               filename: file.name || "pasted_image.png",
               dataUrl,
+              notePath: this.notePath,
             }),
           });
 
@@ -740,10 +741,15 @@ document.addEventListener("alpine:init", () => {
 
       // 3. Normalize absolute /attachments/ paths to relative ./attachments/
       // so images load smoothly behind reverse proxies, Tailscale, and code-server
-      const normalized = processed.replace(
-        /(\!\[.*?\]\()(?:\/|\.\/)?attachments\/([^)]+)(\))/g,
-        "$1./attachments/$2$3",
-      );
+      const normalized = processed
+        .replace(
+          /(\!\[.*?\]\()(?:\/|\.\/)?attachments\/([^)]+)(\))/g,
+          "$1./attachments/$2$3",
+        )
+        .replace(
+          /(<img\s+[^>]*src=["'])(?:\/|\.\/)?attachments\/([^"']+)(["'])/gi,
+          "$1./attachments/$2$3",
+        );
 
       if (typeof window.marked !== "undefined" && window.marked.parse) {
         return window.marked.parse(normalized);
