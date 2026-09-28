@@ -149,22 +149,26 @@ cookmate/
 
 Alle Operationen werden über das [`Justfile`](file:///Justfile) gesteuert:
 
-| Task                 | Befehl                    | Zweck                                                     |
-| -------------------- | ------------------------- | --------------------------------------------------------- |
-| **Cookmate starten** | `just dev-cookmate`       | Startet Cookmate auf `http://localhost:3001` (Watch-Mode) |
-| **Chatmate starten** | `just dev-chatmate`       | Startet Chatmate auf `http://localhost:3002` (Watch-Mode) |
-| **CSS kompilieren**  | `just build-css`          | Baut Tailwind v4 + DaisyUI für beide Apps                 |
-| **CSS beobachten**   | `just watch-css-cookmate` | Watch-Mode für Tailwind-Styles in Cookmate                |
-| **Type Check**       | `just check`              | Führt `deno check` über das gesamte Monorepo aus          |
-| **Tests ausführen**  | `just test`               | Führt die Unit-Testsuite aus (`deno test`)                |
-| **Linting**          | `just lint`               | Prüft alle Workspace-Dateien auf Code-Smells              |
-| **Formatierung**     | `just fmt`                | Formatiert das Monorepo nach Deno-Standard                |
+| Task                     | Befehl                    | Zweck                                                     |
+| ------------------------ | ------------------------- | --------------------------------------------------------- |
+| **Cookmate starten**     | `just dev-cookmate`       | Startet Cookmate auf `http://localhost:3001` (Watch-Mode) |
+| **Chatmate starten**     | `just dev-chatmate`       | Startet Chatmate auf `http://localhost:3002` (Watch-Mode) |
+| **CSS kompilieren**      | `just build-css`          | Baut Tailwind v4 + DaisyUI für beide Apps                 |
+| **CSS beobachten**       | `just watch-css-cookmate` | Watch-Mode für Tailwind-Styles in Cookmate                |
+| **Type Check**           | `just check`              | Führt `deno check` über das gesamte Monorepo aus          |
+| **Tests ausführen**      | `just test`               | Führt die Unit-Testsuite aus (`deno test`)                |
+| **Linting**              | `just lint`               | Prüft alle Workspace-Dateien auf Code-Smells              |
+| **Formatierung**         | `just fmt`                | Formatiert das Monorepo nach Deno-Standard                |
+| **Git-Hooks einrichten** | `just install-hooks`      | Aktiviert den Pre-Commit Hook via Symlink                 |
 
 ---
 
 ## 🚦 5. Checkliste vor jedem Commit / Task-Abschluss
 
-Bevor ein Agent seine Arbeit für beendet erklärt, müssen **alle vier Stufen**
+Das Repository schützt sich selbst über einen automatisierten **Git Pre-Commit
+Hook** ([`utils/hooks/pre-commit`](file:///utils/hooks/pre-commit)).
+
+Bevor ein Agent seine Arbeit für beendet erklärt, müssen **alle Stufen**
 fehlerfrei sein:
 
 1. `just check` $\rightarrow$ 0 TypeScript-Fehler.
@@ -173,3 +177,5 @@ fehlerfrei sein:
 4. `just fmt` $\rightarrow$ Sauber formatiert.
 5. Header-Check $\rightarrow$ Neuer/refaktorierter Code enthält den _Stefan &
    Sam_-Kodex-Header.
+6. Git-Hook $\rightarrow$ Ein `git commit` läuft automatisch durch alle
+   Validierungen.
