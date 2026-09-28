@@ -251,7 +251,7 @@ Notemate ist deine **hierarchische, ablenkungsfreie Markdown-Ablage** – direkt
 
     return {
       filename: cleanFilename,
-      url: `/attachments/${cleanFilename}`,
+      url: `./attachments/${cleanFilename}`,
     };
   }
 

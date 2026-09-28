@@ -472,10 +472,16 @@ document.addEventListener("alpine:init", () => {
     // Markdown rendering
     renderMarkdown(content) {
       if (!content) return "";
+      // Normalize absolute /attachments/ paths to relative ./attachments/
+      // so images load smoothly behind reverse proxies, Tailscale, and code-server
+      const normalized = content.replace(
+        /(\!\[.*?\]\()(?:\/|\.\/)?attachments\/([^)]+)(\))/g,
+        "$1./attachments/$2$3",
+      );
       if (typeof window.marked !== "undefined" && window.marked.parse) {
-        return window.marked.parse(content);
+        return window.marked.parse(normalized);
       }
-      return content.replace(/\n/g, "<br>");
+      return normalized.replace(/\n/g, "<br>");
     },
 
     get charCount() {

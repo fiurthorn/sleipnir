@@ -214,7 +214,7 @@ export function notesApi(app: Sleipnir, storage: NoteStorage) {
   });
 
   // Serve Attachments directly
-  app.get("/attachments/:filename", async (c: SleipnirContext) => {
+  const attachmentHandler = async (c: SleipnirContext) => {
     const filename = c.req.param("filename");
     if (!filename) {
       return c.text("Not found", 404);
@@ -232,5 +232,8 @@ export function notesApi(app: Sleipnir, storage: NoteStorage) {
         "Cache-Control": "public, max-age=31536000, immutable",
       },
     });
-  });
+  };
+
+  app.get("/attachments/:filename", attachmentHandler);
+  app.get("/api/attachments/:filename", attachmentHandler);
 }
