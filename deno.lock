@@ -3,6 +3,7 @@
   "specifiers": {
     "jsr:@std/assert@^1.0.19": "1.0.19",
     "jsr:@std/internal@^1.0.12": "1.0.12",
+    "jsr:@std/path@^1.0.8": "1.1.4",
     "npm:@hono/session@~0.2.1": "0.2.1_hono@4.13.10",
     "npm:@tailwindcss/cli@*": "4.3.3",
     "npm:@tailwindcss/cli@^4.3.3": "4.3.3",
@@ -20,6 +21,12 @@
     },
     "@std/internal@1.0.12": {
       "integrity": "972a634fd5bc34b242024402972cd5143eac68d8dffaca5eaa4dba30ce17b027"
+    },
+    "@std/path@1.1.4": {
+      "integrity": "1d2d43f39efb1b42f0b1882a25486647cb851481862dc7313390b2bb044314b5",
+      "dependencies": [
+        "jsr:@std/internal"
+      ]
     }
   },
   "npm": {
@@ -438,6 +445,16 @@
           "npm:daisyui@^5.7.46",
           "npm:hono@^4.13.10",
           "npm:minisearch@^7.2.0",
+          "npm:tailwindcss@^4.3.3"
+        ]
+      },
+      "apps/notemate": {
+        "dependencies": [
+          "jsr:@std/assert@^1.0.19",
+          "jsr:@std/path@^1.0.8",
+          "npm:@tailwindcss/cli@^4.3.3",
+          "npm:daisyui@^5.7.46",
+          "npm:hono@^4.13.10",
           "npm:tailwindcss@^4.3.3"
         ]
       },

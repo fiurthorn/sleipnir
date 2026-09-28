@@ -39,24 +39,22 @@
 
 ### Kernanforderungen:
 
-- [ ] **Hierarchische Ablage:**
+- [x] **Hierarchische Ablage:**
   - Markdown-Dateien (`.md`) in echten verschachtelten Verzeichnissen auf dem
-    Dateisystem (oder lokalem Workspace-Ordner).
+    Dateisystem (`./data/notes`).
   - Dateibaum-Navigation (Tree-View) in der Sidebar mit Ordner-Erstellung,
     Verschieben und Umbenennen.
-- [ ] **Image Paste (`Strg+V` / Drag-and-Drop):**
+- [x] **Image Paste (`Strg+V` / Drag-and-Drop):**
   - Bilder direkt aus der Zwischenablage in das Editor-Feld pasten.
-  - Automatisches Speichern des Bildes in einem lokalen Asset-Ordner (z. B.
-    `assets/` oder `.attachments/`) und Einfügen der Markdown-Syntax:
-    `![Bildbeschreibung](assets/image_20260928_1345.png)`.
-- [ ] **Editor & Vorschau:**
-  - Schneller Markdown-Editor mit Live-Preview oder umschaltbarem Modus (View /
-    Edit).
-  - Clean & tastaturbedienbar (Shortcuts für Speichern, Suchen, Formatieren).
-- [ ] **Volltextsuche & Quick-Switcher:**
-  - Schnelle Suche über Titel, Pfade und Notizinhalte.
-- [ ] **Technologie-Stack:**
+  - Automatisches Speichern des Bildes im lokalen Asset-Ordner (`.attachments/`)
+    und Einfügen der Markdown-Syntax: `![Bild](/attachments/...)`.
+- [x] **Editor & Vorschau:**
+  - Schneller Markdown-Editor mit Split-Screen, Edit- und Preview-Modus.
+  - Tastaturbedienbar (`Strg+S` zum Speichern).
+- [x] **Volltextsuche & Quick-Switcher:**
+  - Schnelle Suche über Titel, Pfade und Notizinhalte mit Snippets.
+- [x] **Technologie-Stack:**
   - Sleipnir App (`apps/notemate`) basierend auf `@sleipnir/core`, Deno 2, Hono,
-    Alpine.js und DaisyUI.
+    Alpine.js und DaisyUI (Port 3003, Befehl: `just dev-notemate`).
   - Keine relationale Monster-Datenbank nötig – die Filesystem-Struktur ist die
     Single Source of Truth.

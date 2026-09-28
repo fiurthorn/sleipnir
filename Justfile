@@ -27,7 +27,7 @@ install-hooks:
 
 [group('lifecycle')]
 check:
-    deno check packages/sleipnir/mod.ts apps/cookmate/main.ts apps/chatmate/main.ts
+    deno check packages/sleipnir/mod.ts apps/cookmate/main.ts apps/chatmate/main.ts apps/notemate/main.ts
 
 [group('lifecycle')]
 test:
@@ -69,5 +69,17 @@ build-css-chatmate:
 watch-css-chatmate:
     deno run -A "npm:@tailwindcss/cli" -i ./apps/chatmate/src/input.css -o ./apps/chatmate/static/styles.css --watch
 
+[group('notemate')]
+dev-notemate:
+    deno run -P=app --watch apps/notemate/main.ts
+
+[group('notemate')]
+build-css-notemate:
+    deno run -A "npm:@tailwindcss/cli" -i ./apps/notemate/src/input.css -o ./apps/notemate/static/styles.css
+
+[group('notemate')]
+watch-css-notemate:
+    deno run -A "npm:@tailwindcss/cli" -i ./apps/notemate/src/input.css -o ./apps/notemate/static/styles.css --watch
+
 [group('lifecycle')]
-build-css: build-css-cookmate build-css-chatmate
+build-css: build-css-cookmate build-css-chatmate build-css-notemate

@@ -7,3 +7,4 @@ doc/*draft*.md
 test.ts
 .env
 .env.*
+data/
