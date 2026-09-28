@@ -45,7 +45,7 @@ export function Search() {
       const requestId = Math.random().toString(36).slice(2);
 
       // deno-lint-ignore prefer-const
-      let timeoutId: number;
+      let timeoutId: ReturnType<typeof setTimeout>;
       const handler = (message: MessageEvent<SearchResponse>) => {
         const response = message.data;
         if (response.type === "RESULT" && response.requestId === requestId) {

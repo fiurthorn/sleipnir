@@ -2,6 +2,10 @@
 default:
 	@just --list
 
+mod cookmate 'apps/cookmate/Justfile'
+mod chatmate 'apps/chatmate/Justfile'
+mod notemate 'apps/notemate/Justfile'
+
 version := replace(replace_regex(`git describe --tags --always --match=v*`, "v|-g.*", ""), "-", ".")
 
 [group('lifecycle')]

@@ -1,0 +1,19 @@
+[private]
+default:
+    @just --list
+
+[doc('Startet den Chatmate Dev-Server mit Live-Reload (Port 3002)')]
+serve:
+    deno run -P=app --watch main.ts
+
+[doc('TypeScript Typ-Prüfung für Chatmate')]
+check:
+    deno check main.ts
+
+[doc('Kompiliert Tailwind & DaisyUI CSS')]
+build-css:
+    deno run -A npm:@tailwindcss/cli -i ./src/input.css -o ./static/styles.css
+
+[doc('Watch-Modus für Tailwind & DaisyUI CSS')]
+watch-css:
+    deno run -A npm:@tailwindcss/cli -i ./src/input.css -o ./static/styles.css --watch
