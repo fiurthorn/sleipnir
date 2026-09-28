@@ -13,6 +13,11 @@
     "hono": "npm:hono@^4.13.10",
     "tailwindcss": "npm:tailwindcss@^4.3.3"
   },
+  "permissions": {
+    "app": {
+      "all": true
+    }
+  },
   "compilerOptions": {
     "jsx": "react-jsx",
     "jsxImportSource": "hono/jsx"

@@ -5,7 +5,13 @@
  * Architektur & Review: Stefan | Implementation & Synthese: Sam
  */
 
-import { assets, session, sessionStore, Sleipnir } from "@sleipnir/core";
+import {
+  assets,
+  session,
+  sessionStore,
+  Sleipnir,
+  type SleipnirContext,
+} from "@sleipnir/core";
 import { compress } from "hono/compress";
 import { secureHeaders } from "hono/secure-headers";
 import { Index } from "../pages/Index.tsx";
@@ -14,7 +20,7 @@ import { NoteStorage } from "./services/storage.ts";
 import { notesApi } from "./api/notes.ts";
 
 export default function App(kv: Deno.Kv, basePath?: string) {
-  const app = new Sleipnir();
+  const app = new Sleipnir().basePath(basePath ?? "");
   const storage = new NoteStorage();
 
   app.use("*", compress());
@@ -36,7 +42,10 @@ export default function App(kv: Deno.Kv, basePath?: string) {
   app.use(sessionStore(kv), session());
 
   // Main UI
-  app.get("/", (c) => c.html(<Index content={<NotesPage />} />));
+  const rootHandler = (c: SleipnirContext) =>
+    c.html(<Index content={<NotesPage />} />);
+  app.get("/", rootHandler);
+  if (basePath) app.get("", rootHandler);
 
   // Notes and Attachments API
   notesApi(app, storage);

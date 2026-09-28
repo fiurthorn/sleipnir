@@ -5,7 +5,13 @@
  * Architektur & Review: Stefan | Implementation & Synthese: Sam
  */
 
-import { assets, session, sessionStore, Sleipnir } from "@sleipnir/core";
+import {
+  assets,
+  session,
+  sessionStore,
+  Sleipnir,
+  type SleipnirContext,
+} from "@sleipnir/core";
 import { compress } from "hono/compress";
 import { secureHeaders } from "hono/secure-headers";
 import { Index } from "../pages/Index.tsx";
@@ -15,7 +21,7 @@ import { imageApi } from "./api/image.ts";
 import { modelsApi } from "./api/models.ts";
 
 export default function App(kv: Deno.Kv, basePath?: string) {
-  const app = new Sleipnir();
+  const app = new Sleipnir().basePath(basePath ?? "");
   app.use("*", compress());
   app.use(
     "*",
@@ -40,7 +46,10 @@ export default function App(kv: Deno.Kv, basePath?: string) {
   );
   app.use(sessionStore(kv), session());
 
-  app.get("/", (c) => c.html(<Index content={<ChatPage />} />));
+  const rootHandler = (c: SleipnirContext) =>
+    c.html(<Index content={<ChatPage />} />);
+  app.get("/", rootHandler);
+  if (basePath) app.get("", rootHandler);
   modelsApi(app, "/api/models");
   chatApi(app, "/api/chat");
   imageApi(app, "/api/image");

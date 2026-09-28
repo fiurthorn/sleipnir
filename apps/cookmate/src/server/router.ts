@@ -5,7 +5,13 @@
  * Architektur & Review: Stefan | Implementation & Synthese: Sam
  */
 
-import { assets, session, sessionStore, Sleipnir } from "@sleipnir/core";
+import {
+  assets,
+  session,
+  sessionStore,
+  Sleipnir,
+  type SleipnirContext,
+} from "@sleipnir/core";
 
 import { compress } from "hono/compress";
 import { cors } from "hono/cors";
@@ -15,7 +21,7 @@ import { pages } from "../pages/pages.tsx";
 import { api } from "./api/api.tsx";
 
 export default function App(kv: Deno.Kv, basePath?: string) {
-  const app = new Sleipnir();
+  const app = new Sleipnir().basePath(basePath ?? "");
   app.use("*", compress());
   app.use(
     "*",
@@ -44,7 +50,9 @@ export default function App(kv: Deno.Kv, basePath?: string) {
     }),
   );
   app.use(sessionStore(kv), session());
-  app.get("/", (c) => c.redirect("./counter"));
+  const rootHandler = (c: SleipnirContext) => c.redirect("./counter");
+  app.get("/", rootHandler);
+  if (basePath) app.get("", rootHandler);
   pages(app);
   assets(app, basePath);
   api(app, "/api");
