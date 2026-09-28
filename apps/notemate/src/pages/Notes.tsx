@@ -11,8 +11,7 @@ export const NotesPage = () => {
       {/* Toast Notification */}
       <div
         x-show="toastMessage"
-        x-transition
-        class="fixed bottom-5 right-5 z-50 alert alert-info shadow-lg w-auto py-2 px-4 text-xs font-medium"
+        class="fixed bottom-5 right-5 z-50 alert alert-info shadow-lg w-auto py-2 px-4 text-xs font-medium transition duration-200"
         x-text="toastMessage"
         style="display: none;"
       >
