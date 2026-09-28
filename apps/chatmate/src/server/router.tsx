@@ -11,6 +11,7 @@ import {
   sessionStore,
   Sleipnir,
   type SleipnirContext,
+  sleipnirCors,
 } from "@sleipnir/core";
 import { compress } from "hono/compress";
 import { secureHeaders } from "hono/secure-headers";
@@ -23,6 +24,7 @@ import { modelsApi } from "./api/models.ts";
 export default function App(kv: Deno.Kv, basePath?: string) {
   const app = new Sleipnir().basePath(basePath ?? "");
   app.use("*", compress());
+  app.use("*", sleipnirCors());
   app.use(
     "*",
     secureHeaders({
@@ -38,7 +40,7 @@ export default function App(kv: Deno.Kv, basePath?: string) {
           "https://*.venice.ai",
         ],
         fontSrc: ["'self'"],
-        connectSrc: ["'self'"],
+        connectSrc: ["'self'", "*"],
         frameSrc: ["'self'"],
         upgradeInsecureRequests: [],
       },

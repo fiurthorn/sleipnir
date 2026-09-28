@@ -11,6 +11,7 @@ import {
   sessionStore,
   Sleipnir,
   type SleipnirContext,
+  sleipnirCors,
 } from "@sleipnir/core";
 import { compress } from "hono/compress";
 import { secureHeaders } from "hono/secure-headers";
@@ -24,6 +25,7 @@ export default function App(kv: Deno.Kv, basePath?: string) {
   const storage = new NoteStorage();
 
   app.use("*", compress());
+  app.use("*", sleipnirCors());
   app.use(
     "*",
     secureHeaders({
@@ -33,7 +35,7 @@ export default function App(kv: Deno.Kv, basePath?: string) {
         styleSrc: ["'self'", "'unsafe-inline'"],
         imgSrc: ["'self'", "data:"],
         fontSrc: ["'self'"],
-        connectSrc: ["'self'"],
+        connectSrc: ["'self'", "*"],
         frameSrc: ["'self'"],
         upgradeInsecureRequests: [],
       },

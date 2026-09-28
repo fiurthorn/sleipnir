@@ -12,14 +12,22 @@ document.addEventListener("alpine:init", () => {
     expandedFolders: Alpine.$persist([]).as("notemate_expanded_v1"),
     activePath: Alpine.$persist("Willkommen.md").as("notemate_active_path_v1"),
 
-    // State
     tree: [],
-    currentNote: {
-      path: "",
-      title: "",
-      content: "",
-      updatedAt: null,
-      dirty: false,
+    // Note State (Top-level properties to comply with Alpine CSP AST parser)
+    notePath: "",
+    noteTitle: "",
+    noteContent: "",
+    noteUpdatedAt: null,
+    isDirty: false,
+
+    get currentNote() {
+      return {
+        path: this.notePath,
+        title: this.noteTitle,
+        content: this.noteContent,
+        updatedAt: this.noteUpdatedAt,
+        dirty: this.isDirty,
+      };
     },
     isLoading: false,
     isSaving: false,
@@ -123,7 +131,7 @@ document.addEventListener("alpine:init", () => {
 
     async loadNote(path, checkDirty = true) {
       if (!path) return false;
-      if (checkDirty && this.currentNote.dirty) {
+      if (checkDirty && this.isDirty) {
         const confirmSwitch = confirm(
           "Du hast ungespeicherte Änderungen. Möchtest du trotzdem wechseln?",
         );
@@ -137,13 +145,11 @@ document.addEventListener("alpine:init", () => {
         );
         if (res.ok) {
           const data = await res.json();
-          this.currentNote = {
-            path: data.note.path,
-            title: data.note.title,
-            content: data.note.content,
-            updatedAt: data.note.updatedAt,
-            dirty: false,
-          };
+          this.notePath = data.note.path;
+          this.noteTitle = data.note.title;
+          this.noteContent = data.note.content;
+          this.noteUpdatedAt = data.note.updatedAt;
+          this.isDirty = false;
           this.activePath = data.note.path;
 
           // Auto-expand parent folders
@@ -168,11 +174,11 @@ document.addEventListener("alpine:init", () => {
     },
 
     markDirty() {
-      this.currentNote.dirty = true;
+      this.isDirty = true;
     },
 
     async saveCurrentNote() {
-      if (!this.currentNote.path) return;
+      if (!this.notePath) return;
 
       this.isSaving = true;
       try {
@@ -180,8 +186,8 @@ document.addEventListener("alpine:init", () => {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            path: this.currentNote.path,
-            content: this.currentNote.content,
+            path: this.notePath,
+            content: this.noteContent,
           }),
         });
 
@@ -190,8 +196,8 @@ document.addEventListener("alpine:init", () => {
         }
 
         const data = await res.json();
-        this.currentNote.updatedAt = data.note.updatedAt;
-        this.currentNote.dirty = false;
+        this.noteUpdatedAt = data.note.updatedAt;
+        this.isDirty = false;
         this.showToast("✓ Notiz gespeichert");
         await this.refreshTree();
       } catch (err) {
@@ -274,18 +280,16 @@ document.addEventListener("alpine:init", () => {
         if (res.ok) {
           this.showToast("✓ Gelöscht");
           await this.refreshTree();
-          if (this.currentNote.path === path) {
+          if (this.notePath === path) {
             const first = this.findFirstFile(this.tree);
             if (first) {
               await this.loadNote(first.path);
             } else {
-              this.currentNote = {
-                path: "",
-                title: "",
-                content: "",
-                updatedAt: null,
-                dirty: false,
-              };
+              this.notePath = "";
+              this.noteTitle = "";
+              this.noteContent = "";
+              this.noteUpdatedAt = null;
+              this.isDirty = false;
             }
           }
         }
@@ -321,7 +325,7 @@ document.addEventListener("alpine:init", () => {
         if (res.ok) {
           this.showToast("✓ Umbenannt");
           await this.refreshTree();
-          if (this.currentNote.path === oldPath) {
+          if (this.notePath === oldPath) {
             await this.loadNote(newPath);
           }
         }
@@ -394,15 +398,15 @@ document.addEventListener("alpine:init", () => {
 
     insertTextAtCursor(textarea, text) {
       if (!textarea) {
-        this.currentNote.content += text;
+        this.noteContent += text;
         return;
       }
 
       const start = textarea.selectionStart || 0;
       const end = textarea.selectionEnd || 0;
-      const current = this.currentNote.content;
+      const current = this.noteContent;
 
-      this.currentNote.content =
+      this.noteContent =
         current.substring(0, start) + text + current.substring(end);
 
       this.$nextTick(() => {
@@ -448,12 +452,12 @@ document.addEventListener("alpine:init", () => {
     },
 
     get charCount() {
-      return this.currentNote?.content ? this.currentNote.content.length : 0;
+      return this.noteContent ? this.noteContent.length : 0;
     },
 
     get wordCount() {
-      if (!this.currentNote?.content) return 0;
-      return this.currentNote.content.trim().split(/\s+/).filter(Boolean).length;
+      if (!this.noteContent) return 0;
+      return this.noteContent.trim().split(/\s+/).filter(Boolean).length;
     },
 
     formatDate(timestamp) {

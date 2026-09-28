@@ -8,7 +8,8 @@
     "./assets": "./src/assets.ts",
     "./jsonpath": "./src/jsonpath.ts",
     "./utils": "./src/utils.ts",
-    "./kv": "./src/kv.ts"
+    "./kv": "./src/kv.ts",
+    "./cors": "./src/cors.ts"
   },
   "imports": {
     "@hono/session": "npm:@hono/session@^0.2.1",

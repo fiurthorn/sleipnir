@@ -88,7 +88,7 @@ export const NotesPage = () => {
             <template x-for="res in searchResults" x-bind:key="res.path">
               <div
                 class="p-2 rounded-lg text-xs hover:bg-base-300 cursor-pointer transition flex flex-col gap-0.5 border border-base-content/5"
-                x-bind:class="currentNote.path === res.path ? 'bg-primary/10 border-primary/30' : ''"
+                x-bind:class="notePath === res.path ? 'bg-primary/10 border-primary/30' : ''"
                 x-on:click="loadNote(res.path); clearSearch()"
               >
                 <div class="font-semibold text-primary truncate flex items-center gap-1.5">
@@ -127,7 +127,7 @@ export const NotesPage = () => {
             >
               <div
                 class="group flex items-center justify-between py-1.5 px-2 rounded-md transition cursor-pointer"
-                x-bind:class="currentNote.path === item.path ? 'bg-primary text-primary-content font-medium shadow-sm' : 'hover:bg-base-300 text-base-content/85'"
+                x-bind:class="notePath === item.path ? 'bg-primary text-primary-content font-medium shadow-sm' : 'hover:bg-base-300 text-base-content/85'"
                 x-bind:style="'padding-left: ' + (item.depth * 14 + 8) + 'px'"
                 x-on:click="if (item.type === 'directory') toggleFolder(item.path); else loadNote(item.path);"
               >
@@ -224,11 +224,11 @@ export const NotesPage = () => {
             <span class="text-xs font-mono opacity-50">Root /</span>
             <span
               class="font-bold text-sm md:text-base text-base-content truncate"
-              x-text="currentNote.path ? currentNote.path : 'Keine Notiz gewählt'"
+              x-text="notePath ? notePath : 'Keine Notiz gewählt'"
             >
             </span>
             <span
-              x-show="currentNote.dirty"
+              x-show="isDirty"
               class="badge badge-warning badge-xs font-mono"
             >
               ungespeichert
@@ -273,7 +273,7 @@ export const NotesPage = () => {
               type="button"
               class="btn btn-primary btn-sm px-4 gap-1.5 shadow-sm"
               x-on:click="saveCurrentNote()"
-              x-bind:disabled="!currentNote.path || isSaving"
+              x-bind:disabled="!notePath || isSaving"
               title="Notiz speichern (Strg+S)"
             >
               <span x-show="!isSaving">Speichern 💾</span>
@@ -295,14 +295,14 @@ export const NotesPage = () => {
           >
             {/* Editor Textarea with Clipboard Paste & Drop */}
             <textarea
-              x-model="currentNote.content"
+              x-model="noteContent"
               x-on:input="markDirty()"
               x-on:paste="handlePaste($event)"
               x-on:drop="handleDrop($event)"
               x-on:dragover="$event.preventDefault()"
               placeholder="Beginne hier zu schreiben... (Markdown unterstützt. Bilder direkt per Strg+V einfügen!)"
               class="flex-1 p-6 font-mono text-sm leading-relaxed outline-none resize-none bg-transparent text-base-content/90 placeholder:opacity-40"
-              x-bind:disabled="!currentNote.path || isLoading"
+              x-bind:disabled="!notePath || isLoading"
             >
             </textarea>
 
@@ -330,7 +330,7 @@ export const NotesPage = () => {
           >
             <article
               class="prose prose-sm md:prose-base markdown-body max-w-3xl mx-auto"
-              x-html="renderMarkdown(currentNote.content)"
+              x-html="renderMarkdown(noteContent)"
             >
             </article>
           </div>
