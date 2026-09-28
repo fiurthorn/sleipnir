@@ -1,41 +1,8 @@
 {
-  "nodeModulesDir": "auto",
-  "tasks": {
-    "dev": "deno run -P=app --watch main.ts",
-    "check": "deno check main.ts",
-    "lint": "deno lint",
-    "test": "deno test",
-    "build:css": "deno run -A npm:@tailwindcss/cli -i ./src/input.css -o ./static/styles.css",
-    "watch:css": "deno run -A npm:@tailwindcss/cli -i ./src/input.css -o ./static/styles.css --watch"
-  },
-  "exclude": [
-    "dist/",
-    "node_modules/",
-    "static/vendor/",
-    "test.ts"
+  "workspace": [
+    "./packages/*",
+    "./apps/*"
   ],
-  "lint": {
-    "include": ["src/", "main.ts"],
-    "exclude": ["static/", "dist/"]
-  },
-  "fmt": {
-    "include": ["src/", "main.ts", "doc/", "README.md", "deno.json"],
-    "exclude": ["static/vendor/", "dist/"]
-  },
-  "test": {
-    "exclude": ["test.ts"]
-  },
-  "imports": {
-    "@std/assert": "jsr:@std/assert@^1.0.19",
-    "@tailwindcss/cli": "npm:@tailwindcss/cli@^4.3.3",
-    "hono": "npm:hono@^4.13.10",
-    "minisearch": "npm:minisearch@^7.2.0",
-    "@hono/session": "npm:@hono/session@^0.2.1",
-    "autoprefixer": "npm:autoprefixer@^10.6.1",
-    "daisyui": "npm:daisyui@^5.7.46",
-    "postcss": "npm:postcss@^8.5.28",
-    "tailwindcss": "npm:tailwindcss@^4.3.3"
-  },
   "unstable": [
     "kv"
   ],
@@ -44,19 +11,29 @@
       "all": true
     }
   },
-  "compilerOptions": {
-    "module": "ESNext",
-    "jsx": "react-jsx",
-    "jsxImportSource": "hono/jsx",
-    "strict": true,
-    "skipLibCheck": true,
-    "lib": [
-      "deno.ns",
-      "ESNext",
-      "DOM",
-      "DOM.Iterable",
-      "DOM.AsyncIterable",
-      "deno.unstable"
-    ]
+  "nodeModulesDir": "auto",
+  "tasks": {
+    "dev:cookmate": "deno run -P=app --watch apps/cookmate/main.ts",
+    "dev:chatmate": "deno run -P=app --watch apps/chatmate/main.ts",
+    "check": "deno check packages/**/*.ts apps/**/*.ts apps/**/*.tsx",
+    "lint": "deno lint",
+    "test": "deno test"
+  },
+  "exclude": [
+    "dist/",
+    "node_modules/",
+    "**/static/",
+    "test.ts"
+  ],
+  "lint": {
+    "include": ["packages/", "apps/"],
+    "exclude": ["**/static/", "**/dist/"]
+  },
+  "fmt": {
+    "include": ["packages/", "apps/", "doc/", "README.md", "deno.json"],
+    "exclude": ["**/static/", "**/dist/"]
+  },
+  "test": {
+    "exclude": ["test.ts"]
   }
 }

@@ -6,11 +6,9 @@
     "npm:@hono/session@~0.2.1": "0.2.1_hono@4.13.10",
     "npm:@tailwindcss/cli@*": "4.3.3",
     "npm:@tailwindcss/cli@^4.3.3": "4.3.3",
-    "npm:autoprefixer@^10.6.1": "10.6.1_postcss@8.5.28",
     "npm:daisyui@^5.7.46": "5.7.46",
     "npm:hono@^4.13.10": "4.13.10",
     "npm:minisearch@^7.2.0": "7.2.0",
-    "npm:postcss@^8.5.28": "8.5.28",
     "npm:tailwindcss@^4.3.3": "4.3.3"
   },
   "jsr": {
@@ -250,41 +248,11 @@
         "@tailwindcss/oxide-win32-x64-msvc"
       ]
     },
-    "autoprefixer@10.6.1_postcss@8.5.28": {
-      "integrity": "sha512-cL1Qz6ADZhcEbny/8HPfe99J6HhNoYtpX2LFLIbhgGE7Q1hlQVkYFdetDN7Id3KiQxhDrHwzlHr/YQCnZ8+xSA==",
-      "dependencies": [
-        "browserslist",
-        "caniuse-lite",
-        "fraction.js",
-        "picocolors",
-        "postcss",
-        "postcss-value-parser"
-      ],
-      "bin": true
-    },
-    "baseline-browser-mapping@2.11.26": {
-      "integrity": "sha512-GLQdD3y6UF8iVuMJl5fHgE4jdn/ua7n+toKfLgNlg3BqQtOZjpy68T8Tup8/wGWZCDlm7KMg7tPb4MPn7oN0TQ==",
-      "bin": true
-    },
     "braces@3.0.3": {
       "integrity": "sha512-yQbXgO/OSZVD2IsiLlro+7Hf6Q18EJrKSEsdoMzKePKXct3gvD8oLcOQdIzGupr5Fj+EDe8gO/lxc1BzfMpxvA==",
       "dependencies": [
         "fill-range"
       ]
-    },
-    "browserslist@4.29.2": {
-      "integrity": "sha512-/u9r8k8ue4ZhHCw9ovDtltpWdXeXzjhdxCGj6vm1RGLPXb8lu33EMdoCHF5Sx8oYBS+Q/FYYNmAqlHncxR3RmA==",
-      "dependencies": [
-        "baseline-browser-mapping",
-        "caniuse-lite",
-        "electron-to-chromium",
-        "node-releases",
-        "update-browserslist-db"
-      ],
-      "bin": true
-    },
-    "caniuse-lite@1.0.30001812": {
-      "integrity": "sha512-qN+QNNBr93TCmFrmte0bBCjSDMuRvt78VlHT99qIGPszm4QsqCX8lnyWUFkHi8B7ZBAPq8SH+UqyXNy/odMdng=="
     },
     "daisyui@5.7.46": {
       "integrity": "sha512-z/tfVXLpLRe1ojGeokzxauHA9Ij5CGfk+83EdatQbFSVr02h5mUcp4nkgQJOw68wH1wAAPu/SY+MWbDdJG2R4w=="
@@ -296,9 +264,6 @@
     "detect-libc@2.1.2": {
       "integrity": "sha512-Btj2BOOO83o3WyH59e8MgXsxEQVcarkUOpEYrubB0urwnN10yQ364rsiByU11nZlqWYZm05i/of7io4mzihBtQ=="
     },
-    "electron-to-chromium@1.5.439": {
-      "integrity": "sha512-qu6QIPXhsb+CRcAiTMNjR4A1y/7tCYKkKjr5CZXRVih6qkDf79peZ2BpEU3qoDBNCRrcy3Mra3X9nG5oruuA7Q=="
-    },
     "enhanced-resolve@5.25.1": {
       "integrity": "sha512-nGXts5znJzmWPu+mIE9izCOzdg63oJca2mDzGWWTth7sr4aCToKcoyFVBQwN75Ij5Pf6p510EwkTqViTRzDV+w==",
       "dependencies": [
@@ -306,17 +271,11 @@
         "tapable"
       ]
     },
-    "escalade@3.2.0": {
-      "integrity": "sha512-WUj2qlxaQtO4g6Pq5c29GTcWGDyd8itL8zTlipgECz3JesAiiOKotd8JU6otB3PACgG6xkJUyVhboMS+bje/jA=="
-    },
     "fill-range@7.1.1": {
       "integrity": "sha512-YsGpe3WHLK8ZYi4tWDg2Jy3ebRz2rXowDxnld4bkQB00cc/1Zw9AWnC0i9ztDJitivtQvaI9KaLyKrc+hBW0yg==",
       "dependencies": [
         "to-regex-range"
       ]
-    },
-    "fraction.js@5.3.4": {
-      "integrity": "sha512-1X1NTtiJphryn/uLQz3whtY6jK3fTqoE3ohKs0tT+Ujr1W59oopxmoEh7Lu5p6vBaPbgoM0bzveAW4Qi5RyWDQ=="
     },
     "graceful-fs@4.2.11": {
       "integrity": "sha512-RbJ5/jmFcNNCcDV5o9eTnBLJ/HszWV0P73bc+Ff4nS/rJj+YaS6IGyiOL0VoBYX+l1Wrl3k63h/KrH+nhJ0XvQ=="
@@ -436,32 +395,14 @@
     "mri@1.2.0": {
       "integrity": "sha512-tzzskb3bG8LvYGFF/mDTpq3jpI6Q9wc3LEmBaghu+DdCssd1FakN7Bc0hVNmEyGq1bq3RgfkCb3cmQLpNPOroA=="
     },
-    "nanoid@3.3.19": {
-      "integrity": "sha512-Y2tUNy4ouw6tq5oDSKeQYGOyhkUBhNOcGV/02KC+6kd9eDGqdZd++mjMiIDilrBYvjEnCYvVtsuHCuP+okSfug==",
-      "bin": true
-    },
     "node-addon-api@7.1.1": {
       "integrity": "sha512-5m3bsyrjFWE1xf7nz7YXdN4udnVtXK6/Yfgn5qnahL6bCkf2yKt4k3nuTKAtT4r3IG8JNR2ncsIMdZuAzJjHQQ=="
-    },
-    "node-releases@2.0.57": {
-      "integrity": "sha512-kQK9LGGFiHtrWiNhZtA7Qbw17AQz+dmsEKODRIVTXA9+e5MS/2gZEBhYJt13GrAz5/IOZKddH/0Z3TP/Zgo+yw=="
     },
     "picocolors@1.1.1": {
       "integrity": "sha512-xceH2snhtb5M9liqDsmEw56le376mTZkEX/jEb/RxNFyegNul7eNslCXP9FDj/Lcu0X8KEyMceP2ntpaHrDEVA=="
     },
     "picomatch@2.3.2": {
       "integrity": "sha512-V7+vQEJ06Z+c5tSye8S+nHUfI51xoXIXjHQ99cQtKUkQqqO1kO/KCJUfZXuB47h/YBlDhah2H3hdUGXn8ie0oA=="
-    },
-    "postcss-value-parser@4.2.0": {
-      "integrity": "sha512-1NNCs6uurfkVbeXG4S8JFT9t19m45ICnif8zWLd5oPSZ50QnwMfK+H3jv408d4jw/7Bttv5axS5IiHoLaVNHeQ=="
-    },
-    "postcss@8.5.28": {
-      "integrity": "sha512-RRuzqDtt5Y9h3quz5hWhK+TPnsmVs6WwSU6LkJMeY4HstUEDuYTG8UJSdawMRzmzAtV+KEoG8N3Qg2qLy5vM/A==",
-      "dependencies": [
-        "nanoid",
-        "picocolors",
-        "source-map-js"
-      ]
     },
     "source-map-js@1.2.1": {
       "integrity": "sha512-UXWMKhLOwVKb728IUtQPXxfYU+usdybtUrK/8uGE8CQMvrhOpwvzDBwj0QhSL7MQc7vIsISBG8VQ8+IDQxpfQA=="
@@ -477,28 +418,36 @@
       "dependencies": [
         "is-number"
       ]
-    },
-    "update-browserslist-db@1.3.3_browserslist@4.29.2": {
-      "integrity": "sha512-pJ2sYawQS0R/WI928Gj5GlPhTGzbMelq0+4INtSYNDV9ErKJcX6xjGWkoG/VnB3dpUm00zALaqkrUD77pO5TDQ==",
-      "dependencies": [
-        "browserslist",
-        "escalade",
-        "picocolors"
-      ],
-      "bin": true
     }
   },
   "workspace": {
-    "dependencies": [
-      "jsr:@std/assert@^1.0.19",
-      "npm:@hono/session@~0.2.1",
-      "npm:@tailwindcss/cli@^4.3.3",
-      "npm:autoprefixer@^10.6.1",
-      "npm:daisyui@^5.7.46",
-      "npm:hono@^4.13.10",
-      "npm:minisearch@^7.2.0",
-      "npm:postcss@^8.5.28",
-      "npm:tailwindcss@^4.3.3"
-    ]
+    "members": {
+      "apps/chatmate": {
+        "dependencies": [
+          "jsr:@std/assert@^1.0.19",
+          "npm:@tailwindcss/cli@^4.3.3",
+          "npm:daisyui@^5.7.46",
+          "npm:hono@^4.13.10",
+          "npm:tailwindcss@^4.3.3"
+        ]
+      },
+      "apps/cookmate": {
+        "dependencies": [
+          "jsr:@std/assert@^1.0.19",
+          "npm:@tailwindcss/cli@^4.3.3",
+          "npm:daisyui@^5.7.46",
+          "npm:hono@^4.13.10",
+          "npm:minisearch@^7.2.0",
+          "npm:tailwindcss@^4.3.3"
+        ]
+      },
+      "packages/sleipnir": {
+        "dependencies": [
+          "jsr:@std/assert@^1.0.19",
+          "npm:@hono/session@~0.2.1",
+          "npm:hono@^4.13.10"
+        ]
+      }
+    }
   }
 }

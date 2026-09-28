@@ -19,69 +19,48 @@ create-version tag: guard-clean
     git push
 
 [group('lifecycle')]
-generate-version:
-    @rm -f "src/version.g.ts"
-    echo "// Automatisch generiert - nicht editieren" > "src/version.g.ts"
-    echo "export const VERSION = \"{{version}}\";" >> "src/version.g.ts"
-    @echo "✅ version.ts mit Version {{version}} erstellt."
-
-#  -A, --allow-all
-#  -P, --permission-set[=<NAME>]
-#  -R, --allow-read
-#  -W, --allow-write
-#  -I, --allow-import
-#  -N, --allow-net
-#  -E, --allow-env
-#  -S, --allow-sys
-#      --allow-run
-#      --allow-ffi
+check:
+    deno check packages/sleipnir/mod.ts apps/cookmate/main.ts apps/chatmate/main.ts
 
 [group('lifecycle')]
-clean:
-    rm -f "dist/index.js"
+test:
+    deno test
 
 [group('lifecycle')]
-dist-clean: clean
-     rm -rf node_modules deno.lock
+lint:
+    deno lint
 
 [group('lifecycle')]
-get-dependencies:
-    deno cache --reload main.ts main_test.ts
+fmt:
+    deno fmt
 
 [group('lifecycle')]
-update-dependencies: update-libs
+update-dependencies:
     deno update
 
-[private]
-update-vendor url vendor:
-    @mkdir -p static/vendor
-    @curl -sL "{{url}}" -o "static/vendor/{{vendor}}"
-    @gzip -kf "static/vendor/{{vendor}}"
+[group('cookmate')]
+dev-cookmate:
+    deno run -P=app --watch apps/cookmate/main.ts
+
+[group('cookmate')]
+build-css-cookmate:
+    deno run -A "npm:@tailwindcss/cli" -i ./apps/cookmate/src/input.css -o ./apps/cookmate/static/styles.css
+
+[group('cookmate')]
+watch-css-cookmate:
+    deno run -A "npm:@tailwindcss/cli" -i ./apps/cookmate/src/input.css -o ./apps/cookmate/static/styles.css --watch
+
+[group('chatmate')]
+dev-chatmate:
+    deno run -P=app --watch apps/chatmate/main.ts
+
+[group('chatmate')]
+build-css-chatmate:
+    deno run -A "npm:@tailwindcss/cli" -i ./apps/chatmate/src/input.css -o ./apps/chatmate/static/styles.css
+
+[group('chatmate')]
+watch-css-chatmate:
+    deno run -A "npm:@tailwindcss/cli" -i ./apps/chatmate/src/input.css -o ./apps/chatmate/static/styles.css --watch
 
 [group('lifecycle')]
-update-libs:
-    just update-vendor "https://unpkg.com/htmx.org/dist/htmx.min.js"                           "htmx.min.js"
-    just update-vendor "https://cdn.jsdelivr.net/npm/@alpinejs/mask@3.x.x/dist/cdn.min.js"     "alpine-mask.min.js"
-    just update-vendor "https://cdn.jsdelivr.net/npm/@alpinejs/persist@3.x.x/dist/cdn.min.js"  "alpine-persist.min.js"
-    just update-vendor "https://cdn.jsdelivr.net/npm/@alpinejs/focus@3.x.x/dist/cdn.min.js"    "alpine-focus.min.js"
-    just update-vendor "https://cdn.jsdelivr.net/npm/@alpinejs/collapse@3.x.x/dist/cdn.min.js" "alpine-collapse.min.js"
-    just update-vendor "https://cdn.jsdelivr.net/npm/@alpinejs/csp@3.x.x/dist/cdn.min.js"      "alpine.min.js"
-
-[group('lifecycle')]
-watch-css:
-    deno run -A "npm:@tailwindcss/cli" -i ./src/input.css -o ./static/styles.css --watch
-
-[group('lifecycle')]
-build-css:
-    deno run -A "npm:@tailwindcss/cli" -i ./src/input.css -o ./static/styles.css
-
-[group('lifecycle')]
-run:
-     deno -P=app --watch main.ts
-
-[group('lifecycle')]
-compile-all: compile-javascript
-
-[group('lifecycle')]
-compile-javascript: generate-version
-    deno bundle -o "dist/index.js" "main.ts"
+build-css: build-css-cookmate build-css-chatmate
