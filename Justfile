@@ -2,7 +2,6 @@
 default:
 	@just --list
 
-mod cookmate 'apps/cookmate/Justfile'
 mod chatmate 'apps/chatmate/Justfile'
 mod notemate 'apps/notemate/Justfile'
 
@@ -31,7 +30,7 @@ install-hooks:
 
 [group('lifecycle')]
 check:
-    deno check packages/sleipnir/mod.ts apps/cookmate/main.ts apps/chatmate/main.ts apps/notemate/main.ts
+    deno check packages/sleipnir/mod.ts apps/chatmate/main.ts apps/notemate/main.ts
 
 [group('lifecycle')]
 test:
@@ -51,6 +50,5 @@ update-dependencies:
 
 [group('lifecycle')]
 build-css:
-    @just cookmate build-css
     @just chatmate build-css
     @just notemate build-css

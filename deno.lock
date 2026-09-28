@@ -10,7 +10,6 @@
     "npm:daisyui@^5.7.46": "5.7.46",
     "npm:hono@^4.13.10": "4.13.10",
     "npm:marked@15.0.12": "15.0.12",
-    "npm:minisearch@^7.2.0": "7.2.0",
     "npm:tailwindcss@^4.3.3": "4.3.3"
   },
   "jsr": {
@@ -401,9 +400,6 @@
         "picomatch"
       ]
     },
-    "minisearch@7.2.0": {
-      "integrity": "sha512-dqT2XBYUOZOiC5t2HRnwADjhNS2cecp9u+TJRiJ1Qp/f5qjkeT5APcGPjHw+bz89Ms8Jp+cG4AlE+QZ/QnDglg=="
-    },
     "mri@1.2.0": {
       "integrity": "sha512-tzzskb3bG8LvYGFF/mDTpq3jpI6Q9wc3LEmBaghu+DdCssd1FakN7Bc0hVNmEyGq1bq3RgfkCb3cmQLpNPOroA=="
     },
@@ -440,16 +436,6 @@
           "npm:@tailwindcss/cli@^4.3.3",
           "npm:daisyui@^5.7.46",
           "npm:hono@^4.13.10",
-          "npm:tailwindcss@^4.3.3"
-        ]
-      },
-      "apps/cookmate": {
-        "dependencies": [
-          "jsr:@std/assert@^1.0.19",
-          "npm:@tailwindcss/cli@^4.3.3",
-          "npm:daisyui@^5.7.46",
-          "npm:hono@^4.13.10",
-          "npm:minisearch@^7.2.0",
           "npm:tailwindcss@^4.3.3"
         ]
       },

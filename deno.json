@@ -13,7 +13,7 @@
   },
   "nodeModulesDir": "auto",
   "tasks": {
-    "dev:cookmate": "deno run -P=app --watch apps/cookmate/main.ts",
+    "dev:notemate": "deno run -P=app --watch apps/notemate/main.ts",
     "dev:chatmate": "deno run -P=app --watch apps/chatmate/main.ts",
     "check": "deno check packages/**/*.ts apps/**/*.ts apps/**/*.tsx",
     "lint": "deno lint",
