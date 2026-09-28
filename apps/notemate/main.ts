@@ -15,4 +15,6 @@ const port =
     ? parsedPort
     : 3003;
 
-Deno.serve({ port }, app(kv).fetch);
+const basePath = Deno.env.get("BASE_PATH");
+
+Deno.serve({ port }, app(kv, basePath).fetch);

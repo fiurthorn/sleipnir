@@ -1,0 +1,81 @@
+# @project Sleipnir Stack / Podman Compose
+# @authors Stefan & Sam (AI Peer)
+# @collaboration Erarbeitet im gemeinschaftlichen Dialog.
+# Architektur & Review: Stefan | Implementation & Synthese: Sam
+
+services:
+  cookmate:
+    image: docker.io/denoland/deno:alpine
+    container_name: cookmate
+    hostname: cookmate
+    working_dir: /workspace
+    volumes:
+      - .:/workspace:Z
+      - deno-cache:/deno-dir
+    environment:
+      - PORT=3001
+      - BASE_PATH=
+      - DENO_DIR=/deno-dir
+    command: ["run", "-P=app", "--watch", "apps/cookmate/main.ts"]
+    env_file:
+      - path: .env
+        required: false
+    ports:
+      - "3001:3001"
+    networks:
+      - sleipnir-net
+    restart: unless-stopped
+
+  chatmate:
+    image: docker.io/denoland/deno:alpine
+    container_name: chatmate
+    hostname: chatmate
+    working_dir: /workspace
+    volumes:
+      - .:/workspace:Z
+      - deno-cache:/deno-dir
+    environment:
+      - PORT=3002
+      - BASE_PATH=
+      - DENO_DIR=/deno-dir
+    command: ["run", "-P=app", "--watch", "apps/chatmate/main.ts"]
+    env_file:
+      - path: .env
+        required: false
+    ports:
+      - "3002:3002"
+    networks:
+      - sleipnir-net
+    restart: unless-stopped
+
+  notemate:
+    image: docker.io/denoland/deno:alpine
+    container_name: notemate
+    hostname: notemate
+    working_dir: /workspace
+    volumes:
+      - .:/workspace:Z
+      - ./data:/workspace/data:Z
+      - deno-cache:/deno-dir
+    environment:
+      - PORT=3003
+      - BASE_PATH=
+      - DENO_DIR=/deno-dir
+    command: ["run", "-P=app", "--watch", "apps/notemate/main.ts"]
+    env_file:
+      - path: .env
+        required: false
+    ports:
+      - "3003:3003"
+    networks:
+      - sleipnir-net
+    restart: unless-stopped
+
+volumes:
+  deno-cache:
+    name: sleipnir-deno-cache
+
+networks:
+  sleipnir-net:
+    name: sleipnir-network
+    driver: bridge
