@@ -13,3 +13,4 @@ export * from "./src/jsonpath.ts";
 export * from "./src/utils.ts";
 export * from "./src/kv.ts";
 export * from "./src/cors.ts";
+export * from "./src/components/Alerts.tsx";

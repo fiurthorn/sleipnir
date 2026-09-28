@@ -105,11 +105,13 @@ document.addEventListener("alpine:init", () => {
     },
 
     showToast(message, duration = 3000) {
-      this.toastMessage = message;
-      if (this.toastTimeout) clearTimeout(this.toastTimeout);
-      this.toastTimeout = setTimeout(() => {
-        this.toastMessage = null;
-      }, duration);
+      if (typeof window.showAlert === "function") {
+        const lower = String(message).toLowerCase();
+        const isError = lower.includes("fehler") || lower.includes("error");
+        const isSuccess = String(message).startsWith("✓");
+        const level = isError ? "error" : (isSuccess ? "success" : "info");
+        window.showAlert(message, level, duration);
+      }
     },
 
     async refreshTree() {

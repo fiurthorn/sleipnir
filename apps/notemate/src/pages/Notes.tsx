@@ -8,15 +8,6 @@
 export const NotesPage = () => {
   return (
     <div x-data="notemate" class="flex h-screen overflow-hidden">
-      {/* Toast Notification */}
-      <div
-        x-show="toastMessage"
-        class="fixed bottom-5 right-5 z-50 alert alert-info shadow-lg w-auto py-2 px-4 text-xs font-medium transition duration-200"
-        x-text="toastMessage"
-        style="display: none;"
-      >
-      </div>
-
       {/* Mobile Backdrop */}
       <div
         x-show="mobileMenuOpen"

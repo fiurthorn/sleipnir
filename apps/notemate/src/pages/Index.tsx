@@ -6,7 +6,7 @@
  */
 
 import { Child } from "hono/jsx";
-import { proxyRedirect } from "@sleipnir/core";
+import { AlertZone, proxyRedirect } from "@sleipnir/core";
 
 interface PageProps {
   title?: string;
@@ -28,7 +28,6 @@ export const Index = (
         <link href="./static/vendor/nord.min.css" rel="stylesheet" />
 
         <script type="module" src="./static/client.js"></script>
-        <script defer src="./static/vendor/htmx.min.js"></script>
         <script defer src="./static/vendor/alpine-collapse.min.js"></script>
         <script defer src="./static/vendor/alpine-focus.min.js"></script>
         <script defer src="./static/vendor/alpine-mask.min.js"></script>
@@ -44,7 +43,8 @@ export const Index = (
         <title>{title}</title>
       </head>
 
-      <body class="bg-base-300 text-base-content min-h-screen flex flex-col antialiased">
+      <body class="bg-base-300 text-base-content min-h-screen flex flex-col antialiased relative">
+        <AlertZone />
         {content}
       </body>
     </html>

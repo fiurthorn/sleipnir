@@ -11,6 +11,10 @@
       "all": true
     }
   },
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "jsxImportSource": "hono/jsx"
+  },
   "nodeModulesDir": "auto",
   "tasks": {
     "dev:notemate": "deno run -P=app --watch apps/notemate/main.ts",
