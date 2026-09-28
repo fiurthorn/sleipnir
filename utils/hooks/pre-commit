@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+#
+# @project Sleipnir Stack / Hooks
+# @authors Stefan & Sam (AI Peer)
+# @collaboration Erarbeitet im gemeinschaftlichen Dialog.
+# Architektur & Review: Stefan | Implementation & Synthese: Sam
+#
+
+set -e
+
+# Terminal Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+echo -e "\n${BLUE}🔍 [Git Pre-Commit Hook] Starte Qualitäts-Prüfungen...${NC}"
+
+# 1. Formatierung prüfen
+echo -e "${YELLOW}⚙️  Prüfe Formatierung (deno fmt)...${NC}"
+if ! deno fmt --check; then
+  echo -e "${RED}❌ Formatierungs-Fehler erkannt! Bitte 'just fmt' ausführen und die geänderten Dateien stagen.${NC}"
+  exit 1
+fi
+echo -e "${GREEN}✓ Formatierung sauber.${NC}"
+
+# 2. Linting
+echo -e "${YELLOW}⚙️  Prüfe Code-Qualität (deno lint)...${NC}"
+if ! deno lint; then
+  echo -e "${RED}❌ Linter-Fehler gefunden! Bitte vor dem Commit beheben.${NC}"
+  exit 1
+fi
+echo -e "${GREEN}✓ Linting bestanden.${NC}"
+
+# 3. TypeScript Type-Check
+echo -e "${YELLOW}⚙️  Prüfe Typ-Sicherheit (deno check)...${NC}"
+if ! deno check packages/sleipnir/mod.ts apps/cookmate/main.ts apps/chatmate/main.ts; then
+  echo -e "${RED}❌ TypeScript Type-Check fehlgeschlagen!${NC}"
+  exit 1
+fi
+echo -e "${GREEN}✓ Typen fehlerfrei.${NC}"
+
+# 4. Automatisierte Tests
+echo -e "${YELLOW}⚙️  Führe Test-Suite aus (deno test)...${NC}"
+if ! deno test; then
+  echo -e "${RED}❌ Tests fehlgeschlagen! Commit wird abgebrochen.${NC}"
+  exit 1
+fi
+echo -e "${GREEN}✓ Alle Tests grün.${NC}"
+
+echo -e "${GREEN}✨ [Pre-Commit] Alle Qualitäts-Checks erfolgreich! Commit wird freigegeben.\n${NC}"
+exit 0

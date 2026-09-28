@@ -19,6 +19,13 @@ create-version tag: guard-clean
     git push
 
 [group('lifecycle')]
+install-hooks:
+    @mkdir -p .git/hooks
+    @ln -sf ../../utils/hooks/pre-commit .git/hooks/pre-commit
+    @chmod +x utils/hooks/pre-commit
+    @echo "✅ Pre-Commit Hook installiert (.git/hooks/pre-commit -> utils/hooks/pre-commit)"
+
+[group('lifecycle')]
 check:
     deno check packages/sleipnir/mod.ts apps/cookmate/main.ts apps/chatmate/main.ts
 
