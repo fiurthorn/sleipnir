@@ -19,7 +19,7 @@ Deno.test("sleipnirCors - handles preflight OPTIONS request", async () => {
     headers: {
       "Origin": "https://example.com",
       "Access-Control-Request-Method": "POST",
-      "Access-Control-Request-Headers": "Content-Type, HX-Request",
+      "Access-Control-Request-Headers": "Content-Type, Authorization",
     },
   });
 
@@ -31,7 +31,7 @@ Deno.test("sleipnirCors - handles preflight OPTIONS request", async () => {
     true,
   );
   assertEquals(
-    res.headers.get("access-control-allow-headers")?.includes("HX-Request"),
+    res.headers.get("access-control-allow-headers")?.includes("Authorization"),
     true,
   );
 });
@@ -52,7 +52,9 @@ Deno.test("sleipnirCors - passes GET with CORS headers", async () => {
   assertEquals(res.status, 200);
   assertEquals(res.headers.get("access-control-allow-origin"), "*");
   assertEquals(
-    res.headers.get("access-control-expose-headers")?.includes("HX-Trigger"),
+    res.headers.get("access-control-expose-headers")?.includes(
+      "Content-Length",
+    ),
     true,
   );
 });

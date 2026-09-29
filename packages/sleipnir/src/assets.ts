@@ -5,31 +5,34 @@
  * Architektur & Review: Stefan | Implementation & Synthese: Sam
  */
 
-import { serveStatic } from "hono/deno";
-import type { ServeStaticOptions } from "hono/serve-static";
 import type { MiddlewareHandler } from "hono";
+import { serveStatic } from "@hono/deno";
+import type { ServeStaticOptions } from "hono/serve-static";
 import type { Sleipnir, SleipnirContext } from "./sleipnir.ts";
 
-export function cache(version: string = "0.1.0"): MiddlewareHandler {
-  return async (c: SleipnirContext, next: () => Promise<void>) => {
-    const developMode = Deno.env.get("APP_ENV") === "development";
-    const ETag = `"${version}"`;
+export interface CacheOptions {
+  developMode?: boolean;
+  version: string;
+}
 
-    if (c.req.header("if-none-match") === ETag) {
+export function cache(options?: CacheOptions): MiddlewareHandler {
+  return async (c: SleipnirContext, next: () => Promise<void>) => {
+    const ETag = `"${options?.version ?? "dev"}"`;
+
+    if (!options?.developMode && c.req.header("if-none-match") === ETag) {
       return c.body(null, 304);
     }
 
-    if (developMode) {
+    await next();
+
+    if (options?.developMode) {
       c.header("Cache-Control", "no-cache");
       c.header("Pragma", "no-cache");
       c.header("Expires", "0");
-      await next();
-      return;
+    } else {
+      c.header("ETag", ETag);
+      c.header("Cache-Control", "public, max-age=0, must-revalidate");
     }
-
-    c.header("ETag", ETag);
-    c.header("Cache-Control", "public, max-age=0, must-revalidate");
-    await next();
   };
 }
 
@@ -38,6 +41,7 @@ export function assets(
   basePath: string = "",
   version: string = "0.1.0",
   rootPath: string = "./",
+  developMode: boolean = false,
 ): void {
   let staticRoot = rootPath;
   try {
@@ -59,6 +63,6 @@ export function assets(
     param.rewriteRequestPath = (path) => path.replace(cleanBase, "./");
   }
 
-  app.use("/static/*", cache(version));
+  app.use("/static/*", cache({ version, developMode }));
   app.use("/static/*", serveStatic(param));
 }

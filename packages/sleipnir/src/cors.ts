@@ -5,8 +5,8 @@
  * Architektur & Review: Stefan | Implementation & Synthese: Sam
  */
 
-import { cors } from "hono/cors";
 import type { MiddlewareHandler } from "hono";
+import { cors as honoCors } from "hono/cors";
 
 export interface SleipnirCorsOptions {
   origin?: string | string[] | ((origin: string) => string | undefined | null);
@@ -22,7 +22,7 @@ export interface SleipnirCorsOptions {
  * Supports configurable origins via CORS_ORIGIN environment variable,
  * with first-class support for HTMX-specific request and response headers.
  */
-export function sleipnirCors(options?: SleipnirCorsOptions): MiddlewareHandler {
+export function cors(options?: SleipnirCorsOptions): MiddlewareHandler {
   let envOrigin: string | undefined;
   try {
     envOrigin = Deno.env.get("CORS_ORIGIN");
@@ -33,16 +33,19 @@ export function sleipnirCors(options?: SleipnirCorsOptions): MiddlewareHandler {
 
   if (!origin) {
     if (envOrigin) {
-      const parts = envOrigin.split(",").map((s) => s.trim()).filter(Boolean);
+      const parts = envOrigin
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
       origin = parts.length === 1 ? parts[0] : parts;
     } else {
       origin = "*";
     }
   }
 
-  const credentials = options?.credentials ?? (origin !== "*");
+  const credentials = options?.credentials ?? origin !== "*";
 
-  return cors({
+  return honoCors({
     origin,
     allowMethods: options?.allowMethods ?? [
       "GET",
@@ -57,24 +60,15 @@ export function sleipnirCors(options?: SleipnirCorsOptions): MiddlewareHandler {
       "Content-Type",
       "Authorization",
       "X-Requested-With",
-      "HX-Request",
-      "HX-Target",
-      "HX-Current-URL",
-      "HX-Trigger",
-      "HX-Trigger-Name",
-      "HX-Prompt",
+      "Accept",
+      "X-Requested-With",
+      "ETag",
+      "Cache-Control",
     ],
-    exposeHeaders: options?.exposeHeaders ?? [
-      "Content-Length",
-      "HX-Trigger",
-      "HX-Trigger-After-Settle",
-      "HX-Trigger-After-Swap",
-      "HX-Redirect",
-      "HX-Refresh",
-      "HX-Retarget",
-      "HX-Reswap",
-    ],
+    exposeHeaders: options?.exposeHeaders ?? ["Content-Length"],
     credentials,
     maxAge: options?.maxAge ?? 86400,
   });
 }
+
+export const sleipnirCors = cors;

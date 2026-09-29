@@ -94,8 +94,7 @@ export const NotesPage = () => {
             class="flex-1 overflow-y-auto space-y-1 pr-1"
           >
             <div class="text-[11px] font-bold uppercase opacity-50 px-1 py-1">
-              Suchergebnisse (
-              <span x-text="searchResults.length"></span>)
+              Suchergebnisse (<span x-text="searchResults.length"></span>)
             </div>
 
             <template x-for="res in searchResults" x-bind:key="res.path">
@@ -134,10 +133,7 @@ export const NotesPage = () => {
             x-show="!searchQuery.trim()"
             class="flex-1 overflow-y-auto space-y-0.5 pr-1 select-none text-xs"
           >
-            <template
-              x-for="item in visibleTreeItems"
-              x-bind:key="item.path"
-            >
+            <template x-for="item in visibleTreeItems" x-bind:key="item.path">
               <div
                 class="group flex items-center justify-between py-1.5 px-2 rounded-md transition cursor-pointer"
                 x-bind:class="notePath === item.path ? 'bg-primary text-primary-content font-medium shadow-sm' : 'hover:bg-base-300 text-base-content/85'"
@@ -381,23 +377,32 @@ export const NotesPage = () => {
                   </div>
 
                   <div class="flex items-center gap-2">
-                    <div class="join border border-base-content/20 rounded-lg bg-base-100 shadow-sm">
+                    <div class="join border border-base-content/20 rounded-lg bg-base-100 shadow-sm items-center h-7 overflow-hidden">
                       <button
                         type="button"
-                        class="join-item btn btn-xs btn-ghost px-2.5 font-bold"
+                        class="join-item btn btn-xs btn-ghost h-full px-2.5 font-bold rounded-none"
                         x-on:click="decrementServings()"
                         x-bind:disabled="recipeCurrentServings <= 1"
                         title="Eine Portion weniger"
                       >
                         -
                       </button>
-                      <div class="join-item px-3 py-1 text-xs font-mono font-bold flex items-center min-w-16 justify-center">
-                        <span x-text="recipeCurrentServings"></span>
-                        <span class="opacity-60 ml-1 font-normal">Port.</span>
+                      <div class="join-item flex items-center px-1 h-full bg-transparent">
+                        <input
+                          type="number"
+                          min="1"
+                          step="any"
+                          x-model="recipeCurrentServings"
+                          class="w-12 bg-transparent text-center font-mono font-bold text-xs p-0 m-0 border-none outline-none focus:outline-none focus:ring-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                          title="Portionen oder Mehlmenge (z.B. 1375)"
+                        />
+                        <span class="text-[11px] opacity-60 pl-0.5 pr-1 font-normal select-none">
+                          Port.
+                        </span>
                       </div>
                       <button
                         type="button"
-                        class="join-item btn btn-xs btn-ghost px-2.5 font-bold"
+                        class="join-item btn btn-xs btn-ghost h-full px-2.5 font-bold rounded-none"
                         x-on:click="incrementServings()"
                         title="Eine Portion mehr"
                       >

@@ -7,23 +7,31 @@
 
 import {
   assets,
+  cors,
+  hsts,
   Sleipnir,
   type SleipnirContext,
-  sleipnirCors,
   VERSION,
 } from "@sleipnir/core";
 import { compress } from "hono/compress";
 import { secureHeaders } from "hono/secure-headers";
-import { Index } from "../pages/Index.tsx";
 import { ChatPage } from "../pages/Chat.tsx";
+import { Index } from "../pages/Index.tsx";
 import { chatApi } from "./api/chat.ts";
 import { imageApi } from "./api/image.ts";
 import { modelsApi } from "./api/models.ts";
 
-export default function App(basePath?: string) {
+export default function App(basePath?: string, developMode: boolean = false) {
+  console.log(
+    `Starting Notemate with basePath: ${basePath ?? "none"} as ${
+      developMode ? "development" : "production"
+    } mode`,
+  );
+
   const app = new Sleipnir().basePath(basePath ?? "");
+  app.use("*", hsts());
   app.use("*", compress());
-  app.use("*", sleipnirCors());
+  app.use("*", cors());
   app.use(
     "*",
     secureHeaders({
@@ -50,10 +58,12 @@ export default function App(basePath?: string) {
     c.html(<Index content={<ChatPage />} />);
   app.get("/", rootHandler);
   if (basePath) app.get("", rootHandler);
+
   modelsApi(app, "/api/models");
   chatApi(app, "/api/chat");
   imageApi(app, "/api/image");
-  assets(app, basePath, VERSION, "./apps/chatmate");
+
+  assets(app, basePath, VERSION, "./apps/chatmate", developMode);
 
   return app;
 }

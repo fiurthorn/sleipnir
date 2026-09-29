@@ -554,19 +554,18 @@ document.addEventListener("alpine:init", () => {
     },
 
     incrementServings() {
-      if (typeof this.recipeCurrentServings === "number") {
-        this.recipeCurrentServings =
-          Math.round((this.recipeCurrentServings + 1) * 10) / 10;
-      }
+      const current = typeof this.recipeCurrentServings === "number"
+        ? this.recipeCurrentServings
+        : parseFloat(this.recipeCurrentServings) || this.recipeBaseServings || 1;
+      this.recipeCurrentServings = Math.round((current + 1) * 10) / 10;
     },
 
     decrementServings() {
-      if (
-        typeof this.recipeCurrentServings === "number" &&
-        this.recipeCurrentServings > 1
-      ) {
-        this.recipeCurrentServings =
-          Math.round((this.recipeCurrentServings - 1) * 10) / 10;
+      const current = typeof this.recipeCurrentServings === "number"
+        ? this.recipeCurrentServings
+        : parseFloat(this.recipeCurrentServings) || this.recipeBaseServings || 1;
+      if (current > 1) {
+        this.recipeCurrentServings = Math.round((current - 1) * 10) / 10;
       }
     },
 
@@ -735,12 +734,17 @@ document.addEventListener("alpine:init", () => {
       processed = processed.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, "");
 
       // 2. Recipe table scaling
-      const currentServings = typeof servings === "number"
+      const rawServings = typeof servings !== "undefined"
         ? servings
         : this.recipeCurrentServings;
+      const currentServings = typeof rawServings === "number"
+        ? rawServings
+        : parseFloat(rawServings);
+
       if (
         this.recipeBaseServings &&
-        currentServings &&
+        !isNaN(currentServings) &&
+        currentServings > 0 &&
         currentServings !== this.recipeBaseServings
       ) {
         const multiplier = currentServings / this.recipeBaseServings;

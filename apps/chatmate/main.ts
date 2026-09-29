@@ -15,5 +15,6 @@ const port =
     : 3002;
 
 const basePath = Deno.env.get("BASE_PATH");
+const developMode = Deno.env.get("APP_ENV") === "development";
 
-Deno.serve({ port }, app(basePath).fetch);
+Deno.serve({ port }, app(basePath, developMode).fetch);

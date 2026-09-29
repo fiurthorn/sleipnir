@@ -7,7 +7,7 @@
 
 import { type SleipnirContext } from "@sleipnir/core";
 
-import { assets, Sleipnir, sleipnirCors, VERSION } from "@sleipnir/core";
+import { assets, cors, hsts, Sleipnir, VERSION } from "@sleipnir/core";
 import { compress } from "hono/compress";
 import { secureHeaders } from "hono/secure-headers";
 import { Index } from "../pages/Index.tsx";
@@ -15,12 +15,19 @@ import { NotesPage } from "../pages/Notes.tsx";
 import { notesApi } from "./api/notes.ts";
 import { NoteStorage } from "./services/storage.ts";
 
-export default function App(basePath?: string) {
+export default function App(basePath?: string, developMode: boolean = false) {
+  console.log(
+    `Starting Notemate with basePath: ${basePath ?? "none"} as ${
+      developMode ? "development" : "production"
+    } mode`,
+  );
+
   const app = new Sleipnir().basePath(basePath ?? "");
   const storage = new NoteStorage();
 
+  app.use("*", hsts());
   app.use("*", compress());
-  app.use("*", sleipnirCors());
+  app.use("*", cors());
   app.use(
     "*",
     secureHeaders({
@@ -47,7 +54,7 @@ export default function App(basePath?: string) {
   notesApi(app, storage);
 
   // Static Assets
-  assets(app, basePath, VERSION, "./apps/notemate");
+  assets(app, basePath, VERSION, "./apps/notemate", developMode);
 
   return app;
 }

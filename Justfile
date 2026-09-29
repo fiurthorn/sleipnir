@@ -61,7 +61,7 @@ generate-version:
     @echo "✅ version.ts mit Version {{version}} erstellt."
 
 [group('lifecycle')]
-build-client:
+build-client: generate-version update-libs
     deno run -A npm:esbuild packages/sleipnir/src/client/main.ts --bundle --format=iife --outfile=packages/sleipnir/static/sleipnir-client.min.js --minify
     @cp packages/sleipnir/static/sleipnir-client.min.js apps/notemate/static/sleipnir-client.min.js
     @cp packages/sleipnir/static/sleipnir-client.min.js apps/chatmate/static/sleipnir-client.min.js

@@ -11,6 +11,7 @@ export * from "./src/assets.ts";
 export * from "./src/components/Alerts.tsx";
 export * from "./src/components/ThemeToggle.tsx";
 export * from "./src/cors.ts";
+export * from "./src/hsts.ts";
 export * from "./src/jsonpath.ts";
 export * from "./src/sleipnir.ts";
 export * from "./src/utils.ts";
