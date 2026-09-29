@@ -23,11 +23,11 @@
     wird.
   - Vordefinierte Presets (z. B. _Architekt_, _Code Reviewer_,
     _Kreativschreiber_, _Rezept-Berater_).
-- [ ] **Token-Schutz für multimodale Verläufe:**
+- [x] **Token-Schutz für multimodale Verläufe:**
   - Ältere Bilder im Verlauf belasten das Token-Budget und Payload-Größen.
-  - _Strategie:_ Nur das Bild des aktuellen bzw. der letzten 1–2 User-Turns als
-    volles Vision-Base64 mitsenden; ältere Bilder im Prompt-Verlauf durch einen
-    Textmarker `[Vorheriges Bild analysiert]` ersetzen.
+  - _Umgesetzt:_ Nur das Bild des aktuellsten Turns wird als volles
+    Base64-Payload übertragen. Ältere Bilder im Verlauf werden durch schlanke
+    Referenzmarker ersetzt, bleiben aber im UI/LocalStorage voll erhalten.
 
 ---
 

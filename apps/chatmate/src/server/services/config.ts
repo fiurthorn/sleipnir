@@ -32,12 +32,52 @@ export interface ResolvedProvider {
   imageModels: ConfigModelItem[];
 }
 
+let envLoaded = false;
+
+function ensureEnvLoaded() {
+  if (envLoaded) return;
+  envLoaded = true;
+
+  // Attempt to load .env from app directory, then from root workspace
+  const candidates = [
+    new URL("../../../.env", import.meta.url).pathname,
+    new URL("../../../../../.env", import.meta.url).pathname,
+  ];
+
+  for (const envPath of candidates) {
+    try {
+      const content = Deno.readTextFileSync(envPath);
+      for (const line of content.split("\n")) {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith("#")) continue;
+        const eqIdx = trimmed.indexOf("=");
+        if (eqIdx === -1) continue;
+        const key = trimmed.slice(0, eqIdx).trim();
+        let val = trimmed.slice(eqIdx + 1).trim();
+        if (
+          (val.startsWith('"') && val.endsWith('"')) ||
+          (val.startsWith("'") && val.endsWith("'"))
+        ) {
+          val = val.slice(1, -1);
+        }
+        if (!Deno.env.get(key)) {
+          Deno.env.set(key, val);
+        }
+      }
+      break;
+    } catch {
+      // Continue to next candidate
+    }
+  }
+}
+
 /**
  * Resolves placeholders like {{NAME}} from environment variables (Deno.env / process.env).
  * If no placeholder syntax is used, returns the value as is.
  */
 export function resolveEnvValue(value?: string): string {
   if (!value) return "";
+  ensureEnvLoaded();
   return value.replace(/\{\{\s*([A-Za-z0-9_]+)\s*\}\}/g, (_, envVarName) => {
     return Deno.env.get(envVarName) ?? "";
   });

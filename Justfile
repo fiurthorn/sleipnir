@@ -30,7 +30,9 @@ install-hooks:
 
 [group('lifecycle')]
 check:
-    deno check packages/sleipnir/mod.ts packages/sleipnir/src/client/main.ts apps/chatmate/main.ts apps/notemate/main.ts
+    deno check
+    deno fmt
+    deno lint
 
 [group('lifecycle')]
 test:

@@ -1,0 +1,79 @@
+/**
+ * @project Sleipnir Stack / Core
+ * @authors Stefan & Sam (AI Peer)
+ * @collaboration Erarbeitet im gemeinschaftlichen Dialog.
+ * Architektur & Review: Stefan | Implementation & Synthese: Sam
+ */
+
+@theme {
+  /* Nord Colors: Polar Night */
+  --color-nord-polar-night-0: #2e3440; /* Haupt-Hintergrund Dunkel */
+  --color-nord-polar-night-1: #3b4252; /* Card / Surface / Panels */
+  --color-nord-polar-night-2: #434c5e; /* Borders / Dividers */
+  --color-nord-polar-night-3: #4c566a; /* Muted Text / Inactive */
+
+  /* Nord Colors: Snow Storm */
+  --color-nord-snow-storm-4: #d8dee9;
+  --color-nord-snow-storm-5: #e5e9f0;
+  --color-nord-snow-storm-6: #eceff4; /* Heller Text */
+
+  /* Nord Colors: Frost */
+  --color-nord-frost-7: #8fbcbb; /* Türkis / Polar Freeze */
+  --color-nord-frost-8: #88c0d0; /* Helles Frost-Cyan */
+  --color-nord-frost-9: #81a1c1; /* Mittleres Frost-Blau */
+  --color-nord-frost-10: #5e81ac; /* Deep Nord Frost Blau - Primär */
+
+  /* Nord Aurora - Akzentfarben */
+  --color-nord-aurora-red: #bf616a;
+  --color-nord-aurora-orange: #d08770;
+  --color-nord-aurora-yellow: #ebcb8b; /* Warmes Goldgelb */
+  --color-nord-aurora-green: #a3be8c;
+  --color-nord-aurora-purple: #b48ead;
+  --color-nord-earth-brown: #5e4533;
+}
+
+/* Light Theme: Corvus (Nord Snow Storm Basis) */
+[data-theme="corvus"] {
+  color-scheme: light;
+  --color-primary: var(--color-nord-frost-10); /* #5e81ac */
+  --color-primary-content: var(--color-nord-snow-storm-6);
+  --color-secondary: var(--color-nord-earth-brown);
+  --color-secondary-content: var(--color-nord-snow-storm-6);
+  --color-accent: var(--color-nord-aurora-yellow);
+  --color-accent-content: var(--color-nord-polar-night-0);
+  --color-neutral: var(--color-nord-polar-night-0);
+  --color-neutral-content: var(--color-nord-snow-storm-6);
+
+  --color-base-100: #ffffff;
+  --color-base-200: var(--color-nord-snow-storm-5); /* #e5e9f0 */
+  --color-base-300: var(--color-nord-snow-storm-4); /* #d8dee9 */
+  --color-base-content: var(--color-nord-polar-night-0);
+
+  --color-info: var(--color-nord-frost-8);
+  --color-success: var(--color-nord-aurora-green);
+  --color-warning: var(--color-nord-aurora-orange);
+  --color-error: var(--color-nord-aurora-red);
+}
+
+/* Dark Theme: Corvus Dark (Nord Polar Night & Frost 10 aus Screenshot) */
+[data-theme="corvus-dark"] {
+  color-scheme: dark;
+  --color-primary: var(--color-nord-frost-10); /* #5e81ac - edles Frost-Blau */
+  --color-primary-content: var(--color-nord-snow-storm-6); /* #eceff4 - heller Text auf Blau */
+  --color-secondary: var(--color-nord-frost-9); /* #81a1c1 */
+  --color-secondary-content: var(--color-nord-snow-storm-6);
+  --color-accent: var(--color-nord-aurora-yellow); /* #ebcb8b - warmes Goldgelb */
+  --color-accent-content: var(--color-nord-polar-night-0); /* #2e3440 - dunkler Text auf Gelb */
+  --color-neutral: var(--color-nord-polar-night-0); /* #2e3440 */
+  --color-neutral-content: var(--color-nord-snow-storm-6);
+
+  --color-base-100: var(--color-nord-polar-night-1); /* #3b4252 - Card / Panels */
+  --color-base-200: var(--color-nord-polar-night-0); /* #2e3440 - Haupt-Hintergrund */
+  --color-base-300: #242933; /* Tieferes Dunkel */
+  --color-base-content: var(--color-nord-snow-storm-6); /* #eceff4 - heller Text */
+
+  --color-info: var(--color-nord-frost-8);
+  --color-success: var(--color-nord-aurora-green);
+  --color-warning: var(--color-nord-aurora-orange);
+  --color-error: var(--color-nord-aurora-red);
+}

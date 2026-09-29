@@ -10,8 +10,20 @@ import { ThemeToggle } from "@sleipnir/core";
 export const ChatPage = () => {
   return (
     <div x-data="chatmate" class="flex h-screen overflow-hidden">
+      {/* Mobile Backdrop */}
+      <div
+        x-show="mobileMenuOpen"
+        x-on:click="mobileMenuOpen = false"
+        class="fixed inset-0 bg-black/50 z-40 md:hidden"
+        style="display: none;"
+      >
+      </div>
+
       {/* Sidebar: Dialog-Liste & Lokale Datenhoheit */}
-      <aside class="w-80 bg-base-200 border-r border-base-content/10 flex flex-col justify-between hidden md:flex z-10">
+      <aside
+        class="w-80 bg-base-200 border-r border-base-content/10 flex flex-col justify-between z-50 md:z-10 md:relative"
+        x-bind:class="mobileMenuOpen ? 'fixed inset-y-0 left-0 shadow-2xl flex' : 'hidden md:flex'"
+      >
         <div class="p-4 flex flex-col gap-3 flex-1 overflow-hidden">
           {/* Logo & Status */}
           <div class="flex items-center justify-between">
@@ -26,24 +38,15 @@ export const ChatPage = () => {
                 </p>
               </div>
             </div>
-            <div class="flex items-center gap-1.5" title="Provider Status">
-              <template
-                x-for="p in activeProviders"
-                x-bind:key="p.id"
-              >
-                <div
-                  class="tooltip tooltip-bottom"
-                  x-bind:data-tip="p.name + (providerStatus[p.id] ? ': Bereit' : ': Kein API-Key')"
-                >
-                  <span
-                    class="badge badge-xs uppercase font-mono"
-                    x-bind:class="providerStatus[p.id] ? 'badge-success' : 'badge-ghost opacity-40'"
-                    x-text="p.id.slice(0, 2)"
-                  >
-                  </span>
-                </div>
-              </template>
-            </div>
+            {/* Close-Button nur Mobile */}
+            <button
+              type="button"
+              class="btn btn-ghost btn-xs btn-square md:hidden opacity-70 hover:opacity-100"
+              x-on:click="mobileMenuOpen = false"
+              title="Menü schließen"
+            >
+              ✕
+            </button>
           </div>
 
           {/* Neuer Dialog Button */}
@@ -134,10 +137,32 @@ export const ChatPage = () => {
       {/* Main Chat Area */}
       <main class="flex-1 flex flex-col bg-base-100 overflow-hidden relative">
         {/* Top Navbar */}
-        <header class="navbar bg-base-100 border-b border-base-content/10 px-6 py-2 flex justify-between z-10">
-          <div class="flex items-center gap-3">
+        <header class="navbar bg-base-100 border-b border-base-content/10 px-3 md:px-6 py-2 flex justify-between z-10 min-h-12 gap-2">
+          <div class="flex items-center gap-1.5 md:gap-3 truncate min-w-0">
+            {/* Hamburger: nur Mobile */}
+            <button
+              type="button"
+              class="btn btn-ghost btn-xs btn-square md:hidden shrink-0"
+              x-on:click="mobileMenuOpen = !mobileMenuOpen"
+              title="Chats"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                class="h-4 w-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M4 6h16M4 12h16M4 18h16"
+                />
+              </svg>
+            </button>
             <span
-              class="font-bold text-base md:text-lg truncate max-w-xs md:max-w-md"
+              class="font-bold text-sm md:text-lg truncate"
               x-text="currentChat ? currentChat.title : 'Chatmate'"
             >
             </span>
@@ -149,15 +174,9 @@ export const ChatPage = () => {
               class="select select-bordered select-sm max-w-xs font-mono text-xs"
               x-model="activeModel"
             >
-              <template
-                x-for="provider in configuredProviders"
-                x-bind:key="provider.id"
-              >
-                <optgroup x-bind:label="provider.name">
-                  <template
-                    x-for="m in getModelsForProvider(provider.id)"
-                    x-bind:key="m.id"
-                  >
+              <template x-for="group in modelGroups" x-bind:key="group.id">
+                <optgroup x-bind:label="group.label">
+                  <template x-for="m in group.models" x-bind:key="m.id">
                     <option x-bind:value="m.id" x-text="m.name"></option>
                   </template>
                 </optgroup>
@@ -218,10 +237,13 @@ export const ChatPage = () => {
                   <div class="chat-header text-xs opacity-50 mb-1">
                     Chatmate
                   </div>
-                  <div
-                    class="chat-bubble chat-bubble-primary text-sm leading-relaxed prose prose-sm max-w-none text-primary-content shadow-sm overflow-x-auto"
-                    x-html="renderMarkdown(msg.content)"
-                  >
+                  <div class="chat-bubble chat-bubble-primary text-sm leading-relaxed prose prose-sm max-w-none text-primary-content shadow-sm overflow-x-auto">
+                    <template x-if="msg.content && msg.content.length > 0">
+                      <div x-html="renderMarkdown(msg.content)"></div>
+                    </template>
+                    <template x-if="!msg.content || msg.content.length === 0">
+                      <span class="loading loading-dots loading-sm py-1"></span>
+                    </template>
                   </div>
                 </div>
               </template>
@@ -298,18 +320,6 @@ export const ChatPage = () => {
               </template>
             </div>
           </template>
-
-          {/* Real-time Streaming Dots indicator */}
-          <div x-show="isLoading" class="chat chat-start">
-            <div class="chat-image avatar placeholder">
-              <div class="bg-primary/50 text-primary-content rounded-full w-9">
-                <span class="text-xs">AI</span>
-              </div>
-            </div>
-            <div class="chat-bubble chat-bubble-primary opacity-80 text-sm py-2 px-4">
-              <span class="loading loading-dots loading-sm"></span>
-            </div>
-          </div>
         </div>
 
         {/* Prompt Input Box */}
@@ -379,7 +389,7 @@ export const ChatPage = () => {
                 x-on:paste="handlePaste($event)"
                 x-on:drop="handleDrop($event)"
                 x-on:dragover="onDragOver($event)"
-                placeholder="Nachricht schreiben... (Bilder per Strg+V pasten, /image für Generierung)"
+                x-bind:placeholder="isImageModelSelected() ? 'Bild-Prompt eingeben... (z.B. Ein Espresso auf Marmor)' : 'Nachricht schreiben... (Bilder per Strg+V pasten, /image für Generierung)'"
                 class="textarea textarea-bordered flex-1 min-h-[52px] max-h-36 resize-none focus:outline-primary leading-snug"
                 rows={1}
                 x-bind:disabled="isLoading"
@@ -391,7 +401,12 @@ export const ChatPage = () => {
                 class="btn btn-primary px-5 shadow-sm"
                 x-bind:disabled="isLoading || (!inputPrompt.trim() && !attachedImage)"
               >
-                <span x-show="!isLoading">Senden 🚀</span>
+                <span
+                  x-show="!isLoading"
+                  x-text="isImageModelSelected() ? 'Generieren 🎨' : 'Senden 🚀'"
+                >
+                  Senden 🚀
+                </span>
                 <span
                   x-show="isLoading"
                   class="loading loading-spinner loading-xs"
@@ -411,6 +426,39 @@ export const ChatPage = () => {
           </div>
         </footer>
       </main>
+
+      {/* Bestätigungs-Dialog: Chat löschen */}
+      <dialog id="confirm-delete-dialog" class="modal">
+        <div class="modal-box max-w-sm">
+          <h3 class="font-bold text-lg mb-1">Chat löschen?</h3>
+          <p class="text-sm text-base-content/70 mb-6">
+            Dieser Chat und alle Nachrichten darin werden unwiderruflich
+            gelöscht.
+          </p>
+          <div class="modal-action">
+            <button
+              type="button"
+              class="btn btn-ghost"
+              x-on:click="cancelDeleteChat()"
+            >
+              Abbrechen
+            </button>
+            <button
+              type="button"
+              class="btn btn-error"
+              x-on:click="confirmDeleteChat()"
+            >
+              Löschen
+            </button>
+          </div>
+        </div>
+        {/* Backdrop-Klick schließt den Dialog */}
+        <form method="dialog" class="modal-backdrop">
+          <button type="button" x-on:click="cancelDeleteChat()">
+            close
+          </button>
+        </form>
+      </dialog>
     </div>
   );
 };

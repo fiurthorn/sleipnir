@@ -45,9 +45,7 @@ document.addEventListener("alpine:init", () => {
     // Persistent state (Browser LocalStorage)
     chats: Alpine.$persist([]).as("chatmate_chats_v1"),
     currentChatId: Alpine.$persist(null).as("chatmate_active_chat_id_v1"),
-    activeModel: Alpine.$persist("openrouter:anthropic/claude-3.5-sonnet").as(
-      "chatmate_model_v1",
-    ),
+    activeModel: Alpine.$persist("").as("chatmate_model_v1"),
 
     // Transient state (not saved in localStorage)
     inputPrompt: "",
@@ -55,6 +53,8 @@ document.addEventListener("alpine:init", () => {
     isLoading: false,
     models: [],
     providerStatus: { openrouter: false, venice: false },
+    chatPendingDelete: null,
+    mobileMenuOpen: false,
 
     async init() {
       // 1. Fetch available models and server provider keys status
@@ -68,10 +68,11 @@ document.addEventListener("alpine:init", () => {
             venice: false,
           };
 
-          // If current model not in list or key missing, select first suitable
+          // If current model not in list or key missing, select first suitable text model
           const exists = this.models.some((m) => m.id === this.activeModel);
           if (!exists && this.models.length > 0) {
-            this.activeModel = this.models[0].id;
+            const firstTextModel = this.models.find((m) => m.type === "text");
+            this.activeModel = firstTextModel ? firstTextModel.id : this.models[0].id;
           }
         }
       } catch (e) {
@@ -109,6 +110,40 @@ document.addEventListener("alpine:init", () => {
       return this.configuredProviders.filter((p) => p.id !== "fallback");
     },
 
+    get modelGroups() {
+      const groups = [];
+
+      // 1. Text / Chat Models grouped by provider
+      for (const p of this.configuredProviders) {
+        const textModels = this.models.filter(
+          (m) => m.provider === p.id && m.type === "text",
+        );
+        if (textModels.length > 0) {
+          groups.push({
+            id: `text_${p.id}`,
+            label: `💬 ${p.name} (Chat)`,
+            models: textModels,
+          });
+        }
+      }
+
+      // 2. Image Generation Models grouped by provider
+      for (const p of this.configuredProviders) {
+        const imageModels = this.models.filter(
+          (m) => m.provider === p.id && m.type === "image",
+        );
+        if (imageModels.length > 0) {
+          groups.push({
+            id: `image_${p.id}`,
+            label: `🎨 ${p.name} (Bild)`,
+            models: imageModels,
+          });
+        }
+      }
+
+      return groups;
+    },
+
     getModelsForProvider(providerId) {
       return this.models.filter((m) => m.provider === providerId);
     },
@@ -116,6 +151,11 @@ document.addEventListener("alpine:init", () => {
     getChatIcon(chat) {
       if (!chat || !Array.isArray(chat.messages)) return "💬";
       return chat.messages.some((m) => m.type === "image") ? "🎨" : "💬";
+    },
+
+    saveChats() {
+      // Re-trigger Alpine $persist reactivity and enforce LocalStorage persistence
+      this.chats = [...this.chats];
     },
 
     createWelcomeChat() {
@@ -150,16 +190,28 @@ document.addEventListener("alpine:init", () => {
       };
       this.chats.unshift(freshChat);
       this.currentChatId = newId;
+      this.saveChats();
       this.$nextTick(() => this.scrollToBottom());
     },
 
     selectChat(id) {
       this.currentChatId = id;
+      this.mobileMenuOpen = false;
       this.$nextTick(() => this.scrollToBottom());
     },
 
+
     deleteChat(id, event = null) {
       if (event && event.stopPropagation) event.stopPropagation();
+      this.chatPendingDelete = id;
+      document.getElementById("confirm-delete-dialog").showModal();
+    },
+
+    confirmDeleteChat() {
+      const id = this.chatPendingDelete;
+      this.chatPendingDelete = null;
+      document.getElementById("confirm-delete-dialog").close();
+
       if (this.chats.length <= 1) {
         this.createWelcomeChat();
         return;
@@ -168,11 +220,18 @@ document.addEventListener("alpine:init", () => {
       if (this.currentChatId === id) {
         this.currentChatId = this.chats[0].id;
       }
+      this.saveChats();
+    },
+
+    cancelDeleteChat() {
+      this.chatPendingDelete = null;
+      document.getElementById("confirm-delete-dialog").close();
     },
 
     clearCurrentChat() {
       if (this.currentChat) {
         this.currentChat.messages = [];
+        this.saveChats();
       }
     },
 
@@ -194,11 +253,24 @@ document.addEventListener("alpine:init", () => {
 
     renderMarkdown(text) {
       if (!text) return "";
-      if (typeof window.marked !== "undefined" && window.marked.parse) {
-        return window.marked.parse(text);
+      try {
+        if (typeof window.marked !== "undefined" && window.marked.parse) {
+          const parsed = window.marked.parse(text, { async: false });
+          if (typeof parsed === "string") {
+            return parsed;
+          }
+        }
+      } catch (err) {
+        console.warn("Markdown parse warning:", err);
       }
       // Simple fallback escaping
-      return text.replace(/\n/g, "<br>");
+      const escaped = text
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+      return escaped.replace(/\n/g, "<br>");
     },
 
     processImageFile(file) {
@@ -309,11 +381,9 @@ document.addEventListener("alpine:init", () => {
 
       // Auto-switch to vision-capable model if user attached an image while an image-generation model was selected
       if (image && this.isImageModelSelected()) {
-        const visionModel = this.models.find((m) =>
-          m.id === "openrouter:anthropic/claude-3.5-sonnet"
-        ) || this.models.find((m) => m.type === "text");
-        if (visionModel) {
-          this.activeModel = visionModel.id;
+        const textModel = this.models.find((m) => m.type === "text");
+        if (textModel) {
+          this.activeModel = textModel.id;
         }
       }
 
@@ -340,7 +410,7 @@ document.addEventListener("alpine:init", () => {
       });
 
       // 2. Add pending assistant image message
-      const assistantMsg = {
+      chat.messages.push({
         id: "msg_" + (Date.now() + 1),
         role: "assistant",
         content: cleanPrompt,
@@ -348,18 +418,22 @@ document.addEventListener("alpine:init", () => {
         imageUrl: null,
         loading: true,
         timestamp: Date.now(),
-      };
-      chat.messages.push(assistantMsg);
+      });
+      const imgMsgIdx = chat.messages.length - 1;
       this.isLoading = true;
       this.$nextTick(() => this.scrollToBottom());
 
       try {
+        const targetImageModel = this.isImageModelSelected()
+          ? this.activeModel
+          : (this.models.find((m) => m.type === "image")?.id || "");
+
         const res = await fetch("./api/image", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             prompt: cleanPrompt,
-            model: this.activeModel,
+            model: targetImageModel,
             aspectRatio: "1:1",
           }),
         });
@@ -369,11 +443,12 @@ document.addEventListener("alpine:init", () => {
         }
 
         const data = await res.json();
-        assistantMsg.imageUrl = data.imageUrl;
+        // Index-Zuweisung triggert Alpines Reaktivitätssystem + $persist
+        chat.messages[imgMsgIdx] = { ...chat.messages[imgMsgIdx], imageUrl: data.imageUrl };
       } catch (err) {
-        assistantMsg.error = "Bildgenerierung fehlgeschlagen: " + err.message;
+        chat.messages[imgMsgIdx] = { ...chat.messages[imgMsgIdx], error: "Bildgenerierung fehlgeschlagen: " + err.message };
       } finally {
-        assistantMsg.loading = false;
+        chat.messages[imgMsgIdx] = { ...chat.messages[imgMsgIdx], loading: false };
         this.isLoading = false;
         this.$nextTick(() => this.scrollToBottom());
       }
@@ -393,37 +468,55 @@ document.addEventListener("alpine:init", () => {
       });
 
       // 2. Prepare assistant placeholder
-      const assistantMsg = {
+      chat.messages.push({
         id: "msg_" + (Date.now() + 1),
         role: "assistant",
         content: "",
         type: "text",
         timestamp: Date.now(),
-      };
-      chat.messages.push(assistantMsg);
+      });
+      const assistantMsgIdx = chat.messages.length - 1;
 
       this.isLoading = true;
       this.$nextTick(() => this.scrollToBottom());
 
       // Prepare context: last 10 messages for context window
-      const messagesPayload = chat.messages
+      const candidates = chat.messages
         .filter((m) =>
           (m.type === "text" || m.type === "multimodal" || m.imageUrl) &&
           (m.content || m.imageUrl)
         )
-        .slice(-10)
-        .map((m) => {
-          if (m.imageUrl) {
-            return {
-              role: m.role,
-              content: [
-                { type: "text", text: m.content || "Beschreibe dieses Bild." },
-                { type: "image_url", image_url: { url: m.imageUrl } },
-              ],
-            };
-          }
-          return { role: m.role, content: m.content };
-        });
+        .slice(-10);
+
+      // Find index of the newest message that has an image
+      let lastImageIdx = -1;
+      for (let i = candidates.length - 1; i >= 0; i--) {
+        if (candidates[i].imageUrl) {
+          lastImageIdx = i;
+          break;
+        }
+      }
+
+      const messagesPayload = candidates.map((m, idx) => {
+        // Only the newest attached image sends the full image_url payload
+        if (m.imageUrl && idx === lastImageIdx) {
+          return {
+            role: m.role,
+            content: [
+              { type: "text", text: m.content || "Beschreibe dieses Bild." },
+              { type: "image_url", image_url: { url: m.imageUrl } },
+            ],
+          };
+        }
+        // Older images in history get a lightweight text note to save tokens and context size
+        if (m.imageUrl && idx !== lastImageIdx) {
+          const textNote = m.content
+            ? `[Vorheriges Bild: "${m.content}"]`
+            : "[Vorheriges Bild bereits analysiert]";
+          return { role: m.role, content: textNote };
+        }
+        return { role: m.role, content: m.content };
+      });
 
       try {
         const response = await fetch("./api/chat", {
@@ -462,7 +555,9 @@ document.addEventListener("alpine:init", () => {
               const parsed = JSON.parse(dataStr);
               const deltaContent = parsed.choices?.[0]?.delta?.content;
               if (deltaContent) {
-                assistantMsg.content += deltaContent;
+                // Index-Zuweisung triggert Alpines Reaktivitätssystem + $persist
+                const current = chat.messages[assistantMsgIdx];
+                chat.messages[assistantMsgIdx] = { ...current, content: current.content + deltaContent };
                 this.scrollToBottomThrottled();
               }
             } catch {
@@ -471,7 +566,8 @@ document.addEventListener("alpine:init", () => {
           }
         }
       } catch (err) {
-        assistantMsg.content += "\n\n❌ **Verbindungsfehler:** " + err.message;
+        const current = chat.messages[assistantMsgIdx];
+        chat.messages[assistantMsgIdx] = { ...current, content: current.content + "\n\n❌ **Verbindungsfehler:** " + err.message };
       } finally {
         this.isLoading = false;
         this.$nextTick(() => this.scrollToBottom());

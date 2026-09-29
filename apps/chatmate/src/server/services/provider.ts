@@ -48,7 +48,7 @@ export function getProviderStatus(): ProviderStatus {
   const providers = loadProviderConfig();
   const status: ProviderStatus = {};
   for (const p of providers) {
-    status[p.id] = p.id === "fallback" || Boolean(p.apiKey);
+    status[p.id] = Boolean(p.apiKey);
   }
   return status;
 }
@@ -103,8 +103,7 @@ export async function streamChatCompletion(
   const targetModel = modelParts.join(":");
 
   const providers = loadProviderConfig();
-  const provider = findProvider(providers, providerTag) ||
-    findProvider(providers, "openrouter");
+  const provider = findProvider(providers, providerTag) || providers[0];
 
   if (!provider) {
     return createSimulatedStream(
@@ -112,7 +111,7 @@ export async function streamChatCompletion(
     );
   }
 
-  if (!provider.apiKey && provider.id !== "fallback") {
+  if (!provider.apiKey) {
     return createSimulatedStream(
       `⚠️ **Kein API-Key für ${provider.name} konfiguriert.**\n\nBitte hinterlege den Key in der \`.env\`-Datei oder als Umgebungsvariable auf dem Server.`,
     );
@@ -121,16 +120,8 @@ export async function streamChatCompletion(
   const endpoint = `${provider.baseUrl}/chat/completions`;
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
+    "Authorization": `Bearer ${provider.apiKey}`,
   };
-
-  if (provider.apiKey) {
-    headers["Authorization"] = `Bearer ${provider.apiKey}`;
-  }
-
-  if (provider.id === "openrouter") {
-    headers["HTTP-Referer"] = "http://localhost:3002";
-    headers["X-Title"] = "Chatmate";
-  }
 
   try {
     const upstreamResponse = await fetch(endpoint, {
@@ -146,8 +137,20 @@ export async function streamChatCompletion(
 
     if (!upstreamResponse.ok || !upstreamResponse.body) {
       const status = upstreamResponse.status;
+      let detail = "";
+      try {
+        const errorText = await upstreamResponse.text();
+        const parsed = JSON.parse(errorText);
+        detail = parsed.error?.message || parsed.message || errorText;
+      } catch {
+        // detail remains empty
+      }
+
+      const suffix = detail
+        ? `\n> ${detail}`
+        : " Bitte überprüfe Guthaben und Modellnamen.";
       return createSimulatedStream(
-        `❌ **Fehler bei ${provider.name} (HTTP ${status})**. Bitte überprüfe Guthaben und API-Key.`,
+        `❌ **Fehler bei ${provider.name} (HTTP ${status}):**${suffix}`,
       );
     }
 
@@ -161,7 +164,7 @@ export async function streamChatCompletion(
 }
 
 /**
- * Generates an image using configured providers or keyless fallback.
+ * Generates an image using configured providers.
  * ZERO LOGGING: Prompts and images are never logged to console or disk.
  */
 export async function generateImage(
@@ -171,49 +174,59 @@ export async function generateImage(
   const [providerTag, ...modelParts] = (req.model ?? "").split(":");
   const targetModel = modelParts.join(":");
 
-  const provider = findProvider(providers, providerTag);
+  const provider = findProvider(providers, providerTag) ||
+    providers.find((p) => p.imageModels.length > 0);
+
+  if (!provider || !provider.apiKey) {
+    throw new Error(
+      `Kein API-Key für Bildgenerierung konfiguriert (${
+        provider?.name ?? "Kein Provider"
+      }).`,
+    );
+  }
+
   const dimensions = getDimensions(req.aspectRatio);
 
   // Venice AI Image Generation
-  if (provider && provider.id === "venice" && provider.apiKey) {
+  if (provider.id === "venice") {
     const endpoint = `${provider.baseUrl}/image/generate`;
-    try {
-      const res = await fetch(endpoint, {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${provider.apiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: targetModel || "flux-dev",
-          prompt: req.prompt,
-          width: dimensions.width,
-          height: dimensions.height,
-          hide_watermark: true,
-          return_binary: false,
-        }),
-      });
+    const res = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${provider.apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: targetModel || "flux-2-pro",
+        prompt: req.prompt,
+        width: dimensions.width,
+        height: dimensions.height,
+        hide_watermark: true,
+        return_binary: false,
+      }),
+    });
 
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data.images) && data.images.length > 0) {
-          return { imageUrl: `data:image/webp;base64,${data.images[0]}` };
-        }
+    if (!res.ok) {
+      let detail = `HTTP ${res.status}`;
+      try {
+        const errJson = await res.json();
+        if (errJson.error) detail += `: ${errJson.error}`;
+      } catch {
+        // ignore
       }
-    } catch {
-      // Fallback
+      throw new Error(`Venice AI: ${detail}`);
     }
+
+    const data = await res.json();
+    if (Array.isArray(data.images) && data.images.length > 0) {
+      return { imageUrl: `data:image/webp;base64,${data.images[0]}` };
+    }
+    throw new Error("Venice AI hat kein Bild zurückgegeben.");
   }
 
-  // Keyless Fallback via Pollinations (or configured fallback provider)
-  const fallbackProvider = findProvider(providers, "fallback");
-  const fallbackBaseUrl = fallbackProvider?.baseUrl ||
-    "https://image.pollinations.ai";
-  const encoded = encodeURIComponent(req.prompt);
-  const fallbackUrl =
-    `${fallbackBaseUrl}/prompt/${encoded}?width=${dimensions.width}&height=${dimensions.height}&nologo=true`;
-
-  return { imageUrl: fallbackUrl };
+  throw new Error(
+    `Bildgenerierung für Provider '${provider.name}' nicht implementiert.`,
+  );
 }
 
 function getDimensions(
