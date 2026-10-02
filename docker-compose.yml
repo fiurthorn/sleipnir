@@ -4,33 +4,11 @@
 # Architektur & Review: Stefan | Implementation & Synthese: Sam
 
 services:
-  cookmate:
-    image: docker.io/denoland/deno:alpine
-    container_name: cookmate
-    hostname: cookmate
-    working_dir: /workspace
-    volumes:
-      - .:/workspace:Z
-      - deno-cache:/deno-dir
-    environment:
-      - PORT=3001
-      - BASE_PATH=
-      - DENO_DIR=/deno-dir
-    command: ["run", "-P=app", "--watch", "apps/cookmate/main.ts"]
-    env_file:
-      - path: .env
-        required: false
-    ports:
-      - "3001:3001"
-    networks:
-      - sleipnir-net
-    restart: unless-stopped
-
   chatmate:
     image: docker.io/denoland/deno:alpine
     container_name: chatmate
     hostname: chatmate
-    working_dir: /workspace
+    working_dir: /workspace/apps/chatmate
     volumes:
       - .:/workspace:Z
       - deno-cache:/deno-dir
@@ -38,7 +16,7 @@ services:
       - PORT=3002
       - BASE_PATH=
       - DENO_DIR=/deno-dir
-    command: ["run", "-P=app", "--watch", "apps/chatmate/main.ts"]
+    command: ["run", "-P=app", "--watch", "main.ts"]
     env_file:
       - path: .env
         required: false
@@ -52,7 +30,7 @@ services:
     image: docker.io/denoland/deno:alpine
     container_name: notemate
     hostname: notemate
-    working_dir: /workspace
+    working_dir: /workspace/apps/notemate
     volumes:
       - .:/workspace:Z
       - ./data:/workspace/data:Z
@@ -61,12 +39,37 @@ services:
       - PORT=3003
       - BASE_PATH=
       - DENO_DIR=/deno-dir
-    command: ["run", "-P=app", "--watch", "apps/notemate/main.ts"]
+    command: ["run", "-P=app", "--watch", "main.ts"]
     env_file:
       - path: .env
         required: false
     ports:
       - "3003:3003"
+    networks:
+      - sleipnir-net
+    restart: unless-stopped
+
+  scanmate:
+    image: docker.io/denoland/deno:alpine
+    container_name: scanmate
+    hostname: scanmate
+    working_dir: /workspace/apps/scanmate
+    volumes:
+      - .:/workspace:Z
+      - ./data:/workspace/data:Z
+      - deno-cache:/deno-dir
+    environment:
+      - PORT=3004
+      - BASE_PATH=
+      - DENO_DIR=/deno-dir
+    command: ["run", "-P=app", "--watch", "main.ts"]
+    env_file:
+      - path: .env
+        required: false
+      - path: apps/scanmate/.env
+        required: false
+    ports:
+      - "3004:3004"
     networks:
       - sleipnir-net
     restart: unless-stopped

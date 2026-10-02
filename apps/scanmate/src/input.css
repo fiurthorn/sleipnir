@@ -1,0 +1,11 @@
+@import "tailwindcss";
+@plugin "daisyui";
+@import "../../../packages/sleipnir/src/theme.css";
+
+[x-cloak] {
+  display: none !important;
+}
+
+.touch-none {
+  touch-action: none;
+}

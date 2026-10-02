@@ -8,6 +8,7 @@
 export type * from "./src/client/types.ts";
 
 export * from "./src/assets.ts";
+export * from "./src/assets/icon.ts";
 export * from "./src/components/Alerts.tsx";
 export * from "./src/components/ThemeToggle.tsx";
 export * from "./src/cors.ts";

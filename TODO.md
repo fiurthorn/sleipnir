@@ -70,17 +70,17 @@
 
 ### Workflow & Kernfunktionen:
 
-- [ ] **Kamera & Bild-Erfassung (Mobile-First):**
+- [x] **Kamera & Bild-Erfassung (Mobile-First):**
   - Direkter Kamera-Zugriff über HTML5 Capture / MediaStream API.
   - Multi-Page-Modus: Mehrere Seiten nacheinander fotografieren.
-- [ ] **Perspektiv-Korrektur & Cropping:**
+- [x] **Perspektiv-Korrektur & Cropping:**
   - Manuelles und/oder automatisches Kantenerkennen und Entzerren (z. B. via
-    Canvas / `jscanify`).
-  - Drehen, Kontrastanpassung (Schwarz/Weiß- oder Dokumenten-Filter).
-- [ ] **PDF-Bündelung:**
-  - Zusammenschluss der zugeschnittenen Seiten zu einer kompakten PDF-Datei (z.
-    B. via `pdf-lib`).
-- [ ] **KI-Metadaten-Synthese (Vision LLM):**
+    Canvas / `jscanify` / `OpenCV`).
+  - Drehen, Kontrastanpassung (Schwarz/Weiß-, Graustufen- oder Farb-Filter).
+- [x] **PDF-Bündelung:**
+  - Zusammenschluss der zugeschnittenen Seiten zu einer kompakten PDF-Datei (via
+    `pdf-lib`).
+- [x] **KI-Metadaten-Synthese (Vision LLM):**
   - Übergabe der Scans an ein multimodales Vision-Modell (OpenRouter / Venice /
     lokal).
   - Automatisches Extrahieren strukturierter Metadaten als JSON:
@@ -90,9 +90,8 @@
     - **Beträge / Posten** (bei Quittungen & Rechnungen)
     - **Tags / Stichwörter**
     - **Extrahierter OCR-Volltext & Kurz-Zusammenfassung**
-- [ ] **Sidecar-Ablage (Filesystem als Single Source of Truth):**
+- [x] **Sidecar-Ablage (Filesystem als Single Source of Truth):**
   - Ablage des Dokuments als `[YYYY-MM-DD]_[Titel].pdf`.
-  - Sidecar-Datei `[YYYY-MM-DD]_[Titel].json` direkt daneben im Verzeichnis.
-- [ ] **Indizierung & Suche:**
-  - Schnelle Suche und Filterung über die JSON-Metadaten und Volltexte via
-    `minisearch`.
+  - Sidecar-Datei `[YYYY-MM-DD]_[Titel].json` direkt daneben im Verzeichnis (`./data/documents`).
+- [x] **Indizierung & Suche:**
+  - Schnelle Suche und Filterung über die JSON-Metadaten, Absender, Tags und Volltexte im UI.

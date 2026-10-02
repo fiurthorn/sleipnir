@@ -4,6 +4,7 @@ default:
 
 mod chatmate 'apps/chatmate/Justfile'
 mod notemate 'apps/notemate/Justfile'
+mod scanmate 'apps/scanmate/Justfile'
 
 version := replace(replace_regex(`git describe --tags --always --match=v*`, "v|-g.*", ""), "-", ".")
 
@@ -54,6 +55,7 @@ update-dependencies:
 build-css:
     @just chatmate build-css
     @just notemate build-css
+    @just scanmate build-css
 
 [group('lifecycle')]
 generate-version:
@@ -67,6 +69,7 @@ build-client: generate-version update-libs
     deno run -A npm:esbuild packages/sleipnir/src/client/main.ts --bundle --format=iife --outfile=packages/sleipnir/static/sleipnir-client.min.js --minify
     @cp packages/sleipnir/static/sleipnir-client.min.js apps/notemate/static/sleipnir-client.min.js
     @cp packages/sleipnir/static/sleipnir-client.min.js apps/chatmate/static/sleipnir-client.min.js
+    @cp packages/sleipnir/static/sleipnir-client.min.js apps/scanmate/static/sleipnir-client.min.js
     @echo "✅ Sleipnir Client gebündelt und verteilt."
 
 [group('lifecycle')]
@@ -98,9 +101,10 @@ update-vendor url vendor:
 
 [group('vendor')]
 sync-vendor:
-    @mkdir -p apps/chatmate/static/vendor apps/notemate/static/vendor
+    @mkdir -p apps/chatmate/static/vendor apps/notemate/static/vendor apps/scanmate/static/vendor
     @cp -r {{vendor_dir}}/* apps/chatmate/static/vendor/
     @cp -r {{vendor_dir}}/* apps/notemate/static/vendor/
-    @echo "✅ Vendor-Assets synchronisiert nach Chatmate & Notemate."
+    @cp -r {{vendor_dir}}/* apps/scanmate/static/vendor/
+    @echo "✅ Vendor-Assets synchronisiert nach Chatmate, Notemate & Scanmate."
 
 

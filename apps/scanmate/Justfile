@@ -1,0 +1,21 @@
+[private]
+default:
+    @just --list
+
+export APP_ENV:="development"
+
+[doc('Startet den Scanmate Dev-Server mit Live-Reload (Port 3004)')]
+serve:
+    deno run -P=app --watch main.ts
+
+[doc('TypeScript Typ-Prüfung für Scanmate')]
+check:
+    deno check main.ts
+
+[doc('Kompiliert Tailwind & DaisyUI CSS')]
+build-css:
+    deno run -A npm:@tailwindcss/cli -i ./src/input.css -o ./static/styles.css
+
+[doc('Watch-Modus für Tailwind & DaisyUI CSS')]
+watch-css:
+    deno run -A npm:@tailwindcss/cli -i ./src/input.css -o ./static/styles.css --watch

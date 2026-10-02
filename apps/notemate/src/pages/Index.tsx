@@ -6,7 +6,7 @@
  */
 
 import { Child } from "hono/jsx";
-import { AlertZone, proxyRedirect, themeInit } from "@sleipnir/core";
+import { AlertZone, LOGO, proxyRedirect, themeInit } from "@sleipnir/core";
 
 interface PageProps {
   title?: string;
@@ -24,6 +24,7 @@ export const Index = (
           name="viewport"
           content="width=device-width, initial-scale=1.0"
         />
+        <link rel="icon" type="image/x-icon" href={LOGO}></link>
         <link href="./static/styles.css" rel="stylesheet" />
         <link href="./static/vendor/nord.min.css" rel="stylesheet" />
 

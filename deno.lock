@@ -5,8 +5,10 @@
     "jsr:@hono/deno@^1.0.2": "1.0.2",
     "jsr:@hono/hono@^4.13.9": "4.13.10",
     "jsr:@std/assert@^1.0.19": "1.0.19",
+    "jsr:@std/fs@^1.0.8": "1.0.23",
     "jsr:@std/internal@^1.0.12": "1.0.12",
     "jsr:@std/path@^1.0.8": "1.1.4",
+    "jsr:@std/path@^1.1.4": "1.1.4",
     "npm:@hono/deno@*": "1.0.2_hono@4.13.10",
     "npm:@hono/deno@^1.0.2": "1.0.2_hono@4.13.10",
     "npm:@tailwindcss/cli@*": "4.3.3",
@@ -15,9 +17,12 @@
     "npm:esbuild@*": "0.27.3",
     "npm:hono@^4.13.10": "4.13.10",
     "npm:marked@15.0.12": "15.0.12",
+    "npm:pdf-lib@*": "1.17.1",
+    "npm:pdf-lib@^1.17.1": "1.17.1",
     "npm:prettier@*": "3.9.9",
     "npm:prettier@^3.5.2": "3.9.9",
-    "npm:tailwindcss@^4.3.3": "4.3.3"
+    "npm:tailwindcss@^4.3.3": "4.3.3",
+    "npm:zod@^3.24.2": "3.25.76"
   },
   "jsr": {
     "@hono/deno@1.0.2": {
@@ -33,6 +38,13 @@
       "integrity": "eaada96ee120cb980bc47e040f82814d786fe8162ecc53c91d8df60b8755991e",
       "dependencies": [
         "jsr:@std/internal"
+      ]
+    },
+    "@std/fs@1.0.23": {
+      "integrity": "3ecbae4ce4fee03b180fa710caff36bb5adb66631c46a6460aaad49515565a37",
+      "dependencies": [
+        "jsr:@std/internal",
+        "jsr:@std/path@^1.1.4"
       ]
     },
     "@std/internal@1.0.12": {
@@ -298,6 +310,18 @@
         "@parcel/watcher-win32-x64"
       ],
       "scripts": true
+    },
+    "@pdf-lib/standard-fonts@1.0.0": {
+      "integrity": "sha512-hU30BK9IUN/su0Mn9VdlVKsWBS6GyhVfqjwl1FjZN4TxP6cCw0jP2w7V3Hf5uX7M0AZJ16vey9yE0ny7Sa59ZA==",
+      "dependencies": [
+        "pako"
+      ]
+    },
+    "@pdf-lib/upng@1.0.1": {
+      "integrity": "sha512-dQK2FUMQtowVP00mtIksrlZhdFXQZPC+taih1q4CvPZ5vqdxR/LKBaFg0oAfzd1GlHZXXSPdQfzQnt+ViGvEIQ==",
+      "dependencies": [
+        "pako"
+      ]
     },
     "@tailwindcss/cli@4.3.3": {
       "integrity": "sha512-ZvS/n1ZHOBKcVlhkt8l5NNr1EDXk1NboYO5CYDOs6NUmvT9z6bzkwsosaJftY57T/3gWNzWMJzIXLodZC8ssdw==",
@@ -581,6 +605,18 @@
     "node-addon-api@7.1.1": {
       "integrity": "sha512-5m3bsyrjFWE1xf7nz7YXdN4udnVtXK6/Yfgn5qnahL6bCkf2yKt4k3nuTKAtT4r3IG8JNR2ncsIMdZuAzJjHQQ=="
     },
+    "pako@1.0.11": {
+      "integrity": "sha512-4hLB8Py4zZce5s4yd9XzopqwVv/yGNhV1Bl8NTmCq1763HeK2+EwVTv+leGeL13Dnh2wfbqowVPXCIO0z4taYw=="
+    },
+    "pdf-lib@1.17.1": {
+      "integrity": "sha512-V/mpyJAoTsN4cnP31vc0wfNA1+p20evqqnap0KLoRUN0Yk/p3wN52DOEsL4oBFcLdb76hlpKPtzJIgo67j/XLw==",
+      "dependencies": [
+        "@pdf-lib/standard-fonts",
+        "@pdf-lib/upng",
+        "pako",
+        "tslib"
+      ]
+    },
     "picocolors@1.1.1": {
       "integrity": "sha512-xceH2snhtb5M9liqDsmEw56le376mTZkEX/jEb/RxNFyegNul7eNslCXP9FDj/Lcu0X8KEyMceP2ntpaHrDEVA=="
     },
@@ -605,6 +641,12 @@
       "dependencies": [
         "is-number"
       ]
+    },
+    "tslib@1.14.1": {
+      "integrity": "sha512-Xni35NKzjgMrwevysHTCArtLDpPvye8zV/0E4EyYn43P7/7qvQwPh9BGkHewbMulVntbigmcT7rdX3BNo9wRJg=="
+    },
+    "zod@3.25.76": {
+      "integrity": "sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ=="
     }
   },
   "workspace": {
@@ -627,6 +669,20 @@
           "npm:hono@^4.13.10",
           "npm:prettier@^3.5.2",
           "npm:tailwindcss@^4.3.3"
+        ]
+      },
+      "apps/scanmate": {
+        "dependencies": [
+          "jsr:@std/assert@^1.0.19",
+          "jsr:@std/fs@^1.0.8",
+          "jsr:@std/path@^1.0.8",
+          "npm:@tailwindcss/cli@^4.3.3",
+          "npm:daisyui@^5.7.46",
+          "npm:hono@^4.13.10",
+          "npm:pdf-lib@^1.17.1",
+          "npm:prettier@^3.5.2",
+          "npm:tailwindcss@^4.3.3",
+          "npm:zod@^3.24.2"
         ]
       },
       "packages/sleipnir": {
