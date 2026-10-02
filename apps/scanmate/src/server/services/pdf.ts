@@ -45,9 +45,7 @@ export async function createPdfFromImages(
     if (!imgData) continue;
     const { format, bytes } = parseBase64DataUrl(imgData);
 
-    const embeddedImage = format === "png"
-      ? await pdfDoc.embedPng(bytes)
-      : await pdfDoc.embedJpg(bytes);
+    const embeddedImage = format === "png" ? await pdfDoc.embedPng(bytes) : await pdfDoc.embedJpg(bytes);
 
     const { width, height } = embeddedImage.scale(1);
     const page = pdfDoc.addPage([width, height]);

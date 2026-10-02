@@ -70,9 +70,7 @@ export async function extractDocumentMetadataWithAi(
 ): Promise<AiExtractionResult> {
   const providers = loadProviderConfig();
 
-  let targetProvider = providers.find((p) =>
-    p.visionModels.length > 0 && p.apiKey
-  );
+  let targetProvider = providers.find((p) => p.visionModels.length > 0 && p.apiKey);
   let targetModel = targetProvider?.visionModels[0]?.id ??
     "google/gemini-2.5-flash";
 
@@ -91,8 +89,7 @@ export async function extractDocumentMetadataWithAi(
     );
   }
 
-  const systemPrompt =
-    `Du bist ein hochpräziser Dokumenten-Scanner- und OCR-Assistent.
+  const systemPrompt = `Du bist ein hochpräziser Dokumenten-Scanner- und OCR-Assistent.
 Analysiere die übergebenen Seiten eines Dokuments (Brief, Rechnung, Bescheid, Quittung, Vertrag, etc.) gründlich.
 Extrahiere die Metadaten und gib AUSSCHLIESSLICH ein valides JSON-Objekt mit folgender Struktur zurück:
 
@@ -139,8 +136,7 @@ Gib keinen Markdown-Codeblock und keine Einleitung oder Erklärung aus, nur das 
           content: [
             {
               type: "text",
-              text:
-                `Bitte analysiere diese ${imagesBase64.length} Seite(n) des Dokuments und extrahiere die Daten als JSON.`,
+              text: `Bitte analysiere diese ${imagesBase64.length} Seite(n) des Dokuments und extrahiere die Daten als JSON.`,
             },
             ...imageContents,
           ],

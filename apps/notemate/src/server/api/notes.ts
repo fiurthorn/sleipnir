@@ -5,8 +5,8 @@
  * Architektur & Review: Stefan | Implementation & Synthese: Sam
  */
 
-import { Sleipnir, SleipnirContext } from "@sleipnir/core";
-import { NoteStorage } from "../services/storage.ts";
+import type { Sleipnir, SleipnirContext } from "@sleipnir/core";
+import type { NoteStorage } from "../services/storage.ts";
 
 export function notesApi(app: Sleipnir, storage: NoteStorage) {
   // Tree & Hierarchy

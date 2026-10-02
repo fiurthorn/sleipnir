@@ -26,10 +26,8 @@ export const customFunctions: { [key: string]: CustomFunction } = {
 
 export const collectorFunctions: { [key: string]: CollectorFunction } = {
   join: (result: any[], joiner?: string) => result.flat().join(joiner || ""),
-  coalesce: (result: any[]) =>
-    result.find((v) => v !== null && v !== undefined) || "",
-  stringify: (result: any[], joiner?: string) =>
-    JSON.stringify(result, null, joiner),
+  coalesce: (result: any[]) => result.find((v) => v !== null && v !== undefined) || "",
+  stringify: (result: any[], joiner?: string) => JSON.stringify(result, null, joiner),
 };
 
 interface JSONPathArgs {

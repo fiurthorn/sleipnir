@@ -5,7 +5,7 @@
  * Architektur & Review: Stefan | Implementation & Synthese: Sam
  */
 
-import { Sleipnir, SleipnirContext } from "@sleipnir/core";
+import type { Sleipnir, SleipnirContext } from "@sleipnir/core";
 import { getAvailableModels, getProviderStatus } from "../services/provider.ts";
 
 export function modelsApi(app: Sleipnir, basePath: string) {

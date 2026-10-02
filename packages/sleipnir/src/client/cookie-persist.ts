@@ -30,9 +30,7 @@ export const cookieStorage = {
   },
   setItem: (key: string, value: unknown): void => {
     if (typeof document === "undefined") return;
-    document.cookie = `${key}=${
-      encodeURIComponent(JSON.stringify(value))
-    };path=/;max-age=${maxAge};SameSite=Lax`;
+    document.cookie = `${key}=${encodeURIComponent(JSON.stringify(value))};path=/;max-age=${maxAge};SameSite=Lax`;
   },
 };
 

@@ -5,8 +5,8 @@
  * Architektur & Review: Stefan | Implementation & Synthese: Sam
  */
 
-import { Sleipnir, SleipnirContext } from "@sleipnir/core";
-import { generateImage, ImageRequest } from "../services/provider.ts";
+import type { Sleipnir, SleipnirContext } from "@sleipnir/core";
+import { generateImage, type ImageRequest } from "../services/provider.ts";
 
 export function imageApi(app: Sleipnir, basePath: string) {
   app.post(basePath, handleImageGen);
@@ -28,9 +28,7 @@ async function handleImageGen(c: SleipnirContext) {
   const raw = body as Record<string, unknown>;
   const prompt = typeof raw.prompt === "string" ? raw.prompt.trim() : "";
   const model = typeof raw.model === "string" ? raw.model : undefined;
-  const aspectRatio = raw.aspectRatio === "16:9" || raw.aspectRatio === "9:16"
-    ? raw.aspectRatio
-    : "1:1";
+  const aspectRatio = raw.aspectRatio === "16:9" || raw.aspectRatio === "9:16" ? raw.aspectRatio : "1:1";
 
   if (!prompt) {
     return c.json({ error: "Missing or empty prompt" }, 400);

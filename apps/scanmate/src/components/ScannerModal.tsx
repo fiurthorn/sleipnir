@@ -29,8 +29,7 @@ export function ScannerModal() {
                 Dokumenten-Scanner
               </h3>
               <p class="text-[11px] font-bold text-base-content/50 uppercase tracking-widest">
-                Seite{" "}
-                <span x-text="pageIndex >= 0 ? (pageIndex + 1) : 'Neu'"></span>
+                Seite <span x-text="pageIndex >= 0 ? (pageIndex + 1) : 'Neu'"></span>
               </p>
             </div>
           </div>
@@ -79,8 +78,7 @@ export function ScannerModal() {
                   Kein Live-Kamera-Zugriff
                 </p>
                 <p class="text-xs text-base-content/70 max-w-md mb-4">
-                  Wähle ein Bild oder nimm direkt ein Foto mit der
-                  Smartphone-Kamera auf.
+                  Wähle ein Bild oder nimm direkt ein Foto mit der Smartphone-Kamera auf.
                 </p>
                 <label class="btn btn-primary btn-sm rounded-xl font-bold shadow-md cursor-pointer flex items-center gap-2">
                   <span>Foto aufnehmen</span>

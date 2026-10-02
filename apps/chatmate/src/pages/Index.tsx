@@ -5,7 +5,7 @@
  * Architektur & Review: Stefan | Implementation & Synthese: Sam
  */
 
-import { Child } from "hono/jsx";
+import type { Child } from "hono/jsx";
 import { AlertZone, LOGO, proxyRedirect, themeInit } from "@sleipnir/core";
 
 interface PageProps {

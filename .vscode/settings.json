@@ -3,17 +3,17 @@
   "deno.lint": true,
   "editor.defaultFormatter": "denoland.vscode-deno",
   "editor.formatOnSave": true,
-  "[typescript]": {
-    "editor.defaultFormatter": "denoland.vscode-deno"
-  },
-  "[typescriptreact]": {
-    "editor.defaultFormatter": "denoland.vscode-deno"
-  },
-  "[javascript]": {
-    "editor.defaultFormatter": "denoland.vscode-deno"
-  },
-  "[json]": {
-    "editor.defaultFormatter": "denoland.vscode-deno"
+  "[typescript][typescriptreact][javascript][json]": {
+    "editor.defaultFormatter": "denoland.vscode-deno",
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+      "source.fixAll": "always",
+      "source.addMissingImports.ts": "always",
+      "source.organizeImports": "always",
+      "source.fixAll.ts": "always",
+    },
+    "editor.wordWrap": "wordWrapColumn",
+    "editor.wordWrapColumn": 150,
   },
   "deno.codeLens.implementations": true,
   "deno.codeLens.references": true,

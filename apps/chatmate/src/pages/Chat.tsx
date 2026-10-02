@@ -417,9 +417,7 @@ export const ChatPage = () => {
 
             <div class="flex justify-between items-center px-1 text-[11px] opacity-60">
               <span>
-                💡 Tipp: Bilder direkt per <code>Strg+V</code> einfügen oder
-                {" "}
-                <code>/image Prompt</code> nutzen.
+                💡 Tipp: Bilder direkt per <code>Strg+V</code> einfügen oder <code>/image Prompt</code> nutzen.
               </span>
               <span>100% Client-Side Storage</span>
             </div>
@@ -432,8 +430,7 @@ export const ChatPage = () => {
         <div class="modal-box max-w-sm">
           <h3 class="font-bold text-lg mb-1">Chat löschen?</h3>
           <p class="text-sm text-base-content/70 mb-6">
-            Dieser Chat und alle Nachrichten darin werden unwiderruflich
-            gelöscht.
+            Dieser Chat und alle Nachrichten darin werden unwiderruflich gelöscht.
           </p>
           <div class="modal-action">
             <button

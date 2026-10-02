@@ -44,7 +44,7 @@ Deno.test("sleipnirCors - passes GET with CORS headers", async () => {
   const req = new Request("http://localhost/api/data", {
     method: "GET",
     headers: {
-      "Origin": "https://dashboard.example.com",
+      Origin: "https://dashboard.example.com",
     },
   });
 

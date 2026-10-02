@@ -5,14 +5,7 @@
  * Architektur & Review: Stefan | Implementation & Synthese: Sam
  */
 
-import {
-  basename,
-  extname,
-  join,
-  normalize,
-  relative,
-  resolve,
-} from "@std/path";
+import { basename, extname, join, normalize, relative, resolve } from "@std/path";
 import { formatMarkdown } from "./formatter.ts";
 
 export interface TreeNode {

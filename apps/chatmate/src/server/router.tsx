@@ -5,14 +5,7 @@
  * Architektur & Review: Stefan | Implementation & Synthese: Sam
  */
 
-import {
-  assets,
-  cors,
-  hsts,
-  Sleipnir,
-  type SleipnirContext,
-  VERSION,
-} from "@sleipnir/core";
+import { assets, cors, hsts, Sleipnir, type SleipnirContext, VERSION } from "@sleipnir/core";
 import { compress } from "hono/compress";
 import { secureHeaders } from "hono/secure-headers";
 import { ChatPage } from "../pages/Chat.tsx";
@@ -23,9 +16,7 @@ import { modelsApi } from "./api/models.ts";
 
 export default function App(basePath?: string, developMode: boolean = false) {
   console.log(
-    `Starting Notemate with basePath: ${basePath ?? "none"} as ${
-      developMode ? "development" : "production"
-    } mode`,
+    `Starting Notemate with basePath: ${basePath ?? "none"} as ${developMode ? "development" : "production"} mode`,
   );
 
   const app = new Sleipnir().basePath(basePath ?? "");
@@ -54,8 +45,7 @@ export default function App(basePath?: string, developMode: boolean = false) {
     }),
   );
 
-  const rootHandler = (c: SleipnirContext) =>
-    c.html(<Index content={<ChatPage />} />);
+  const rootHandler = (c: SleipnirContext) => c.html(<Index content={<ChatPage />} />);
   app.get("/", rootHandler);
   if (basePath) app.get("", rootHandler);
 

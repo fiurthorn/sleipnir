@@ -5,7 +5,7 @@
  * Architektur & Review: Stefan | Implementation & Synthese: Sam
  */
 
-import { loadProviderConfig, ResolvedProvider } from "./config.ts";
+import { loadProviderConfig, type ResolvedProvider } from "./config.ts";
 
 export type ContentPart =
   | { type: "text"; text: string }
@@ -146,9 +146,7 @@ export async function streamChatCompletion(
         // detail remains empty
       }
 
-      const suffix = detail
-        ? `\n> ${detail}`
-        : " Bitte überprüfe Guthaben und Modellnamen.";
+      const suffix = detail ? `\n> ${detail}` : " Bitte überprüfe Guthaben und Modellnamen.";
       return createSimulatedStream(
         `❌ **Fehler bei ${provider.name} (HTTP ${status}):**${suffix}`,
       );
@@ -179,9 +177,7 @@ export async function generateImage(
 
   if (!provider || !provider.apiKey) {
     throw new Error(
-      `Kein API-Key für Bildgenerierung konfiguriert (${
-        provider?.name ?? "Kein Provider"
-      }).`,
+      `Kein API-Key für Bildgenerierung konfiguriert (${provider?.name ?? "Kein Provider"}).`,
     );
   }
 

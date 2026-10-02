@@ -5,13 +5,10 @@
  * Architektur & Review: Stefan | Implementation & Synthese: Sam
  */
 
-import { Sleipnir, SleipnirContext } from "@sleipnir/core";
-import {
-  ChatMessage,
-  ChatRequest,
-  MessageContent,
-  streamChatCompletion,
-} from "../services/provider.ts";
+import type { Sleipnir, SleipnirContext } from "@sleipnir/core";
+import type { ChatMessage, ChatRequest, MessageContent } from "../services/provider.ts";
+
+import { streamChatCompletion } from "../services/provider.ts";
 
 function isValidContent(content: unknown): content is MessageContent {
   if (typeof content === "string") {
@@ -60,9 +57,7 @@ async function handleChat(c: SleipnirContext) {
   const raw = body as Record<string, unknown>;
   const model = typeof raw.model === "string" ? raw.model : "";
   const messages = Array.isArray(raw.messages) ? raw.messages : [];
-  const temperature = typeof raw.temperature === "number"
-    ? raw.temperature
-    : 0.7;
+  const temperature = typeof raw.temperature === "number" ? raw.temperature : 0.7;
 
   if (!model) {
     return c.text("Missing 'model' field", 400);

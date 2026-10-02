@@ -33,7 +33,7 @@ install-hooks:
 check:
     deno check
     deno fmt
-    deno lint
+    deno lint --fix
 
 [group('lifecycle')]
 test:

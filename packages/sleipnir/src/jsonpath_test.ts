@@ -70,8 +70,7 @@ Deno.test("JSONPath - filter expression", () => {
 Deno.test("JSONPath - custom function transformation", () => {
   const jp = new JSONPath(sampleData, {
     customFunctions: {
-      reverse: (val: unknown) =>
-        typeof val === "string" ? val.split("").reverse().join("") : val,
+      reverse: (val: unknown) => typeof val === "string" ? val.split("").reverse().join("") : val,
     },
   });
 

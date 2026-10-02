@@ -17,10 +17,7 @@ import {
   saveDocument,
   updateDocumentMetadata,
 } from "../services/storage.ts";
-import {
-  extractDocumentMetadataWithAi,
-  getAvailableVisionModels,
-} from "../services/ai.ts";
+import { extractDocumentMetadataWithAi, getAvailableVisionModels } from "../services/ai.ts";
 import { documentMetadataSchema } from "../services/types.ts";
 
 export const api = new Hono();

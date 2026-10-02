@@ -5,14 +5,12 @@
  * Architektur & Review: Stefan | Implementation & Synthese: Sam
  */
 
-import { join, relative } from "@std/path";
+import type { DocumentMetadata, SaveDocumentPayload } from "./types.ts";
+
 import { ensureDir } from "@std/fs";
-import {
-  DocumentMetadata,
-  documentMetadataSchema,
-  SaveDocumentPayload,
-} from "./types.ts";
+import { join, relative } from "@std/path";
 import { createPdfFromImages } from "./pdf.ts";
+import { documentMetadataSchema } from "./types.ts";
 
 const DOCUMENTS_DIR = Deno.env.get("SCANMATE_DATA_DIR") ||
   new URL("../../../data/documents", import.meta.url).pathname;
@@ -133,20 +131,14 @@ export async function saveDocument(
   const baseName = `${datePrefix}_${safeTitle}_${id.slice(0, 8)}`;
 
   const safeTargetDir = sanitizeSubpath(payload.targetPath);
-  const targetDir = safeTargetDir
-    ? join(DOCUMENTS_DIR, safeTargetDir)
-    : DOCUMENTS_DIR;
+  const targetDir = safeTargetDir ? join(DOCUMENTS_DIR, safeTargetDir) : DOCUMENTS_DIR;
   await ensureDir(targetDir);
 
   const pdfFileName = `${baseName}.pdf`;
   const jsonFileName = `${baseName}.json`;
 
-  const pdfRelPath = safeTargetDir
-    ? `${safeTargetDir}/${pdfFileName}`
-    : pdfFileName;
-  const jsonRelPath = safeTargetDir
-    ? `${safeTargetDir}/${jsonFileName}`
-    : jsonFileName;
+  const pdfRelPath = safeTargetDir ? `${safeTargetDir}/${pdfFileName}` : pdfFileName;
+  const jsonRelPath = safeTargetDir ? `${safeTargetDir}/${jsonFileName}` : jsonFileName;
 
   const pdfFullPath = join(targetDir, pdfFileName);
   const jsonFullPath = join(targetDir, jsonFileName);

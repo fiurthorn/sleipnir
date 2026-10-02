@@ -5,7 +5,9 @@
  * Architektur & Review: Stefan | Implementation & Synthese: Sam
  */
 
-import { type Context, Hono } from "hono";
+import type { Context } from "hono";
+
+import { Hono } from "hono";
 
 export class Sleipnir extends Hono {}
 

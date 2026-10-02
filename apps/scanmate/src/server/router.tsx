@@ -5,7 +5,7 @@
  * Architektur & Review: Stefan | Implementation & Synthese: Sam
  */
 
-import { type SleipnirContext } from "@sleipnir/core";
+import type { SleipnirContext } from "@sleipnir/core";
 import { assets, cors, hsts, Sleipnir, VERSION } from "@sleipnir/core";
 import { compress } from "hono/compress";
 import { secureHeaders } from "hono/secure-headers";
@@ -15,9 +15,7 @@ import { api as documentsApi } from "./api/documents.ts";
 
 export default function App(basePath?: string, developMode: boolean = false) {
   console.log(
-    `Starting Scanmate with basePath: ${basePath ?? "none"} as ${
-      developMode ? "development" : "production"
-    } mode`,
+    `Starting Scanmate with basePath: ${basePath ?? "none"} as ${developMode ? "development" : "production"} mode`,
   );
 
   const app = new Sleipnir().basePath(basePath ?? "");
@@ -43,8 +41,7 @@ export default function App(basePath?: string, developMode: boolean = false) {
   );
 
   // Main UI
-  const rootHandler = (c: SleipnirContext) =>
-    c.html(<Index content={<ScanPage basePath={basePath ?? ""} />} />);
+  const rootHandler = (c: SleipnirContext) => c.html(<Index content={<ScanPage basePath={basePath ?? ""} />} />);
   app.get("/", rootHandler);
   if (basePath) app.get("", rootHandler);
 

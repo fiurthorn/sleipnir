@@ -5,7 +5,7 @@
  * Architektur & Review: Stefan | Implementation & Synthese: Sam
  */
 
-import { Child } from "hono/jsx";
+import type { Child } from "hono/jsx";
 import { AlertZone, LOGO, proxyRedirect, themeInit } from "@sleipnir/core";
 
 interface PageProps {
@@ -14,8 +14,7 @@ interface PageProps {
 }
 
 export const Index = (
-  { title = "Scanmate | Mobile Document & Receipt Scanner", content }:
-    PageProps,
+  { title = "Scanmate | Mobile Document & Receipt Scanner", content }: PageProps,
 ) => {
   return (
     <html data-theme="corvus" lang="de">

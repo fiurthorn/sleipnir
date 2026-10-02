@@ -471,8 +471,7 @@ export function ScanPage({ basePath }: { basePath: string }) {
               <span class="text-5xl mb-3">📑</span>
               <h3 class="font-bold text-lg">Kein Dokument ausgewählt</h3>
               <p class="text-xs max-w-sm mt-1 mb-4">
-                Wähle ein Dokument aus der linken Seitenleiste oder erfasse
-                einen neuen Scan.
+                Wähle ein Dokument aus der linken Seitenleiste oder erfasse einen neuen Scan.
               </p>
               <button
                 type="button"
@@ -609,8 +608,7 @@ export function ScanPage({ basePath }: { basePath: string }) {
                     <span>KI-Vision Analyse & OCR</span>
                   </div>
                   <p class="text-[11px] opacity-60">
-                    Extrahiert Titel, Absender, Beträge, Tags und
-                    Inhaltszusammenfassung automatisch aus den Scans.
+                    Extrahiert Titel, Absender, Beträge, Tags und Inhaltszusammenfassung automatisch aus den Scans.
                   </p>
 
                   <div class="form-control">
@@ -682,8 +680,7 @@ export function ScanPage({ basePath }: { basePath: string }) {
                       />
                     </div>
                     <span class="text-[10px] opacity-50 mt-1">
-                      Wähle einen bestehenden Ordner oder erstelle flexibel neue
-                      Unterverzeichnisse.
+                      Wähle einen bestehenden Ordner oder erstelle flexibel neue Unterverzeichnisse.
                     </span>
                   </div>
 

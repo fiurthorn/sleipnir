@@ -9,10 +9,7 @@ import app from "./src/server/router.tsx";
 
 const rawPort = Deno.env.get("PORT") ?? "3003";
 const parsedPort = Number(rawPort);
-const port =
-  Number.isInteger(parsedPort) && parsedPort > 0 && parsedPort <= 65535
-    ? parsedPort
-    : 3003;
+const port = Number.isInteger(parsedPort) && parsedPort > 0 && parsedPort <= 65535 ? parsedPort : 3003;
 
 const basePath = Deno.env.get("BASE_PATH");
 const developMode = Deno.env.get("APP_ENV") === "development";

@@ -30,11 +30,49 @@
   ],
   "lint": {
     "include": ["packages/", "apps/"],
-    "exclude": ["**/static/", "**/dist/"]
+    "exclude": ["**/static/", "**/dist/"],
+    "rules": {
+      "tags": [
+        "recommended",
+        "jsx",
+        "workspace",
+        "jsr"
+      ],
+      "include": [
+        "ban-types",
+        "ban-ts-comment",
+        "no-unused-vars",
+        "no-explicit-any",
+        "no-non-null-assertion",
+        "prefer-const",
+        "default-param-last",
+        "no-self-compare",
+        "no-throw-literal",
+        "no-debugger",
+        "verbatim-module-syntax",
+        "no-sloppy-imports"
+      ],
+      "exclude": [
+        "no-control-regex"
+      ]
+    }
   },
   "fmt": {
     "include": ["packages/", "apps/", "doc/", "README.md", "deno.json"],
-    "exclude": ["**/static/", "**/dist/"]
+    "exclude": ["**/static/", "**/dist/"],
+    "sortNamedImports": "caseInsensitive",
+    "sortNamedExports": "caseInsensitive",
+    "trailingCommas": "onlyMultiLine",
+    "useTabs": false,
+    "lineWidth": 150,
+    "indentWidth": 2,
+    "semiColons": true,
+    "singleQuote": false,
+    "proseWrap": "preserve",
+    "bracePosition": "sameLine",
+    "newLineKind": "lf",
+    "useBraces": "whenNotSingleLine",
+    "quoteProps": "consistent"
   },
   "test": {
     "exclude": ["test.ts"]

@@ -341,8 +341,7 @@ export const NotesPage = () => {
                 </span>
               </div>
               <div class="hidden sm:inline">
-                💡 <code>Strg+V</code> für Bilder • <code>Strg+S</code>{" "}
-                zum Speichern
+                💡 <code>Strg+V</code> für Bilder • <code>Strg+S</code> zum Speichern
               </div>
             </div>
           </div>
@@ -369,9 +368,7 @@ export const NotesPage = () => {
                         </span>
                       </div>
                       <div class="text-[11px] opacity-60">
-                        Basis: <strong x-text="recipeBaseServings"></strong>
-                        {" "}
-                        Portionen
+                        Basis: <strong x-text="recipeBaseServings"></strong> Portionen
                       </div>
                     </div>
                   </div>
