@@ -95,3 +95,15 @@
   - Sidecar-Datei `[YYYY-MM-DD]_[Titel].json` direkt daneben im Verzeichnis (`./data/documents`).
 - [x] **Indizierung & Suche:**
   - Schnelle Suche und Filterung über die JSON-Metadaten, Absender, Tags und Volltexte im UI.
+
+---
+
+## 4. Suche & MCP-Optimierung (`MiniSearch`)
+
+- [x] **Serverseitige `MiniSearch`-Integration (`notemate` & `scanmate`):**
+  - Aktuelles `includes()`-Matching in `NoteStorage.searchNotes` und `scanmate_list_documents` durch einen gemeinsamen `MiniSearch`-Index ersetzen (Multi-Term-Suche, Fuzzy-/Prefix-Matching, BM25-Ranking & `limit` für kompakte MCP-Antworten).
+  - **Index-Persistenz & Sync:** Event-basiertes, debounced Speichern nach Ablage/Änderung/Löschung (`.search-index.json`) plus `mtime`-Delta-Abgleich beim App-Start.
+- [ ] **NoteMate Web-UI Tag-Chips & Filter:**
+  - YAML-Frontmatter-Tags in der UI als Chips anzeigen und in der Sidebar danach filtern können.
+- [ ] **ScanMate Optionale Tesseract-Vorab-OCR (bei > N Seiten):**
+  - Bei sehr langen Dokumenten optional Text per lokalem `tesseract` vorab extrahieren, um Vision-Tokens zu sparen (zusätzlich zur seitenweisen `page`-Abfrage in `scanmate_get_pending_images`).

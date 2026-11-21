@@ -8,10 +8,10 @@
 import { ScannerModal } from "../components/ScannerModal.tsx";
 import { ThemeToggle } from "@sleipnir/core";
 
-export function ScanPage({ basePath }: { basePath: string }) {
+export function ScanPage({ basePath: _basePath }: { basePath: string }) {
   return (
     <div
-      x-data={`scanApp('${basePath}')`}
+      x-data="scanApp"
       class="flex h-screen overflow-hidden bg-base-100"
     >
       {/* ========================================================================= */}
@@ -328,7 +328,7 @@ export function ScanPage({ basePath }: { basePath: string }) {
 
                 <div class="flex items-center gap-2 shrink-0">
                   <a
-                    x-bind:href="`${basePath}/api/pdf/${Alpine.store('scanmate').activeDoc.fileNamePdf}`"
+                    x-bind:href="`./api/pdf/${Alpine.store('scanmate').activeDoc.fileNamePdf}`"
                     target="_blank"
                     class="btn btn-outline btn-xs sm:btn-sm gap-1.5"
                     title="PDF in neuem Tab öffnen"
@@ -336,7 +336,7 @@ export function ScanPage({ basePath }: { basePath: string }) {
                     <span>Öffnen ↗</span>
                   </a>
                   <a
-                    x-bind:href="`${basePath}/api/pdf/${Alpine.store('scanmate').activeDoc.fileNamePdf}`"
+                    x-bind:href="`./api/pdf/${Alpine.store('scanmate').activeDoc.fileNamePdf}`"
                     download
                     class="btn btn-primary btn-xs sm:btn-sm gap-1.5"
                     title="PDF herunterladen"
@@ -439,7 +439,7 @@ export function ScanPage({ basePath }: { basePath: string }) {
                       <span class="badge badge-xs">PDF Preview</span>
                     </div>
                     <iframe
-                      x-bind:src="`${basePath}/api/pdf/${Alpine.store('scanmate').activeDoc.fileNamePdf}`"
+                      x-bind:src="`./api/pdf/${Alpine.store('scanmate').activeDoc.fileNamePdf}`"
                       class="w-full flex-1 border-0 bg-base-100"
                     >
                     </iframe>

@@ -7,20 +7,23 @@
 
 // Configure marked with highlight.js for syntax highlighting
 function configureMarkedHighlight() {
-  if (typeof window.marked !== "undefined") {
-    window.marked.use({
+  if (typeof globalThis.marked !== "undefined") {
+    globalThis.marked.use({
       renderer: {
         code({ text, lang }) {
           let highlighted = text;
-          const hasHljs = typeof window.hljs !== "undefined";
-          const validLang = lang && hasHljs && window.hljs.getLanguage(lang) ? lang : null;
+          const hasHljs = typeof globalThis.hljs !== "undefined";
+          const validLang = lang && hasHljs && globalThis.hljs.getLanguage(lang) ? lang : null;
 
           if (hasHljs) {
             try {
               if (validLang) {
-                highlighted = window.hljs.highlight(text, { language: validLang, ignoreIllegals: true }).value;
+                highlighted = globalThis.hljs.highlight(text, {
+                  language: validLang,
+                  ignoreIllegals: true,
+                }).value;
               } else {
-                highlighted = window.hljs.highlightAuto(text).value;
+                highlighted = globalThis.hljs.highlightAuto(text).value;
               }
             } catch {
               highlighted = text;
@@ -90,8 +93,9 @@ document.addEventListener("alpine:init", () => {
     },
 
     get currentChat() {
-      return this.chats.find((c) => c.id === this.currentChatId) ||
-        this.chats[0];
+      return (
+        this.chats.find((c) => c.id === this.currentChatId) || this.chats[0]
+      );
     },
 
     get configuredProviders() {
@@ -200,7 +204,6 @@ document.addEventListener("alpine:init", () => {
       this.$nextTick(() => this.scrollToBottom());
     },
 
-
     deleteChat(id, event = null) {
       if (event && event.stopPropagation) event.stopPropagation();
       this.chatPendingDelete = id;
@@ -254,8 +257,11 @@ document.addEventListener("alpine:init", () => {
     renderMarkdown(text) {
       if (!text) return "";
       try {
-        if (typeof window.marked !== "undefined" && window.marked.parse) {
-          const parsed = window.marked.parse(text, { async: false });
+        if (
+          typeof globalThis.marked !== "undefined" &&
+          globalThis.marked.parse
+        ) {
+          const parsed = globalThis.marked.parse(text, { async: false });
           if (typeof parsed === "string") {
             return parsed;
           }
@@ -368,13 +374,14 @@ document.addEventListener("alpine:init", () => {
         chat.title === "Neuer Dialog"
       ) {
         const titleSource = prompt || "Bildanalyse";
-        chat.title = titleSource.length > 25
-          ? titleSource.slice(0, 25) + "..."
-          : titleSource;
+        chat.title = titleSource.length > 25 ? titleSource.slice(0, 25) + "..." : titleSource;
       }
 
       // Check for image generation command (only when no image is attached)
-      if (!image && (prompt.startsWith("/image ") || this.isImageModelSelected())) {
+      if (
+        !image &&
+        (prompt.startsWith("/image ") || this.isImageModelSelected())
+      ) {
         await this.handleImageGeneration(prompt);
         return;
       }
@@ -424,9 +431,7 @@ document.addEventListener("alpine:init", () => {
       this.$nextTick(() => this.scrollToBottom());
 
       try {
-        const targetImageModel = this.isImageModelSelected()
-          ? this.activeModel
-          : (this.models.find((m) => m.type === "image")?.id || "");
+        const targetImageModel = this.isImageModelSelected() ? this.activeModel : this.models.find((m) => m.type === "image")?.id || "";
 
         const res = await fetch("./api/image", {
           method: "POST",
@@ -444,11 +449,20 @@ document.addEventListener("alpine:init", () => {
 
         const data = await res.json();
         // Index-Zuweisung triggert Alpines Reaktivitätssystem + $persist
-        chat.messages[imgMsgIdx] = { ...chat.messages[imgMsgIdx], imageUrl: data.imageUrl };
+        chat.messages[imgMsgIdx] = {
+          ...chat.messages[imgMsgIdx],
+          imageUrl: data.imageUrl,
+        };
       } catch (err) {
-        chat.messages[imgMsgIdx] = { ...chat.messages[imgMsgIdx], error: "Bildgenerierung fehlgeschlagen: " + err.message };
+        chat.messages[imgMsgIdx] = {
+          ...chat.messages[imgMsgIdx],
+          error: "Bildgenerierung fehlgeschlagen: " + err.message,
+        };
       } finally {
-        chat.messages[imgMsgIdx] = { ...chat.messages[imgMsgIdx], loading: false };
+        chat.messages[imgMsgIdx] = {
+          ...chat.messages[imgMsgIdx],
+          loading: false,
+        };
         this.isLoading = false;
         this.$nextTick(() => this.scrollToBottom());
       }
@@ -482,9 +496,10 @@ document.addEventListener("alpine:init", () => {
 
       // Prepare context: last 10 messages for context window
       const candidates = chat.messages
-        .filter((m) =>
-          (m.type === "text" || m.type === "multimodal" || m.imageUrl) &&
-          (m.content || m.imageUrl)
+        .filter(
+          (m) =>
+            (m.type === "text" || m.type === "multimodal" || m.imageUrl) &&
+            (m.content || m.imageUrl),
         )
         .slice(-10);
 
@@ -510,9 +525,7 @@ document.addEventListener("alpine:init", () => {
         }
         // Older images in history get a lightweight text note to save tokens and context size
         if (m.imageUrl && idx !== lastImageIdx) {
-          const textNote = m.content
-            ? `[Vorheriges Bild: "${m.content}"]`
-            : "[Vorheriges Bild bereits analysiert]";
+          const textNote = m.content ? `[Vorheriges Bild: "${m.content}"]` : "[Vorheriges Bild bereits analysiert]";
           return { role: m.role, content: textNote };
         }
         return { role: m.role, content: m.content };
@@ -557,7 +570,10 @@ document.addEventListener("alpine:init", () => {
               if (deltaContent) {
                 // Index-Zuweisung triggert Alpines Reaktivitätssystem + $persist
                 const current = chat.messages[assistantMsgIdx];
-                chat.messages[assistantMsgIdx] = { ...current, content: current.content + deltaContent };
+                chat.messages[assistantMsgIdx] = {
+                  ...current,
+                  content: current.content + deltaContent,
+                };
                 this.scrollToBottomThrottled();
               }
             } catch {
@@ -567,7 +583,10 @@ document.addEventListener("alpine:init", () => {
         }
       } catch (err) {
         const current = chat.messages[assistantMsgIdx];
-        chat.messages[assistantMsgIdx] = { ...current, content: current.content + "\n\n❌ **Verbindungsfehler:** " + err.message };
+        chat.messages[assistantMsgIdx] = {
+          ...current,
+          content: current.content + "\n\n❌ **Verbindungsfehler:** " + err.message,
+        };
       } finally {
         this.isLoading = false;
         this.$nextTick(() => this.scrollToBottom());
@@ -612,7 +631,9 @@ document.addEventListener("alpine:init", () => {
           if (Array.isArray(parsed)) {
             this.chats = parsed;
             this.currentChatId = parsed[0]?.id || null;
-            alert("Backup erfolgreich importiert! (" + parsed.length + " Chats)");
+            alert(
+              "Backup erfolgreich importiert! (" + parsed.length + " Chats)",
+            );
           }
         } catch (err) {
           alert("Fehler beim Lesen der Datei: " + err.message);

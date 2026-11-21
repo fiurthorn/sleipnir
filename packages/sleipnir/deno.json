@@ -8,12 +8,17 @@
     "./jsonpath": "./src/jsonpath.ts",
     "./utils": "./src/utils.ts",
     "./cors": "./src/cors.ts",
-    "./hsts": "./src/hsts.ts"
+    "./hsts": "./src/hsts.ts",
+    "./mcp": "./src/mcp.ts",
+    "./search": "./src/search.ts"
   },
   "imports": {
     "@hono/deno": "npm:@hono/deno@^1.0.2",
+    "@modelcontextprotocol/sdk": "npm:@modelcontextprotocol/sdk@^1.27.1",
     "@std/assert": "jsr:@std/assert@^1.0.19",
-    "hono": "npm:hono@^4.13.10"
+    "hono": "npm:hono@^4.13.10",
+    "minisearch": "npm:minisearch@^7.1.1",
+    "zod": "npm:zod@^3.24.2"
   },
   "compilerOptions": {
     "jsx": "react-jsx",

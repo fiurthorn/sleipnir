@@ -48,6 +48,11 @@ fmt:
     deno fmt
 
 [group('lifecycle')]
+fmt-notes:
+    @just notemate fmt-notes
+
+
+[group('lifecycle')]
 update-dependencies:
     deno update
 
@@ -73,7 +78,12 @@ build-client: generate-version update-libs
     @echo "✅ Sleipnir Client gebündelt und verteilt."
 
 [group('lifecycle')]
-build: build-client build-css
+build: build-client build-css sync-hub
+
+[group('lifecycle')]
+sync-hub:
+    @echo "sync-hub: Noch nicht implementiert."
+
 
 vendor_dir := "packages/sleipnir/static/vendor"
 

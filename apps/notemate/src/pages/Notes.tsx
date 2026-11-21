@@ -352,9 +352,9 @@ export const NotesPage = () => {
             x-show="viewMode === 'preview' || viewMode === 'split'"
           >
             <div class="max-w-3xl mx-auto">
-              {/* Recipe Portion Scaler Banner */}
+              {/* Recipe Portion Scaler Banner (Sticky on scroll) */}
               <template x-if="recipeBaseServings">
-                <div class="mb-6 p-3.5 rounded-xl bg-base-200/60 border border-primary/20 flex flex-wrap items-center justify-between gap-3 shadow-sm select-none">
+                <div class="sticky top-0 z-20 mb-6 p-3.5 rounded-xl bg-base-200/95 backdrop-blur-md border border-primary/25 flex flex-wrap items-center justify-between gap-3 shadow-md select-none transition-all">
                   <div class="flex items-center gap-2.5">
                     <span class="text-2xl">🍳</span>
                     <div>
@@ -374,6 +374,17 @@ export const NotesPage = () => {
                   </div>
 
                   <div class="flex items-center gap-2">
+                    <button
+                      type="button"
+                      x-show="recipeCurrentServings !== recipeBaseServings"
+                      class="btn btn-ghost btn-xs text-[11px] opacity-60 hover:opacity-100 font-mono"
+                      x-on:click="resetServings()"
+                      title="Auf Original zurücksetzen"
+                      style="display: none;"
+                    >
+                      ↺ Reset
+                    </button>
+
                     <div class="join border border-base-content/20 rounded-lg bg-base-100 shadow-sm items-center h-7 overflow-hidden">
                       <button
                         type="button"
@@ -406,16 +417,6 @@ export const NotesPage = () => {
                         +
                       </button>
                     </div>
-
-                    <button
-                      type="button"
-                      x-show="recipeCurrentServings !== recipeBaseServings"
-                      class="btn btn-ghost btn-xs text-[11px] opacity-60 hover:opacity-100 font-mono"
-                      x-on:click="resetServings()"
-                      title="Auf Original zurücksetzen"
-                    >
-                      ↺ Reset
-                    </button>
                   </div>
                 </div>
               </template>

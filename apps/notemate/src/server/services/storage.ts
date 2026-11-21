@@ -5,8 +5,10 @@
  * Architektur & Review: Stefan | Implementation & Synthese: Sam
  */
 
+import { PersistentSearchIndex } from "@sleipnir/core/search";
 import { basename, extname, join, normalize, relative, resolve } from "@std/path";
 import { formatMarkdown } from "./formatter.ts";
+import { addTagsToMarkdown, ALLOWED_TAG_DEFINITIONS, extractTagsFromMarkdown, resolveAllowedTags } from "./tags.ts";
 
 export interface TreeNode {
   name: string;
@@ -29,6 +31,18 @@ export interface SearchResult {
   title: string;
   snippet: string;
   matchCount: number;
+  tags?: string[];
+  score?: number;
+}
+
+interface NoteSearchDoc {
+  id: string;
+  title: string;
+  tags: string;
+  path: string;
+  content: string;
+  tagList: string[];
+  snippet: string;
 }
 
 export interface StorageConfig {
@@ -38,6 +52,7 @@ export interface StorageConfig {
 export class NoteStorage {
   private baseDir: string;
   private attachmentsDir: string;
+  private searchIndex: PersistentSearchIndex<NoteSearchDoc>;
 
   constructor(config?: StorageConfig) {
     const rawDir = config?.dataDir || Deno.env.get("NOTEMATE_DATA_DIR") ||
@@ -45,6 +60,12 @@ export class NoteStorage {
     this.baseDir = resolve(rawDir);
     this.attachmentsDir = join(this.baseDir, ".attachments");
     this.ensureBaseDirs();
+    this.searchIndex = new PersistentSearchIndex<NoteSearchDoc>({
+      fields: ["title", "tags", "path", "content"],
+      storeFields: ["title", "path", "tagList", "snippet"],
+      boost: { title: 4, tags: 3, path: 2, content: 1 },
+      persistPath: join(this.baseDir, ".search-index.json"),
+    });
   }
 
   private ensureBaseDirs(): void {
@@ -374,65 +395,142 @@ Notemate ist deine **hierarchische, ablenkungsfreie Markdown-Ablage** – direkt
   }
 
   /**
-   * Full-text search across all notes in the hierarchy.
+   * Full-text search across all notes using MiniSearch (title & tags boosted).
    */
-  async searchNotes(query: string): Promise<SearchResult[]> {
-    const trimmed = query.trim().toLowerCase();
+  async searchNotes(query: string, limit = 25): Promise<SearchResult[]> {
+    const trimmed = query.trim();
     if (!trimmed) return [];
 
-    const results: SearchResult[] = [];
-    await this.searchRecursive(this.baseDir, trimmed, results);
-    return results;
+    const files = await this.collectMarkdownFiles(this.baseDir);
+    const entries = await Promise.all(
+      files.map(async (fullPath) => {
+        const relPath = relative(this.baseDir, fullPath).replace(/\\/g, "/");
+        const stat = await Deno.stat(fullPath).catch(() => null);
+        const mtimeMs = stat?.mtime?.getTime() ?? 0;
+        return {
+          id: relPath,
+          mtimeMs,
+          load: async (): Promise<NoteSearchDoc | null> => {
+            try {
+              const content = await Deno.readTextFile(fullPath);
+              const tagList = extractTagsFromMarkdown(content);
+              const cleanSnippet = content
+                .replace(/^---[\s\S]*?---\s*/, "")
+                .replace(/\s+/g, " ")
+                .trim()
+                .slice(0, 140);
+              return {
+                id: relPath,
+                title: basename(relPath, ".md"),
+                tags: tagList.join(" "),
+                path: relPath,
+                content,
+                tagList,
+                snippet: cleanSnippet ? `${cleanSnippet}...` : "",
+              };
+            } catch {
+              return null;
+            }
+          },
+        };
+      }),
+    );
+
+    await this.searchIndex.syncFromEntries(entries);
+    const hits = this.searchIndex.search(trimmed, limit);
+
+    return hits.map((hit) => ({
+      path: hit.id,
+      title: hit.doc.title || basename(hit.id, ".md"),
+      snippet: hit.doc.snippet || "",
+      matchCount: hit.terms.length,
+      tags: hit.doc.tagList ?? [],
+      score: Number(hit.score.toFixed(2)),
+    }));
   }
 
-  private async searchRecursive(
-    dir: string,
-    query: string,
-    results: SearchResult[],
-  ): Promise<void> {
+  private async collectMarkdownFiles(dir: string, out: string[] = []): Promise<string[]> {
     try {
       for await (const entry of Deno.readDir(dir)) {
         if (entry.name.startsWith(".")) continue;
-
         const fullPath = join(dir, entry.name);
         if (entry.isDirectory) {
-          await this.searchRecursive(fullPath, query, results);
+          await this.collectMarkdownFiles(fullPath, out);
           continue;
         }
-
         if (entry.isFile && entry.name.endsWith(".md")) {
-          const content = await Deno.readTextFile(fullPath);
-          const lower = content.toLowerCase();
-          const relPath = relative(this.baseDir, fullPath).replace(/\\/g, "/");
-
-          if (lower.includes(query) || relPath.toLowerCase().includes(query)) {
-            // Find snippet around first match
-            const index = lower.indexOf(query);
-            let snippet = "";
-            if (index !== -1) {
-              const start = Math.max(0, index - 40);
-              const end = Math.min(content.length, index + query.length + 60);
-              snippet = (start > 0 ? "..." : "") +
-                content.substring(start, end).replace(/\n/g, " ") +
-                (end < content.length ? "..." : "");
-            } else {
-              snippet = content.slice(0, 100).replace(/\n/g, " ") + "...";
-            }
-
-            // Count occurrences
-            const matches = lower.split(query).length - 1;
-
-            results.push({
-              path: relPath,
-              title: basename(relPath, ".md"),
-              snippet,
-              matchCount: Math.max(1, matches),
-            });
-          }
+          out.push(fullPath);
         }
       }
-    } catch (e) {
-      console.error(`Search error in ${dir}:`, e);
+    } catch {
+      // Verzeichnis existiert ggf. noch nicht
     }
+    return out;
+  }
+
+  /**
+   * Lists all markdown notes without frontmatter tags (optionally scoped to a subfolder).
+   */
+  async listUntaggedNotes(folder?: string): Promise<Array<{ path: string; title: string }>> {
+    const startDir = folder ? this.resolveSafePath(folder) : this.baseDir;
+    const files = await this.collectMarkdownFiles(startDir);
+    const untagged: Array<{ path: string; title: string }> = [];
+
+    for (const fullPath of files) {
+      const content = await Deno.readTextFile(fullPath);
+      if (extractTagsFromMarkdown(content).length > 0) continue;
+      const relPath = relative(this.baseDir, fullPath).replace(/\\/g, "/");
+      untagged.push({
+        path: relPath,
+        title: basename(relPath, ".md"),
+      });
+    }
+
+    return untagged.sort((a, b) => a.path.localeCompare(b.path));
+  }
+
+  /**
+   * Lists the predefined allowed tags along with their category and current usage counts.
+   */
+  async listAllTags(
+    folder?: string,
+  ): Promise<Array<{ tag: string; category: string; count: number }>> {
+    const startDir = folder ? this.resolveSafePath(folder) : this.baseDir;
+    const files = await this.collectMarkdownFiles(startDir);
+    const usage = new Map<string, number>();
+
+    for (const fullPath of files) {
+      const content = await Deno.readTextFile(fullPath);
+      for (const tag of extractTagsFromMarkdown(content)) {
+        const key = tag.toLowerCase();
+        usage.set(key, (usage.get(key) ?? 0) + 1);
+      }
+    }
+
+    return ALLOWED_TAG_DEFINITIONS.map((def) => ({
+      tag: def.tag,
+      category: def.category,
+      count: usage.get(def.tag.toLowerCase()) ?? 0,
+    }));
+  }
+
+  /**
+   * Validates tags against the predefined vocabulary and adds them to the note's YAML frontmatter.
+   */
+  async addNoteTags(
+    relPath: string,
+    tags: string[],
+  ): Promise<{ path: string; tags: string[] }> {
+    const allowedTags = resolveAllowedTags(tags);
+    if (allowedTags.length === 0) {
+      throw new Error("Mindestens ein gültiger Tag erforderlich.");
+    }
+    const note = await this.getNote(relPath);
+    const updated = addTagsToMarkdown(note.content, allowedTags);
+    const saved = await this.saveNote(note.path, updated.content);
+    return {
+      path: saved.path,
+      tags: extractTagsFromMarkdown(saved.content),
+    };
   }
 }

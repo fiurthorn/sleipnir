@@ -10,11 +10,13 @@
     "@std/assert": "jsr:@std/assert@^1.0.19",
     "@std/path": "jsr:@std/path@^1.0.8",
     "@std/fs": "jsr:@std/fs@^1.0.8",
+    "@std/yaml": "jsr:@std/yaml@^1.0.12",
     "@tailwindcss/cli": "npm:@tailwindcss/cli@^4.3.3",
     "daisyui": "npm:daisyui@^5.7.46",
     "hono": "npm:hono@^4.13.10",
     "pdf-lib": "npm:pdf-lib@^1.17.1",
     "prettier": "npm:prettier@^3.5.2",
+    "qrcode": "npm:qrcode@^1.5.4",
     "tailwindcss": "npm:tailwindcss@^4.3.3",
     "zod": "npm:zod@^3.24.2"
   },

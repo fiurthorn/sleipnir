@@ -10,7 +10,7 @@ import { randomBytes } from "node:crypto";
 
 export const proxyRedirect: string = function () {
   const path = globalThis.location.pathname;
-  if (path.match(/.*\/proxy\/\d+$/) && !path.endsWith("/")) {
+  if ((path.match(/.*\/proxy\/\d+$/) || path.match(/.*\/proxy\/\d+\/(?:notes|chat|scan)$/)) && !path.endsWith("/")) {
     globalThis.location.replace(path + "/");
   }
 }.toString();

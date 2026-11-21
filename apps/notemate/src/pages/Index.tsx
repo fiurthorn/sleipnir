@@ -5,25 +5,26 @@
  * Architektur & Review: Stefan | Implementation & Synthese: Sam
  */
 
-import type { Child } from "hono/jsx";
 import { AlertZone, LOGO, proxyRedirect, themeInit } from "@sleipnir/core";
+import type { Child } from "hono/jsx";
 
 interface PageProps {
   title?: string;
+  basePath?: string;
   content: Child;
 }
 
-export const Index = (
-  { title = "Notemate | Hierarchical Markdown", content }: PageProps,
-) => {
+export const Index = ({
+  title = "Notemate | Hierarchical Markdown",
+  basePath = ".",
+  content,
+}: PageProps) => {
   return (
     <html data-theme="corvus" lang="de">
       <head>
+        <base href={basePath || "."} />
         <meta charset="UTF-8" />
-        <meta
-          name="viewport"
-          content="width=device-width, initial-scale=1.0"
-        />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <link rel="icon" type="image/x-icon" href={LOGO}></link>
         <link href="./static/styles.css" rel="stylesheet" />
         <link href="./static/vendor/nord.min.css" rel="stylesheet" />

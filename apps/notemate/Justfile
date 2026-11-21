@@ -19,3 +19,8 @@ build-css:
 [doc('Watch-Modus für Tailwind & DaisyUI CSS')]
 watch-css:
     deno run -A npm:@tailwindcss/cli -i ./src/input.css -o ./static/styles.css --watch
+
+[doc('Formatiert alle Markdown-Notizen und Rezepte')]
+fmt-notes:
+    deno fmt data/notes
+

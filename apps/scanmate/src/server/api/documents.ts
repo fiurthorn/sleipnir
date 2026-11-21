@@ -10,11 +10,16 @@ import { z } from "zod";
 import {
   createFolder,
   deleteDocument,
+  deletePendingScan,
   getDocumentById,
   getDocumentPdfBytes,
+  getScanSession,
   listAllDocuments,
   listFolderPaths,
+  listPendingScans,
   saveDocument,
+  savePendingScan,
+  submitScanSession,
   updateDocumentMetadata,
 } from "../services/storage.ts";
 import { extractDocumentMetadataWithAi, getAvailableVisionModels } from "../services/ai.ts";
@@ -198,4 +203,65 @@ api.get("/pdf/*", async (c) => {
       "Content-Disposition": `inline; filename="${baseFileName}"`,
     },
   });
+});
+
+const pendingBodySchema = z.object({
+  pages: z.array(z.string().min(1)).min(1, "Mindestens eine Seite erforderlich"),
+  label: z.string().optional(),
+});
+
+// GET /api/pending - Offene Roh-Scans in der Agent-Inbox auflisten
+api.get("/pending", async (c) => {
+  const items = await listPendingScans();
+  return c.json({ ok: true, items });
+});
+
+// POST /api/pending - Roh-Scan für Agent-Analyse in der Inbox ablegen
+api.post("/pending", async (c) => {
+  const raw = await c.req.json().catch(() => undefined);
+  const parsed = pendingBodySchema.safeParse(raw);
+  if (!parsed.success) {
+    return c.json({ ok: false, error: parsed.error.issues[0]?.message || "Ungültige Eingabe" }, 400);
+  }
+
+  const item = await savePendingScan(parsed.data.pages, parsed.data.label);
+  return c.json({ ok: true, item }, 201);
+});
+
+// DELETE /api/pending/:id - Offenen Roh-Scan verwerfen
+api.delete("/pending/:id", async (c) => {
+  const id = c.req.param("id");
+  const deleted = await deletePendingScan(id);
+  if (!deleted) {
+    return c.json({ ok: false, error: "Pending-Scan nicht gefunden" }, 404);
+  }
+  return c.json({ ok: true });
+});
+
+// GET /api/sessions/:token - Scan-Session-Status prüfen
+api.get("/sessions/:token", async (c) => {
+  const session = await getScanSession(c.req.param("token"));
+  if (!session) {
+    return c.json({ ok: false, error: "Scan-Link abgelaufen oder ungültig" }, 404);
+  }
+  return c.json({ ok: true, session });
+});
+
+// POST /api/sessions/:token/submit - Gescannte Seiten über Session einreichen
+api.post("/sessions/:token/submit", async (c) => {
+  const raw = await c.req.json().catch(() => undefined);
+  const parsed = pendingBodySchema.safeParse(raw);
+  if (!parsed.success) {
+    return c.json({ ok: false, error: parsed.error.issues[0]?.message || "Ungültige Eingabe" }, 400);
+  }
+
+  const result = await submitScanSession(
+    c.req.param("token"),
+    parsed.data.pages,
+    parsed.data.label,
+  );
+  if (!result) {
+    return c.json({ ok: false, error: "Scan-Link abgelaufen, ungültig oder bereits verwendet" }, 410);
+  }
+  return c.json({ ok: true, ...result }, 201);
 });

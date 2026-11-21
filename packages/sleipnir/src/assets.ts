@@ -38,19 +38,23 @@ export function cache(options?: CacheOptions): MiddlewareHandler {
 
 export function assets(
   app: Sleipnir,
-  basePath: string = "",
+  _basePath: string = "",
   version: string = "0.1.0",
   rootPath: string = "./",
   developMode: boolean = false,
 ): void {
   let staticRoot = rootPath;
-  try {
-    const candidate = `${staticRoot.replace(/\/+$/, "")}/static`;
-    if (!Deno.statSync(candidate).isDirectory) {
-      staticRoot = "./";
+  const candidates = [rootPath, "."];
+  for (const c of candidates) {
+    try {
+      const candidateStatic = `${c.replace(/\/+$/, "")}/static`;
+      if (Deno.statSync(candidateStatic).isDirectory) {
+        staticRoot = c;
+        break;
+      }
+    } catch {
+      // try next
     }
-  } catch {
-    staticRoot = "./";
   }
 
   const param: ServeStaticOptions = {
@@ -58,10 +62,15 @@ export function assets(
     precompressed: true,
   };
 
-  if (basePath) {
-    const cleanBase = basePath.replace(/\/+$/, "");
-    param.rewriteRequestPath = (path) => path.replace(cleanBase, "./");
-  }
+  param.rewriteRequestPath = (path) => {
+    // If request comes through a mounted sub-app (e.g. /notes/static/...) or with basePath,
+    // ensure the path passed to serveStatic starts with /static/...
+    const idx = path.indexOf("/static/");
+    if (idx !== -1) {
+      return path.slice(idx);
+    }
+    return path;
+  };
 
   app.use("/static/*", cache({ version, developMode }));
   app.use("/static/*", serveStatic(param));

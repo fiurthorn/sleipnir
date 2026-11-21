@@ -7,20 +7,23 @@
 
 // Configure marked with highlight.js for syntax highlighting
 function configureMarkedHighlight() {
-  if (typeof window.marked !== "undefined") {
-    window.marked.use({
+  if (typeof globalThis.marked !== "undefined") {
+    globalThis.marked.use({
       renderer: {
         code({ text, lang }) {
           let highlighted = text;
-          const hasHljs = typeof window.hljs !== "undefined";
-          const validLang = lang && hasHljs && window.hljs.getLanguage(lang) ? lang : null;
+          const hasHljs = typeof globalThis.hljs !== "undefined";
+          const validLang = lang && hasHljs && globalThis.hljs.getLanguage(lang) ? lang : null;
 
           if (hasHljs) {
             try {
               if (validLang) {
-                highlighted = window.hljs.highlight(text, { language: validLang, ignoreIllegals: true }).value;
+                highlighted = globalThis.hljs.highlight(text, {
+                  language: validLang,
+                  ignoreIllegals: true,
+                }).value;
               } else {
-                highlighted = window.hljs.highlightAuto(text).value;
+                highlighted = globalThis.hljs.highlightAuto(text).value;
               }
             } catch {
               highlighted = text;
@@ -44,7 +47,7 @@ document.addEventListener("alpine:init", () => {
   Alpine.data("notemate", () => ({
     // Persistent view settings
     viewMode: Alpine.$persist(
-      window.innerWidth < 1024 ? "preview" : "split",
+      globalThis.innerWidth < 1024 ? "preview" : "split",
     ).as("notemate_view_mode_v1"),
     expandedFolders: Alpine.$persist([]).as("notemate_expanded_v1"),
     activePath: Alpine.$persist("Willkommen.md").as("notemate_active_path_v1"),
@@ -97,7 +100,7 @@ document.addEventListener("alpine:init", () => {
       }
 
       // Keyboard shortcuts
-      window.addEventListener("keydown", (e) => {
+      globalThis.addEventListener("keydown", (e) => {
         // Ctrl+S / Cmd+S: Save Note
         if ((e.ctrlKey || e.metaKey) && e.key === "s") {
           e.preventDefault();
@@ -107,12 +110,12 @@ document.addEventListener("alpine:init", () => {
     },
 
     showToast(message, duration = 3000) {
-      if (typeof window.showAlert === "function") {
+      if (typeof globalThis.showAlert === "function") {
         const lower = String(message).toLowerCase();
         const isError = lower.includes("fehler") || lower.includes("error");
         const isSuccess = String(message).startsWith("✓");
-        const level = isError ? "error" : (isSuccess ? "success" : "info");
-        window.showAlert(message, level, duration);
+        const level = isError ? "error" : isSuccess ? "success" : "info";
+        globalThis.showAlert(message, level, duration);
       }
     },
 
@@ -140,8 +143,10 @@ document.addEventListener("alpine:init", () => {
     },
 
     isFolderExpanded(folderPath) {
-      return Array.isArray(this.expandedFolders) &&
-        this.expandedFolders.includes(folderPath);
+      return (
+        Array.isArray(this.expandedFolders) &&
+        this.expandedFolders.includes(folderPath)
+      );
     },
 
     toggleFolder(folderPath) {
@@ -201,9 +206,7 @@ document.addEventListener("alpine:init", () => {
 
       this.isLoading = true;
       try {
-        const res = await fetch(
-          `./api/notes?path=${encodeURIComponent(path)}`,
-        );
+        const res = await fetch(`./api/notes?path=${encodeURIComponent(path)}`);
         if (res.ok) {
           const data = await res.json();
           this.notePath = data.note.path;
@@ -284,9 +287,7 @@ document.addEventListener("alpine:init", () => {
       const name = prompt("Name der neuen Notiz:", defaultName);
       if (!name || !name.trim()) return;
 
-      const cleanName = name.trim().endsWith(".md")
-        ? name.trim()
-        : `${name.trim()}.md`;
+      const cleanName = name.trim().endsWith(".md") ? name.trim() : `${name.trim()}.md`;
       const fullPath = parentDir ? `${parentDir}/${cleanName}` : cleanName;
 
       this.isSaving = true;
@@ -316,9 +317,7 @@ document.addEventListener("alpine:init", () => {
       const name = prompt("Name des neuen Ordners:");
       if (!name || !name.trim()) return;
 
-      const fullPath = parentDir
-        ? `${parentDir}/${name.trim()}`
-        : name.trim();
+      const fullPath = parentDir ? `${parentDir}/${name.trim()}` : name.trim();
 
       try {
         const res = await fetch("./api/folders", {
@@ -384,9 +383,7 @@ document.addEventListener("alpine:init", () => {
       parts.pop();
       const parentDir = parts.join("/");
 
-      const cleanNew = isFile
-        ? (newName.trim().endsWith(".md") ? newName.trim() : `${newName.trim()}.md`)
-        : newName.trim();
+      const cleanNew = isFile ? newName.trim().endsWith(".md") ? newName.trim() : `${newName.trim()}.md` : newName.trim();
       const newPath = parentDir ? `${parentDir}/${cleanNew}` : cleanNew;
 
       try {
@@ -481,8 +478,7 @@ document.addEventListener("alpine:init", () => {
       const end = textarea.selectionEnd || 0;
       const current = this.noteContent;
 
-      this.noteContent =
-        current.substring(0, start) + text + current.substring(end);
+      this.noteContent = current.substring(0, start) + text + current.substring(end);
 
       this.$nextTick(() => {
         textarea.focus();
@@ -554,16 +550,16 @@ document.addEventListener("alpine:init", () => {
     },
 
     incrementServings() {
-      const current = typeof this.recipeCurrentServings === "number"
-        ? this.recipeCurrentServings
-        : parseFloat(this.recipeCurrentServings) || this.recipeBaseServings || 1;
+      const current = typeof this.recipeCurrentServings === "number" ? this.recipeCurrentServings : parseFloat(this.recipeCurrentServings) ||
+        this.recipeBaseServings ||
+        1;
       this.recipeCurrentServings = Math.round((current + 1) * 10) / 10;
     },
 
     decrementServings() {
-      const current = typeof this.recipeCurrentServings === "number"
-        ? this.recipeCurrentServings
-        : parseFloat(this.recipeCurrentServings) || this.recipeBaseServings || 1;
+      const current = typeof this.recipeCurrentServings === "number" ? this.recipeCurrentServings : parseFloat(this.recipeCurrentServings) ||
+        this.recipeBaseServings ||
+        1;
       if (current > 1) {
         this.recipeCurrentServings = Math.round((current - 1) * 10) / 10;
       }
@@ -577,10 +573,9 @@ document.addEventListener("alpine:init", () => {
       if (Math.abs(val - Math.round(val)) < 0.005) {
         return Math.round(val).toString();
       }
-      const rounded = (Math.round(val * 100) / 100).toFixed(2).replace(
-        /\.?0+$/,
-        "",
-      );
+      const rounded = (Math.round(val * 100) / 100)
+        .toFixed(2)
+        .replace(/\.?0+$/, "");
       return rounded.replace(".", ",");
     },
 
@@ -599,7 +594,7 @@ document.addEventListener("alpine:init", () => {
       const mixedFracMatch = clean.match(/^(\d+)\s+(\d+)\/(\d+)$/);
       if (mixedFracMatch) {
         const val = parseInt(mixedFracMatch[1], 10) +
-          (parseInt(mixedFracMatch[2], 10) / parseInt(mixedFracMatch[3], 10));
+          parseInt(mixedFracMatch[2], 10) / parseInt(mixedFracMatch[3], 10);
         return this.formatNumber(val * multiplier);
       }
 
@@ -611,7 +606,9 @@ document.addEventListener("alpine:init", () => {
         const v1 = parseFloat(rangeMatch[1].replace(",", "."));
         const v2 = parseFloat(rangeMatch[2].replace(",", "."));
         return `${this.formatNumber(v1 * multiplier)} - ${
-          this.formatNumber(v2 * multiplier)
+          this.formatNumber(
+            v2 * multiplier,
+          )
         }`;
       }
 
@@ -663,28 +660,19 @@ document.addEventListener("alpine:init", () => {
       }
 
       const headerLine = lines[tableStart];
-      const hasOuterPipes = headerLine.trim().startsWith("|") &&
-        headerLine.trim().endsWith("|");
-      const rawHeaders = hasOuterPipes
-        ? headerLine.trim().slice(1, -1).split("|")
-        : headerLine.split("|");
+      const hasOuterPipes = headerLine.trim().startsWith("|") && headerLine.trim().endsWith("|");
+      const rawHeaders = hasOuterPipes ? headerLine.trim().slice(1, -1).split("|") : headerLine.split("|");
       const headers = rawHeaders.map((h) => h.trim().toLowerCase());
 
-      let qtyCol = headers.findIndex((h) =>
-        /^(?:menge|amount|qty|anzahl|portionen?)$/i.test(h)
-      );
+      let qtyCol = headers.findIndex((h) => /^(?:menge|amount|qty|anzahl|portionen?)$/i.test(h));
 
       if (qtyCol === -1) {
-        qtyCol = headers.findIndex((h) =>
-          /(?:menge|amount|qty|anzahl)/i.test(h)
-        );
+        qtyCol = headers.findIndex((h) => /(?:menge|amount|qty|anzahl)/i.test(h));
       }
 
       if (qtyCol === -1 && delimiterIdx + 1 < tableEnd) {
         const firstRow = lines[delimiterIdx + 1].trim();
-        const firstCells = hasOuterPipes
-          ? firstRow.slice(1, -1).split("|")
-          : firstRow.split("|");
+        const firstCells = hasOuterPipes ? firstRow.slice(1, -1).split("|") : firstRow.split("|");
         for (let c = 0; c < firstCells.length; c++) {
           if (/^\s*\d+(?:[.,]\d+)?\s*$/.test(firstCells[c])) {
             qtyCol = c;
@@ -700,20 +688,15 @@ document.addEventListener("alpine:init", () => {
         const trimmed = line.trim();
         if (!trimmed) continue;
 
-        const rowHasOuterPipes = trimmed.startsWith("|") &&
-          trimmed.endsWith("|");
-        const rawCells = rowHasOuterPipes
-          ? trimmed.slice(1, -1).split("|")
-          : line.split("|");
+        const rowHasOuterPipes = trimmed.startsWith("|") && trimmed.endsWith("|");
+        const rawCells = rowHasOuterPipes ? trimmed.slice(1, -1).split("|") : line.split("|");
 
         if (qtyCol < rawCells.length) {
           const orig = rawCells[qtyCol].trim();
           const scaled = this.scaleQuantityString(orig, multiplier);
           if (scaled !== orig) {
             rawCells[qtyCol] = ` **${scaled}** `;
-            lines[i] = rowHasOuterPipes
-              ? `|${rawCells.join("|")}|`
-              : rawCells.join("|");
+            lines[i] = rowHasOuterPipes ? `|${rawCells.join("|")}|` : rawCells.join("|");
           }
         }
       }
@@ -734,12 +717,8 @@ document.addEventListener("alpine:init", () => {
       processed = processed.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, "");
 
       // 2. Recipe table scaling
-      const rawServings = typeof servings !== "undefined"
-        ? servings
-        : this.recipeCurrentServings;
-      const currentServings = typeof rawServings === "number"
-        ? rawServings
-        : parseFloat(rawServings);
+      const rawServings = typeof servings !== "undefined" ? servings : this.recipeCurrentServings;
+      const currentServings = typeof rawServings === "number" ? rawServings : parseFloat(rawServings);
 
       if (
         this.recipeBaseServings &&
@@ -763,8 +742,8 @@ document.addEventListener("alpine:init", () => {
           "$1./attachments/$2$3",
         );
 
-      if (typeof window.marked !== "undefined" && window.marked.parse) {
-        return window.marked.parse(normalized);
+      if (typeof globalThis.marked !== "undefined" && globalThis.marked.parse) {
+        return globalThis.marked.parse(normalized);
       }
       return normalized.replace(/\n/g, "<br>");
     },

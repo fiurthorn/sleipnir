@@ -24,7 +24,8 @@ export const documentMetadataSchema = z.object({
   pageCount: z.number().int().positive().default(1),
   targetPath: z.string().default(""), // Relativer Unterordner z.B. "Rechnungen/2026"
   fileNamePdf: z.string(), // z.B. 2026-09-30_Finanzamt_Bescheid.pdf
-  fileNameJson: z.string(), // z.B. 2026-09-30_Finanzamt_Bescheid.json
+  fileNameYaml: z.string().optional(), // z.B. 2026-09-30_Finanzamt_Bescheid.yaml
+  fileNameJson: z.string().optional(), // Legacy-Sidecar .json (Abwärtskompatibilität)
 });
 
 export type DocumentMetadata = z.infer<typeof documentMetadataSchema>;

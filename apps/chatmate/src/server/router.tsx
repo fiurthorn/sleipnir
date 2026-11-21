@@ -45,9 +45,9 @@ export default function App(basePath?: string, developMode: boolean = false) {
     }),
   );
 
-  const rootHandler = (c: SleipnirContext) => c.html(<Index content={<ChatPage />} />);
+  const rootHandler = (c: SleipnirContext) => c.html(<Index basePath={basePath} content={<ChatPage />} />);
   app.get("/", rootHandler);
-  if (basePath) app.get("", rootHandler);
+  app.get("", rootHandler);
 
   modelsApi(app, "/api/models");
   chatApi(app, "/api/chat");

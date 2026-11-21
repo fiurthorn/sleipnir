@@ -20,16 +20,15 @@ document.addEventListener("alpine:init", () => {
   });
 
   // Haupt-App Komponente
-  Alpine.data("scanApp", (basePath = "") => ({
-    basePath,
+  Alpine.data("scanApp", () => ({
     activeTab: "archive", // "archive" | "new"
     mobileMenuOpen: false, // Mobile Drawer State
-    
+
     // Multi-Page Session State
     pages: [], // Array von { id, dataUrl, rotation }
     isAnalyzing: false,
     isSaving: false,
-    
+
     // Extrahierte / editierbare Metadaten für den neuen Scan
     metadata: {
       title: "",
@@ -54,7 +53,7 @@ document.addEventListener("alpine:init", () => {
 
     async loadFolders() {
       try {
-        const res = await fetch(`${this.basePath}/api/folders`);
+        const res = await fetch("./api/folders");
         if (res.ok) {
           const data = await res.json();
           if (data.ok && Array.isArray(data.folders)) {
@@ -68,12 +67,15 @@ document.addEventListener("alpine:init", () => {
 
     async loadModels() {
       try {
-        const res = await fetch(`${this.basePath}/api/models`);
+        const res = await fetch(`./api/models`);
         if (res.ok) {
           const data = await res.json();
           if (data.ok && Array.isArray(data.models)) {
             Alpine.store("scanmate").models = data.models;
-            if (data.models.length > 0 && !Alpine.store("scanmate").selectedModel) {
+            if (
+              data.models.length > 0 &&
+              !Alpine.store("scanmate").selectedModel
+            ) {
               Alpine.store("scanmate").selectedModel = data.models[0].id;
             }
           }
@@ -86,7 +88,7 @@ document.addEventListener("alpine:init", () => {
     async loadDocuments() {
       Alpine.store("scanmate").isLoading = true;
       try {
-        const res = await fetch(`${this.basePath}/api/documents`);
+        const res = await fetch(`./api/documents`);
         if (res.ok) {
           const data = await res.json();
           if (data.ok && Array.isArray(data.documents)) {
@@ -153,13 +155,13 @@ document.addEventListener("alpine:init", () => {
     },
 
     openScannerForPage(pageIndex = -1) {
-      window.dispatchEvent(
+      globalThis.dispatchEvent(
         new CustomEvent("open-scan-editor", {
           detail: {
             pageIndex,
             existingImage: pageIndex >= 0 ? this.pages[pageIndex]?.dataUrl : null,
           },
-        })
+        }),
       );
     },
 
@@ -217,7 +219,7 @@ document.addEventListener("alpine:init", () => {
 
       try {
         const images = this.pages.map((p) => p.dataUrl);
-        const res = await fetch(`${this.basePath}/api/analyze`, {
+        const res = await fetch("./api/analyze", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -278,7 +280,7 @@ document.addEventListener("alpine:init", () => {
           pages: this.pages.map((p) => p.dataUrl),
         };
 
-        const res = await fetch(`${this.basePath}/api/documents`, {
+        const res = await fetch("./api/documents", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
@@ -306,7 +308,7 @@ document.addEventListener("alpine:init", () => {
       if (!confirm(`Dokument "${doc.title}" wirklich löschen?`)) return;
 
       try {
-        const res = await fetch(`${this.basePath}/api/documents/${doc.id}`, {
+        const res = await fetch(`./api/documents/${doc.id}`, {
           method: "DELETE",
         });
         if (res.ok) {
@@ -340,7 +342,7 @@ document.addEventListener("alpine:init", () => {
     _rafId: null,
 
     init() {
-      window.addEventListener("open-scan-editor", (e) => {
+      globalThis.addEventListener("open-scan-editor", (e) => {
         this.pageIndex = e.detail.pageIndex;
         this.open = true;
         this.cropSubMode = "crop";
@@ -560,8 +562,14 @@ document.addEventListener("alpine:init", () => {
       return {
         topLeft: { x: Math.round(ordered[0].x), y: Math.round(ordered[0].y) },
         topRight: { x: Math.round(ordered[1].x), y: Math.round(ordered[1].y) },
-        bottomRight: { x: Math.round(ordered[2].x), y: Math.round(ordered[2].y) },
-        bottomLeft: { x: Math.round(ordered[3].x), y: Math.round(ordered[3].y) },
+        bottomRight: {
+          x: Math.round(ordered[2].x),
+          y: Math.round(ordered[2].y),
+        },
+        bottomLeft: {
+          x: Math.round(ordered[3].x),
+          y: Math.round(ordered[3].y),
+        },
       };
     },
 
@@ -678,10 +686,22 @@ document.addEventListener("alpine:init", () => {
       if (!canvas) return;
 
       const { topLeft, topRight, bottomLeft, bottomRight } = this.corners;
-      const topWidth = Math.hypot(topRight.x - topLeft.x, topRight.y - topLeft.y);
-      const bottomWidth = Math.hypot(bottomRight.x - bottomLeft.x, bottomRight.y - bottomLeft.y);
-      const leftHeight = Math.hypot(bottomLeft.x - topLeft.x, bottomLeft.y - topLeft.y);
-      const rightHeight = Math.hypot(bottomRight.x - topRight.x, bottomRight.y - topRight.y);
+      const topWidth = Math.hypot(
+        topRight.x - topLeft.x,
+        topRight.y - topLeft.y,
+      );
+      const bottomWidth = Math.hypot(
+        bottomRight.x - bottomLeft.x,
+        bottomRight.y - bottomLeft.y,
+      );
+      const leftHeight = Math.hypot(
+        bottomLeft.x - topLeft.x,
+        bottomLeft.y - topLeft.y,
+      );
+      const rightHeight = Math.hypot(
+        bottomRight.x - topRight.x,
+        bottomRight.y - topRight.y,
+      );
 
       let targetWidth = Math.round(Math.max(topWidth, bottomWidth));
       let targetHeight = Math.round(Math.max(leftHeight, rightHeight));
@@ -697,10 +717,13 @@ document.addEventListener("alpine:init", () => {
         this.sourceCanvas,
         targetWidth,
         targetHeight,
-        this.corners
+        this.corners,
       );
 
-      const filtered = this.applyReceiptFilter(extracted || this.sourceCanvas, this.filterMode);
+      const filtered = this.applyReceiptFilter(
+        extracted || this.sourceCanvas,
+        this.filterMode,
+      );
       canvas.width = filtered.width;
       canvas.height = filtered.height;
       const pCtx = canvas.getContext("2d");
@@ -739,7 +762,9 @@ document.addEventListener("alpine:init", () => {
     },
 
     onPointerMove(e) {
-      if (!this.activeCorner || !this.$refs.cropCanvas || !this.sourceCanvas) return;
+      if (!this.activeCorner || !this.$refs.cropCanvas || !this.sourceCanvas) {
+        return;
+      }
       if (e.cancelable) e.preventDefault();
 
       const canvas = this.$refs.cropCanvas;
@@ -843,26 +868,46 @@ document.addEventListener("alpine:init", () => {
 
     extractPaperPerspective(sourceCanvas, targetWidth, targetHeight, corners) {
       if (typeof cv !== "undefined" && cv.Mat && corners) {
-        let srcMat = null, dstMat = null, M = null, srcPts = null, dstPts = null;
+        let srcMat = null,
+          dstMat = null,
+          M = null,
+          srcPts = null,
+          dstPts = null;
         try {
           srcMat = cv.imread(sourceCanvas);
           dstMat = new cv.Mat();
           const { topLeft, topRight, bottomRight, bottomLeft } = corners;
           srcPts = cv.matFromArray(4, 1, cv.CV_32FC2, [
-            topLeft.x, topLeft.y,
-            topRight.x, topRight.y,
-            bottomRight.x, bottomRight.y,
-            bottomLeft.x, bottomLeft.y,
+            topLeft.x,
+            topLeft.y,
+            topRight.x,
+            topRight.y,
+            bottomRight.x,
+            bottomRight.y,
+            bottomLeft.x,
+            bottomLeft.y,
           ]);
           dstPts = cv.matFromArray(4, 1, cv.CV_32FC2, [
-            0, 0,
-            targetWidth, 0,
-            targetWidth, targetHeight,
-            0, targetHeight,
+            0,
+            0,
+            targetWidth,
+            0,
+            targetWidth,
+            targetHeight,
+            0,
+            targetHeight,
           ]);
           M = cv.getPerspectiveTransform(srcPts, dstPts);
           const dsize = new cv.Size(targetWidth, targetHeight);
-          cv.warpPerspective(srcMat, dstMat, M, dsize, cv.INTER_LINEAR, cv.BORDER_CONSTANT, new cv.Scalar(255, 255, 255, 255));
+          cv.warpPerspective(
+            srcMat,
+            dstMat,
+            M,
+            dsize,
+            cv.INTER_LINEAR,
+            cv.BORDER_CONSTANT,
+            new cv.Scalar(255, 255, 255, 255),
+          );
           const outCanvas = document.createElement("canvas");
           outCanvas.width = targetWidth;
           outCanvas.height = targetHeight;
@@ -892,7 +937,17 @@ document.addEventListener("alpine:init", () => {
       out.width = targetWidth;
       out.height = targetHeight;
       const ctx = out.getContext("2d");
-      ctx.drawImage(sourceCanvas, minX, minY, cropW, cropH, 0, 0, targetWidth, targetHeight);
+      ctx.drawImage(
+        sourceCanvas,
+        minX,
+        minY,
+        cropW,
+        cropH,
+        0,
+        0,
+        targetWidth,
+        targetHeight,
+      );
       return out;
     },
 
@@ -912,7 +967,9 @@ document.addEventListener("alpine:init", () => {
       const grays = new Uint8Array(d.length / 4);
       const hist = new Int32Array(256);
       for (let i = 0, j = 0; i < d.length; i += 4, j++) {
-        const g = Math.round(0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]);
+        const g = Math.round(
+          0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2],
+        );
         grays[j] = g;
         hist[g]++;
       }
@@ -957,7 +1014,10 @@ document.addEventListener("alpine:init", () => {
         for (let i = 0, j = 0; i < d.length; i += 4, j++) {
           const g = grays[j];
           // Leichte S-Kurve für Textklarheit auf Papier
-          const contrastG = Math.max(0, Math.min(255, Math.round((g - 128) * 1.25 + 128)));
+          const contrastG = Math.max(
+            0,
+            Math.min(255, Math.round((g - 128) * 1.25 + 128)),
+          );
           d[i] = d[i + 1] = d[i + 2] = contrastG;
         }
       }
@@ -970,10 +1030,22 @@ document.addEventListener("alpine:init", () => {
       if (!this.sourceCanvas || !this.corners) return;
 
       const { topLeft, topRight, bottomLeft, bottomRight } = this.corners;
-      const topWidth = Math.hypot(topRight.x - topLeft.x, topRight.y - topLeft.y);
-      const bottomWidth = Math.hypot(bottomRight.x - bottomLeft.x, bottomRight.y - bottomLeft.y);
-      const leftHeight = Math.hypot(bottomLeft.x - topLeft.x, bottomLeft.y - topLeft.y);
-      const rightHeight = Math.hypot(bottomRight.x - topRight.x, bottomRight.y - topRight.y);
+      const topWidth = Math.hypot(
+        topRight.x - topLeft.x,
+        topRight.y - topLeft.y,
+      );
+      const bottomWidth = Math.hypot(
+        bottomRight.x - bottomLeft.x,
+        bottomRight.y - bottomLeft.y,
+      );
+      const leftHeight = Math.hypot(
+        bottomLeft.x - topLeft.x,
+        bottomLeft.y - topLeft.y,
+      );
+      const rightHeight = Math.hypot(
+        bottomRight.x - topRight.x,
+        bottomRight.y - topRight.y,
+      );
 
       let targetWidth = Math.round(Math.max(topWidth, bottomWidth));
       let targetHeight = Math.round(Math.max(leftHeight, rightHeight));
@@ -989,10 +1061,13 @@ document.addEventListener("alpine:init", () => {
         this.sourceCanvas,
         targetWidth,
         targetHeight,
-        this.corners
+        this.corners,
       );
-      const processed = this.applyReceiptFilter(extracted || this.sourceCanvas, this.filterMode);
-      const finalDataUrl = processed.toDataURL("image/jpeg", 0.90);
+      const processed = this.applyReceiptFilter(
+        extracted || this.sourceCanvas,
+        this.filterMode,
+      );
+      const finalDataUrl = processed.toDataURL("image/jpeg", 0.9);
 
       // Event zurück an Hauptapplikation
       const appEl = document.querySelector("[x-data*='scanApp']");
