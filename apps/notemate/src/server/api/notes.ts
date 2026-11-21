@@ -146,6 +146,46 @@ export function notesApi(app: Sleipnir, storage: NoteStorage) {
     }
   });
 
+  // Tags
+  app.get("/api/tags", async (c: SleipnirContext) => {
+    try {
+      const tags = await storage.listAllTags();
+      return c.json({ tags });
+    } catch (e) {
+      const err = e instanceof Error ? e.message : "Failed to list tags";
+      return c.json({ error: err }, 500);
+    }
+  });
+
+  app.post("/api/notes/tags", async (c: SleipnirContext) => {
+    let body: unknown;
+    try {
+      body = await c.req.json();
+    } catch {
+      return c.json({ error: "Invalid JSON" }, 400);
+    }
+
+    if (typeof body !== "object" || body === null) {
+      return c.json({ error: "Body must be an object" }, 400);
+    }
+
+    const { path, tags } = body as Record<string, unknown>;
+    if (typeof path !== "string" || !path.trim()) {
+      return c.json({ error: "Path must be a non-empty string" }, 400);
+    }
+    if (!Array.isArray(tags) || !tags.every((t) => typeof t === "string")) {
+      return c.json({ error: "Tags must be an array of strings" }, 400);
+    }
+
+    try {
+      const note = await storage.setNoteTags(path.trim(), tags);
+      return c.json({ ok: true, note });
+    } catch (e) {
+      const err = e instanceof Error ? e.message : "Failed to update tags";
+      return c.json({ error: err }, 400);
+    }
+  });
+
   // Attachments (Image Upload via Paste or Form)
   app.post("/api/attachments", async (c: SleipnirContext) => {
     try {

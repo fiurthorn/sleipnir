@@ -6,7 +6,7 @@
  */
 
 import { assertEquals, assertThrows } from "@std/assert";
-import { addTagsToMarkdown, extractTagsFromMarkdown, resolveAllowedTags } from "./tags.ts";
+import { addTagsToMarkdown, extractTagsFromMarkdown, resolveAllowedTags, setTagsInMarkdown } from "./tags.ts";
 
 Deno.test("extractTagsFromMarkdown - parses inline and multiline YAML frontmatter tags", () => {
   const inline = "---\ntitle: Pasta\ntags: [Pasta, Schnell]\n---\n\n# Pasta";
@@ -35,6 +35,22 @@ Deno.test("addTagsToMarkdown - preserves existing frontmatter fields and merges 
 });
 
 Deno.test("resolveAllowedTags - normalizes allowed tags and rejects unknown tags", () => {
-  assertEquals(resolveAllowedTags(["vorspeise", "howto", "Vorspeise"]), ["Vorspeise", "HowTo"]);
+  assertEquals(resolveAllowedTags(["vorspeise", "howto", "NSFW", "Vorspeise"]), [
+    "Vorspeise",
+    "HowTo",
+    "nsfw",
+  ]);
   assertThrows(() => resolveAllowedTags(["Vorspeise", "WilderEigenbauTag"]));
+});
+
+Deno.test("setTagsInMarkdown - replaces and clears frontmatter tags", () => {
+  const md = "---\ntitle: Notiz\ntags:\n  - Idee\n  - nsfw\n---\n\n# Inhalt";
+  const updated = setTagsInMarkdown(md, ["Projekt"]);
+  assertEquals(updated.tags, ["Projekt"]);
+  assertEquals(extractTagsFromMarkdown(updated.content), ["Projekt"]);
+  assertEquals(updated.content.includes("title: Notiz"), true);
+
+  const cleared = setTagsInMarkdown(updated.content, []);
+  assertEquals(cleared.tags, []);
+  assertEquals(extractTagsFromMarkdown(cleared.content), []);
 });

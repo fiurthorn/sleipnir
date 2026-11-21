@@ -8,7 +8,7 @@
 import { PersistentSearchIndex } from "@sleipnir/core/search";
 import { basename, extname, join, normalize, relative, resolve } from "@std/path";
 import { formatMarkdown } from "./formatter.ts";
-import { addTagsToMarkdown, ALLOWED_TAG_DEFINITIONS, extractTagsFromMarkdown, resolveAllowedTags } from "./tags.ts";
+import { addTagsToMarkdown, ALLOWED_TAG_DEFINITIONS, extractTagsFromMarkdown, resolveAllowedTags, setTagsInMarkdown } from "./tags.ts";
 
 export interface TreeNode {
   name: string;
@@ -17,6 +17,7 @@ export interface TreeNode {
   children?: TreeNode[];
   updatedAt?: number;
   size?: number;
+  tags?: string[];
 }
 
 export interface NoteDetail {
@@ -24,6 +25,7 @@ export interface NoteDetail {
   title: string;
   content: string;
   updatedAt: number;
+  tags: string[];
 }
 
 export interface SearchResult {
@@ -156,13 +158,17 @@ Notemate ist deine **hierarchische, ablenkungsfreie Markdown-Ablage** – direkt
             children,
           });
         } else if (entry.isFile && entry.name.endsWith(".md")) {
-          const fileInfo = await Deno.stat(fullPath);
+          const [fileInfo, content] = await Promise.all([
+            Deno.stat(fullPath),
+            Deno.readTextFile(fullPath).catch(() => ""),
+          ]);
           nodes.push({
             name: entry.name.replace(/\.md$/, ""),
             path: relPath,
             type: "file",
             updatedAt: fileInfo.mtime?.getTime() ?? Date.now(),
             size: fileInfo.size,
+            tags: extractTagsFromMarkdown(content),
           });
         }
       }
@@ -194,6 +200,7 @@ Notemate ist deine **hierarchische, ablenkungsfreie Markdown-Ablage** – direkt
       title: basename(relPath, ".md"),
       content,
       updatedAt: stat.mtime?.getTime() ?? Date.now(),
+      tags: extractTagsFromMarkdown(content),
     };
   }
 
@@ -220,6 +227,7 @@ Notemate ist deine **hierarchische, ablenkungsfreie Markdown-Ablage** – direkt
       title: basename(normalizedRel, ".md"),
       content: formattedContent,
       updatedAt: stat.mtime?.getTime() ?? Date.now(),
+      tags: extractTagsFromMarkdown(formattedContent),
     };
   }
 
@@ -530,7 +538,17 @@ Notemate ist deine **hierarchische, ablenkungsfreie Markdown-Ablage** – direkt
     const saved = await this.saveNote(note.path, updated.content);
     return {
       path: saved.path,
-      tags: extractTagsFromMarkdown(saved.content),
+      tags: saved.tags,
     };
+  }
+
+  /**
+   * Replaces the note's YAML frontmatter tags with the validated tag list.
+   */
+  async setNoteTags(relPath: string, tags: string[]): Promise<NoteDetail> {
+    const allowedTags = tags.length > 0 ? resolveAllowedTags(tags) : [];
+    const note = await this.getNote(relPath);
+    const updated = setTagsInMarkdown(note.content, allowedTags);
+    return await this.saveNote(note.path, updated.content);
   }
 }

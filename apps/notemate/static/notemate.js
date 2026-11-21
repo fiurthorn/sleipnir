@@ -58,7 +58,13 @@ document.addEventListener("alpine:init", () => {
     noteTitle: "",
     noteContent: "",
     noteUpdatedAt: null,
+    noteTags: [],
     isDirty: false,
+
+    // Tags & Filter
+    allTags: [],
+    selectedTag: "",
+    showTagPicker: false,
 
     // Recipe Servings Scaling Module
     recipeBaseServings: null,
@@ -85,7 +91,7 @@ document.addEventListener("alpine:init", () => {
     isSearching: false,
 
     async init() {
-      await this.refreshTree();
+      await Promise.all([this.refreshTree(), this.refreshTags()]);
 
       // Open active note or first available note
       let loaded = false;
@@ -128,6 +134,97 @@ document.addEventListener("alpine:init", () => {
         }
       } catch (err) {
         console.error("Failed to load file tree:", err);
+      }
+    },
+
+    async refreshTags() {
+      try {
+        const res = await fetch("./api/tags");
+        if (res.ok) {
+          const data = await res.json();
+          this.allTags = data.tags || [];
+        }
+      } catch (err) {
+        console.error("Failed to load tags:", err);
+      }
+    },
+
+    get activeFilterTags() {
+      const selectedLower = this.selectedTag.toLowerCase();
+      return (this.allTags || []).filter(
+        (t) => t.count > 0 || (selectedLower && t.tag.toLowerCase() === selectedLower),
+      );
+    },
+
+    get availableTagsToAdd() {
+      const current = new Set((this.noteTags || []).map((t) => t.toLowerCase()));
+      return (this.allTags || []).filter((t) => !current.has(t.tag.toLowerCase()));
+    },
+
+    isNsfwTag(tag) {
+      return String(tag || "").toLowerCase() === "nsfw";
+    },
+
+    hasNsfwTag(tags) {
+      return Array.isArray(tags) && tags.some((t) => this.isNsfwTag(t));
+    },
+
+    toggleTagFilter(tag) {
+      if (!tag) return;
+      this.selectedTag = this.selectedTag.toLowerCase() === tag.toLowerCase() ? "" : tag;
+    },
+
+    clearTagFilter() {
+      this.selectedTag = "";
+    },
+
+    async addNoteTag(tag) {
+      if (!this.notePath || !tag) return;
+      const nextTags = [...(this.noteTags || []), tag];
+      await this.updateNoteTags(nextTags);
+      this.showTagPicker = false;
+    },
+
+    async removeNoteTag(tag) {
+      if (!this.notePath || !tag) return;
+      const target = tag.toLowerCase();
+      const nextTags = (this.noteTags || []).filter((t) => t.toLowerCase() !== target);
+      await this.updateNoteTags(nextTags);
+    },
+
+    async updateNoteTags(nextTags) {
+      if (!this.notePath) return;
+      if (this.isDirty) {
+        await this.saveCurrentNote();
+      }
+
+      this.isSaving = true;
+      try {
+        const res = await fetch("./api/notes/tags", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            path: this.notePath,
+            tags: nextTags,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || "HTTP " + res.status);
+        }
+        if (data.note) {
+          this.noteContent = data.note.content;
+          this.noteTags = data.note.tags || [];
+          this.noteUpdatedAt = data.note.updatedAt;
+          this.isDirty = false;
+          this.detectRecipe(this.noteContent);
+        }
+        await Promise.all([this.refreshTree(), this.refreshTags()]);
+        this.showToast("✓ Tags aktualisiert");
+      } catch (err) {
+        this.showToast("Fehler beim Aktualisieren der Tags: " + err.message);
+      } finally {
+        this.isSaving = false;
       }
     },
 
@@ -178,14 +275,27 @@ document.addEventListener("alpine:init", () => {
 
     get visibleTreeItems() {
       const list = [];
+      const activeTag = (this.selectedTag || "").trim().toLowerCase();
+
+      const matchesTag = (node) => {
+        if (!activeTag) return true;
+        if (node.type === "file") {
+          return Array.isArray(node.tags) &&
+            node.tags.some((t) => String(t).toLowerCase() === activeTag);
+        }
+        return Array.isArray(node.children) && node.children.some(matchesTag);
+      };
+
       const traverse = (nodes, depth = 0) => {
         if (!Array.isArray(nodes)) return;
         for (const node of nodes) {
+          if (activeTag && !matchesTag(node)) continue;
           list.push({ ...node, depth });
+          const expanded = activeTag ? true : this.isFolderExpanded(node.path);
           if (
             node.type === "directory" &&
             node.children &&
-            this.isFolderExpanded(node.path)
+            expanded
           ) {
             traverse(node.children, depth + 1);
           }
@@ -213,6 +323,8 @@ document.addEventListener("alpine:init", () => {
           this.noteTitle = data.note.title;
           this.noteContent = data.note.content;
           this.noteUpdatedAt = data.note.updatedAt;
+          this.noteTags = data.note.tags || [];
+          this.showTagPicker = false;
           this.isDirty = false;
           this.activePath = data.note.path;
 
@@ -268,12 +380,13 @@ document.addEventListener("alpine:init", () => {
         const data = await res.json();
         if (data.note?.content) {
           this.noteContent = data.note.content;
+          this.noteTags = data.note.tags || [];
           this.detectRecipe(this.noteContent);
         }
         this.noteUpdatedAt = data.note.updatedAt;
         this.isDirty = false;
         this.showToast("✓ Notiz formatiert & gespeichert");
-        await this.refreshTree();
+        await Promise.all([this.refreshTree(), this.refreshTags()]);
       } catch (err) {
         this.showToast("Fehler beim Speichern: " + err.message);
       } finally {
@@ -351,7 +464,7 @@ document.addEventListener("alpine:init", () => {
 
         if (res.ok) {
           this.showToast("✓ Gelöscht");
-          await this.refreshTree();
+          await Promise.all([this.refreshTree(), this.refreshTags()]);
           if (this.notePath === path) {
             const first = this.findFirstFile(this.tree);
             if (first) {
@@ -361,6 +474,7 @@ document.addEventListener("alpine:init", () => {
               this.noteTitle = "";
               this.noteContent = "";
               this.noteUpdatedAt = null;
+              this.noteTags = [];
               this.isDirty = false;
             }
           }

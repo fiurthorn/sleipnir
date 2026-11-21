@@ -49,6 +49,7 @@ export const ALLOWED_TAG_DEFINITIONS: readonly TagDefinition[] = [
   { tag: "Checkliste", category: "Texte & Wissen" },
   { tag: "Zusammenfassung", category: "Texte & Wissen" },
   { tag: "Projekt", category: "Texte & Wissen" },
+  { tag: "nsfw", category: "Texte & Wissen" },
 ];
 
 const CANONICAL_TAG_MAP = new Map<string, string>(
@@ -158,14 +159,32 @@ export function addTagsToMarkdown(
 ): { content: string; tags: string[] } {
   const existingTags = extractTagsFromMarkdown(markdown);
   const mergedTags = deduplicateTags([...existingTags, ...newTags]);
-  const yamlTagsBlock = mergedTags.length > 0 ? `tags:\n${mergedTags.map((t) => `  - ${t}`).join("\n")}` : "tags: []";
+  return writeTagsToMarkdown(markdown, mergedTags);
+}
+
+/**
+ * Replaces the tags in the YAML frontmatter of a markdown document.
+ */
+export function setTagsInMarkdown(
+  markdown: string,
+  nextTags: string[],
+): { content: string; tags: string[] } {
+  const cleanTags = deduplicateTags(nextTags);
+  return writeTagsToMarkdown(markdown, cleanTags);
+}
+
+function writeTagsToMarkdown(
+  markdown: string,
+  tags: string[],
+): { content: string; tags: string[] } {
+  const yamlTagsBlock = tags.length > 0 ? `tags:\n${tags.map((t) => `  - ${t}`).join("\n")}` : "tags: []";
 
   const match = markdown.match(FRONTMATTER_REGEX);
   if (!match) {
     const body = markdown.replace(/^\r?\n+/, "");
     return {
       content: `---\n${yamlTagsBlock}\n---\n\n${body}`,
-      tags: mergedTags,
+      tags,
     };
   }
 
@@ -197,6 +216,6 @@ export function addTagsToMarkdown(
 
   return {
     content: `---\n${nextYaml}\n---\n${body}`,
-    tags: mergedTags,
+    tags,
   };
 }

@@ -88,6 +88,38 @@ export const NotesPage = () => {
             </button>
           </div>
 
+          {/* Sidebar Tag Filter */}
+          <div
+            x-show="activeFilterTags.length > 0"
+            class="flex flex-col gap-1.5 pb-1 border-b border-base-content/10"
+            style="display: none;"
+          >
+            <div class="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider opacity-60 px-0.5">
+              <span>🏷️ Tags</span>
+              <button
+                type="button"
+                x-show="selectedTag"
+                x-on:click="clearTagFilter()"
+                class="text-primary hover:underline font-mono normal-case"
+              >
+                Filter zurücksetzen
+              </button>
+            </div>
+            <div class="flex flex-wrap gap-1 max-h-24 overflow-y-auto pr-1">
+              <template x-for="tagItem in activeFilterTags" x-bind:key="tagItem.tag">
+                <button
+                  type="button"
+                  x-on:click="toggleTagFilter(tagItem.tag)"
+                  class="badge badge-xs cursor-pointer gap-1 transition"
+                  x-bind:class="selectedTag === tagItem.tag ? (isNsfwTag(tagItem.tag) ? 'badge-error text-error-content' : 'badge-primary') : (isNsfwTag(tagItem.tag) ? 'badge-error badge-outline' : 'badge-ghost border-base-content/15 hover:border-primary/50')"
+                >
+                  <span x-text="tagItem.tag"></span>
+                  <span class="opacity-60 font-mono text-[9px]" x-text="tagItem.count"></span>
+                </button>
+              </template>
+            </div>
+          </div>
+
           {/* Search Results List (if searching) */}
           <div
             x-show="searchQuery.trim().length > 0"
@@ -116,6 +148,19 @@ export const NotesPage = () => {
                   class="text-[11px] opacity-75 line-clamp-2 mt-0.5 italic"
                   x-text="res.snippet"
                 >
+                </div>
+                <div
+                  x-show="res.tags && res.tags.length > 0"
+                  class="flex flex-wrap gap-1 mt-1"
+                >
+                  <template x-for="tag in res.tags" x-bind:key="tag">
+                    <span
+                      class="badge badge-xs"
+                      x-bind:class="isNsfwTag(tag) ? 'badge-error text-error-content' : 'badge-ghost border-base-content/15'"
+                      x-text="tag"
+                    >
+                    </span>
+                  </template>
                 </div>
               </div>
             </template>
@@ -162,6 +207,13 @@ export const NotesPage = () => {
 
                   {/* Name */}
                   <span class="truncate" x-text="item.name"></span>
+
+                  {/* NSFW / Tag Hint in Tree */}
+                  <template x-if="item.type === 'file' && hasNsfwTag(item.tags)">
+                    <span class="badge badge-error badge-xs text-[9px] font-mono shrink-0">
+                      nsfw
+                    </span>
+                  </template>
                 </div>
 
                 {/* Node Action Buttons */}
@@ -309,6 +361,82 @@ export const NotesPage = () => {
             <ThemeToggle />
           </div>
         </header>
+
+        {/* Note Tags Bar */}
+        <div
+          x-show="notePath"
+          class="px-3 md:px-6 py-1.5 border-b border-base-content/10 bg-base-200/40 flex flex-col gap-2"
+          style="display: none;"
+        >
+          <div class="flex flex-wrap items-center gap-1.5">
+            <span class="text-xs opacity-60 mr-0.5" title="Tags dieser Notiz">🏷️</span>
+
+            <template x-for="tag in noteTags" x-bind:key="tag">
+              <span
+                class="badge badge-sm gap-1 font-medium"
+                x-bind:class="isNsfwTag(tag) ? 'badge-error text-error-content' : 'badge-primary badge-outline'"
+              >
+                <button
+                  type="button"
+                  class="hover:underline cursor-pointer"
+                  x-on:click="toggleTagFilter(tag)"
+                  x-text="tag"
+                  title="In Sidebar nach diesem Tag filtern"
+                >
+                </button>
+                <button
+                  type="button"
+                  class="opacity-70 hover:opacity-100 cursor-pointer ml-0.5"
+                  x-on:click="removeNoteTag(tag)"
+                  title="Tag entfernen"
+                >
+                  ✕
+                </button>
+              </span>
+            </template>
+
+            <span
+              x-show="noteTags.length === 0"
+              class="text-[11px] opacity-50 italic"
+            >
+              Keine Tags
+            </span>
+
+            <button
+              type="button"
+              class="btn btn-ghost btn-xs text-[11px] ml-1"
+              x-on:click="showTagPicker = !showTagPicker"
+              x-bind:disabled="isSaving"
+            >
+              <span x-text="showTagPicker ? '✕ Schließen' : '+ Tag'"></span>
+            </button>
+          </div>
+
+          {/* Tag Picker Dropdown Panel */}
+          <div
+            x-show="showTagPicker"
+            class="p-2 rounded-lg bg-base-100 border border-base-content/15 shadow-sm flex flex-wrap gap-1.5 max-h-40 overflow-y-auto"
+            style="display: none;"
+          >
+            <template x-for="tagDef in availableTagsToAdd" x-bind:key="tagDef.tag">
+              <button
+                type="button"
+                class="badge badge-sm cursor-pointer transition hover:scale-105"
+                x-bind:class="isNsfwTag(tagDef.tag) ? 'badge-error badge-outline' : 'badge-ghost border-base-content/20 hover:border-primary'"
+                x-on:click="addNoteTag(tagDef.tag)"
+                x-bind:title="tagDef.category"
+                x-text="tagDef.tag"
+              >
+              </button>
+            </template>
+            <span
+              x-show="availableTagsToAdd.length === 0"
+              class="text-xs opacity-50"
+            >
+              Alle verfügbaren Tags sind bereits zugewiesen.
+            </span>
+          </div>
+        </div>
 
         {/* Workspace Body */}
         <div class="flex-1 flex overflow-hidden">
