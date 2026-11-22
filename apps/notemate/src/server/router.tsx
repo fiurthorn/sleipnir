@@ -13,8 +13,10 @@ import { compress } from "hono/compress";
 import { secureHeaders } from "hono/secure-headers";
 import { Index } from "../pages/Index.tsx";
 import { NotesPage } from "../pages/Notes.tsx";
+import { kanbanApi } from "./api/kanban.ts";
 import { notesApi } from "./api/notes.ts";
 import { createNotemateMcpServer } from "./mcp.ts";
+import { KanbanStorage } from "./services/kanban.ts";
 import { NoteStorage } from "./services/storage.ts";
 
 export default function App(basePath?: string, developMode: boolean = false) {
@@ -24,6 +26,7 @@ export default function App(basePath?: string, developMode: boolean = false) {
 
   const app = new Sleipnir().basePath(basePath ?? "");
   const storage = new NoteStorage();
+  const kanban = new KanbanStorage();
 
   app.use("*", hsts());
   app.use("*", compress());
@@ -49,11 +52,12 @@ export default function App(basePath?: string, developMode: boolean = false) {
   app.get("/", rootHandler);
   app.get("", rootHandler);
 
-  // Notes and Attachments API
+  // Notes, Kanban and Attachments API
   notesApi(app, storage, basePath);
+  kanbanApi(app, kanban);
 
   // MCP Endpoint (Streamable HTTP)
-  mountMcp(app, () => createNotemateMcpServer(storage), "/mcp", {
+  mountMcp(app, () => createNotemateMcpServer(storage, kanban), "/mcp", {
     title: "NoteMate MCP",
     description: "Hierarchisches Markdown-Notizbuch lesen, durchsuchen und verwalten über Model Context Protocol.",
     workflowSteps: [

@@ -1341,6 +1341,7 @@
         "dependencies": [
           "jsr:@std/assert@^1.0.19",
           "jsr:@std/path@^1.0.8",
+          "jsr:@std/yaml@^1.0.5",
           "npm:@tailwindcss/cli@^4.3.3",
           "npm:daisyui@^5.7.46",
           "npm:hono@^4.13.10",

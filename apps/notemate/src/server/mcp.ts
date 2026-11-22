@@ -5,14 +5,18 @@
  * Architektur & Review: Stefan | Implementation & Synthese: Sam
  */
 
+import type { KanbanStorage } from "./services/kanban.ts";
 import type { NoteStorage } from "./services/storage.ts";
 
 import { MCP_ANNOTATIONS, mcpError, mcpJson, McpServer, z } from "@sleipnir/core/mcp";
 
 /**
- * Creates a configured NoteMate MCP server bound to the given NoteStorage instance.
+ * Creates a configured NoteMate MCP server bound to the given NoteStorage and KanbanStorage instances.
  */
-export function createNotemateMcpServer(storage: NoteStorage): McpServer {
+export function createNotemateMcpServer(
+  storage: NoteStorage,
+  kanban?: KanbanStorage,
+): McpServer {
   const server = new McpServer({
     name: "notemate",
     version: "1.0.0",
@@ -122,6 +126,34 @@ export function createNotemateMcpServer(storage: NoteStorage): McpServer {
   );
 
   server.tool(
+    "notemate_move_item",
+    "Verschiebt eine einzelne Notiz (.md) inklusive zugehöriger Attachments in einen anderen Zielordner.",
+    {
+      sourcePath: z.string().min(1).describe("Aktueller relativer Pfad der Notiz (z. B. 'NotesEncryption.md')"),
+      targetFolder: z.string().default("").describe("Zielordner (z. B. 'Konzepte' oder '' für Stammverzeichnis)"),
+    },
+    MCP_ANNOTATIONS.write,
+    async ({ sourcePath, targetFolder }) => {
+      try {
+        const cleanSource = sourcePath.trim().replace(/^\/+|\/+$/g, "");
+        if (!cleanSource.endsWith(".md")) {
+          return mcpError("Es können nur einzelne Notizen (.md) verschoben werden.");
+        }
+        const cleanFolder = targetFolder.trim().replace(/^\/+|\/+$/g, "");
+        const fileName = cleanSource.split("/").pop() || cleanSource;
+        const newPath = cleanFolder ? `${cleanFolder}/${fileName}` : fileName;
+        if (cleanSource === newPath) {
+          return mcpJson({ moved: false, oldPath: cleanSource, newPath });
+        }
+        await storage.renameItem(cleanSource, newPath);
+        return mcpJson({ moved: true, oldPath: cleanSource, newPath });
+      } catch (err) {
+        return mcpError(err instanceof Error ? err.message : "Verschieben fehlgeschlagen");
+      }
+    },
+  );
+
+  server.tool(
     "notemate_delete_item",
     "Löscht eine Notiz oder einen Ordner rekursiv.",
     {
@@ -189,6 +221,169 @@ export function createNotemateMcpServer(storage: NoteStorage): McpServer {
       }
     },
   );
+
+  if (kanban) {
+    server.tool(
+      "kanban_list_boards",
+      "Listet alle verfügbaren Kanban-Boards (YAML-Dateien) inklusive Spalten und Kartenanzahl auf.",
+      {},
+      MCP_ANNOTATIONS.readOnly,
+      async () => {
+        try {
+          const boards = await kanban.listBoards();
+          return mcpJson({ boards });
+        } catch (err) {
+          return mcpError(err instanceof Error ? err.message : "Boards konnten nicht geladen werden");
+        }
+      },
+    );
+
+    server.tool(
+      "kanban_create_board",
+      "Legt ein neues Kanban-Board als YAML-Datei an (Standard-Spalten: Eingang, Zurückgestellt, In Bearbeitung, Fertiggestellt).",
+      {
+        title: z.string().min(1).describe("Titel des Boards"),
+        id: z.string().optional().describe("Optionale URL-/Dateiname-ID (wird sonst aus Titel erzeugt)"),
+        columns: z.array(z.string().min(1)).optional().describe("Optionale benutzerdefinierte Spaltenliste"),
+      },
+      MCP_ANNOTATIONS.write,
+      async ({ title, id, columns }) => {
+        try {
+          const board = await kanban.createBoard(title, id, columns);
+          return mcpJson({ created: true, board });
+        } catch (err) {
+          return mcpError(err instanceof Error ? err.message : "Board konnte nicht erstellt werden");
+        }
+      },
+    );
+
+    server.tool(
+      "kanban_get_board",
+      "Lädt ein Kanban-Board inklusive Karten, optional gefiltert nach Suchbegriff oder Tag.",
+      {
+        boardId: z.string().min(1).describe("Board-ID (z. B. 'projekte')"),
+        query: z.string().optional().describe("Optionaler Suchbegriff in Titel, Beschreibung, Tags oder ID"),
+        tag: z.string().optional().describe("Optionaler Tag-Filter"),
+      },
+      MCP_ANNOTATIONS.readOnly,
+      async ({ boardId, query, tag }) => {
+        try {
+          const result = await kanban.getBoard(boardId, { includeNsfw: true, query, tag });
+          return mcpJson(result.board);
+        } catch (err) {
+          return mcpError(err instanceof Error ? err.message : "Board nicht gefunden");
+        }
+      },
+    );
+
+    server.tool(
+      "kanban_add_card",
+      "Erstellt eine neue Karte auf einem Kanban-Board (Standard-Spalte: Eingang).",
+      {
+        boardId: z.string().min(1).describe("Board-ID"),
+        title: z.string().min(1).describe("Kurzer Kartentitel"),
+        column: z.string().optional().describe("Zielspalte (Default: erste Spalte, z. B. 'Eingang')"),
+        tags: z.array(z.string().min(1)).optional().describe("Optionale Tags zur Eingrenzung"),
+        description: z.string().optional().describe("Optionale Markdown-Beschreibung (inkl. Links wie [Notiz](?note=Pfad.md))"),
+        dueDate: z.string().optional().describe("Optionales Fälligkeitsdatum im Format YYYY-MM-DD"),
+      },
+      MCP_ANNOTATIONS.write,
+      async ({ boardId, title, column, tags, description, dueDate }) => {
+        try {
+          const card = await kanban.addCard(boardId, { title, column, tags, description, dueDate });
+          return mcpJson({ created: true, card });
+        } catch (err) {
+          return mcpError(err instanceof Error ? err.message : "Karte konnte nicht erstellt werden");
+        }
+      },
+    );
+
+    server.tool(
+      "kanban_move_card",
+      "Verschiebt eine Kanban-Karte anhand ihrer ID in eine andere Spalte (und optional an eine Position).",
+      {
+        boardId: z.string().min(1).describe("Board-ID"),
+        cardId: z.string().min(1).describe("Karten-ID (z. B. 'k_a1b2c3')"),
+        targetColumn: z.string().min(1).describe("Zielspalte (z. B. 'In Bearbeitung')"),
+        order: z.number().int().min(0).optional().describe("Optionale Zielposition (0-basiert)"),
+      },
+      MCP_ANNOTATIONS.writeIdempotent,
+      async ({ boardId, cardId, targetColumn, order }) => {
+        try {
+          const card = await kanban.moveCard(boardId, cardId, targetColumn, order);
+          return mcpJson({ moved: true, card });
+        } catch (err) {
+          return mcpError(err instanceof Error ? err.message : "Karte konnte nicht verschoben werden");
+        }
+      },
+    );
+
+    server.tool(
+      "kanban_update_card",
+      "Aktualisiert Titel, Beschreibung, Tags, Fälligkeitsdatum oder Spalte einer Kanban-Karte.",
+      {
+        boardId: z.string().min(1).describe("Board-ID"),
+        cardId: z.string().min(1).describe("Karten-ID"),
+        title: z.string().min(1).optional().describe("Neuer Titel"),
+        column: z.string().min(1).optional().describe("Neue Spalte"),
+        tags: z.array(z.string().min(1)).optional().describe("Neue Tag-Liste (ersetzt bestehende Tags)"),
+        description: z.string().optional().describe("Neue Markdown-Beschreibung"),
+        dueDate: z.string().nullable().optional().describe("Fälligkeitsdatum YYYY-MM-DD (oder null / '' zum Entfernen)"),
+      },
+      MCP_ANNOTATIONS.writeIdempotent,
+      async ({ boardId, cardId, title, column, tags, description, dueDate }) => {
+        try {
+          const card = await kanban.updateCard(boardId, cardId, { title, column, tags, description, dueDate });
+          return mcpJson({ updated: true, card });
+        } catch (err) {
+          return mcpError(err instanceof Error ? err.message : "Karte konnte nicht aktualisiert werden");
+        }
+      },
+    );
+
+    server.tool(
+      "kanban_list_overdue",
+      "Listet alle überfälligen Kanban-Aufgaben auf (Fälligkeitsdatum vor heute, noch nicht in 'Fertiggestellt').",
+      {
+        boardId: z.string().optional().describe("Optional auf eine Board-ID eingrenzen (sonst über alle Boards)"),
+      },
+      MCP_ANNOTATIONS.readOnly,
+      async ({ boardId }) => {
+        try {
+          const result = await kanban.listOverdueCards({ boardId });
+          return mcpJson({
+            today: result.today,
+            count: result.items.length,
+            tasks: result.items.map((item) => ({
+              boardId: item.boardId,
+              boardTitle: item.boardTitle,
+              ...item.card,
+            })),
+          });
+        } catch (err) {
+          return mcpError(err instanceof Error ? err.message : "Überfällige Aufgaben konnten nicht geladen werden");
+        }
+      },
+    );
+
+    server.tool(
+      "kanban_delete_card",
+      "Löscht eine Kanban-Karte dauerhaft aus dem Board.",
+      {
+        boardId: z.string().min(1).describe("Board-ID"),
+        cardId: z.string().min(1).describe("Karten-ID"),
+      },
+      MCP_ANNOTATIONS.destructive,
+      async ({ boardId, cardId }) => {
+        try {
+          await kanban.deleteCard(boardId, cardId);
+          return mcpJson({ deleted: true, cardId });
+        } catch (err) {
+          return mcpError(err instanceof Error ? err.message : "Karte konnte nicht gelöscht werden");
+        }
+      },
+    );
+  }
 
   return server;
 }

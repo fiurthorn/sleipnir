@@ -78,11 +78,19 @@ export interface McpDocsOptions {
   publicUrl?: string;
 }
 
+interface SchemaPropertyMeta {
+  type?: string | string[];
+  description?: string;
+  default?: unknown;
+  anyOf?: Array<{ type?: string }>;
+  oneOf?: Array<{ type?: string }>;
+}
+
 interface ListedTool {
   name: string;
   description?: string;
   inputSchema?: {
-    properties?: Record<string, { type?: string; description?: string; default?: unknown }>;
+    properties?: Record<string, SchemaPropertyMeta>;
     required?: string[];
   };
   annotations?: {
@@ -93,13 +101,28 @@ interface ListedTool {
   };
 }
 
-function escapeHtml(value: string): string {
-  return value
+function escapeHtml(value: unknown): string {
+  return String(value ?? "")
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
+}
+
+function formatParamType(meta: SchemaPropertyMeta): string {
+  if (Array.isArray(meta.type)) {
+    return meta.type.join(" | ");
+  }
+  if (typeof meta.type === "string" && meta.type) {
+    return meta.type;
+  }
+  const union = meta.anyOf ?? meta.oneOf;
+  if (Array.isArray(union) && union.length > 0) {
+    const types = union.map((entry) => entry.type).filter((t): t is string => Boolean(t));
+    if (types.length > 0) return types.join(" | ");
+  }
+  return "any";
 }
 
 function renderAnnotationBadges(ann?: ListedTool["annotations"]): string {
@@ -134,7 +157,7 @@ function renderToolParams(schema?: ListedTool["inputSchema"]): string {
   const required = new Set(schema.required ?? []);
   const rows = Object.entries(props).map(([name, meta]) => {
     const reqBadge = required.has(name) ? `<span class="req">required</span>` : `<span class="opt">optional</span>`;
-    const typeText = escapeHtml(meta.type || "any");
+    const typeText = escapeHtml(formatParamType(meta));
     const descText = meta.description ? escapeHtml(meta.description) : "";
     return `
       <div class="param-row">

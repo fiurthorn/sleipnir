@@ -6,16 +6,10 @@
  */
 
 import type { Sleipnir, SleipnirContext } from "@sleipnir/core";
-import { deleteCookie, getCookie, setCookie } from "hono/cookie";
+import { deleteCookie, setCookie } from "hono/cookie";
 import type { NoteStorage } from "../services/storage.ts";
 import { hasNsfwTag } from "../services/tags.ts";
-
-const NSFW_COOKIE_NAME = "notemate_nsfw";
-const NSFW_COOKIE_MAX_AGE_SECONDS = 3600;
-
-function isNsfwUnlocked(c: SleipnirContext): boolean {
-  return getCookie(c, NSFW_COOKIE_NAME) === "1";
-}
+import { isNsfwUnlocked, NSFW_COOKIE_MAX_AGE_SECONDS, NSFW_COOKIE_NAME } from "./nsfw.ts";
 
 function getCookiePath(basePath?: string): string {
   const trimmed = basePath?.trim();

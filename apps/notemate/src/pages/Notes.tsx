@@ -21,8 +21,8 @@ export const NotesPage = () => {
 
       {/* Sidebar: Hierarchischer Verzeichnisbaum & Suche */}
       <aside
-        class="w-80 bg-base-200 border-r border-base-content/10 flex flex-col justify-between z-50 md:z-10 md:relative"
-        x-bind:class="mobileMenuOpen ? 'fixed inset-y-0 left-0 shadow-2xl flex' : 'hidden md:flex'"
+        class="w-80 bg-base-200 border-r border-base-content/10 flex-col justify-between z-50 md:z-10 md:relative"
+        x-bind:class="appMode === 'kanban' ? 'hidden' : (mobileMenuOpen ? 'fixed inset-y-0 left-0 shadow-2xl flex' : 'hidden md:flex')"
       >
         <div class="p-4 flex flex-col gap-3 flex-1 overflow-hidden">
           {/* Logo & Header */}
@@ -42,6 +42,7 @@ export const NotesPage = () => {
             <div class="flex items-center gap-1">
               <button
                 type="button"
+                x-show="viewMode !== 'preview'"
                 class="btn btn-ghost btn-xs btn-square"
                 x-on:click="createNewFolder()"
                 title="Neuer Ordner im Stammverzeichnis"
@@ -50,6 +51,7 @@ export const NotesPage = () => {
               </button>
               <button
                 type="button"
+                x-show="viewMode !== 'preview'"
                 class="btn btn-primary btn-xs btn-square"
                 x-on:click="createNewNote()"
                 title="Neue Notiz im Stammverzeichnis"
@@ -216,8 +218,11 @@ export const NotesPage = () => {
                   </template>
                 </div>
 
-                {/* Node Action Buttons */}
-                <div class="opacity-0 group-hover:opacity-100 flex items-center gap-1 shrink-0 ml-1 transition">
+                {/* Node Action Buttons (only in Edit/Split mode) */}
+                <div
+                  x-show="viewMode !== 'preview'"
+                  class="opacity-80 md:opacity-0 md:group-hover:opacity-100 flex items-center gap-1 shrink-0 ml-1 transition"
+                >
                   {/* If directory: Add file / Add subfolder buttons */}
                   <template x-if="item.type === 'directory'">
                     <button
@@ -239,6 +244,18 @@ export const NotesPage = () => {
                   >
                     ✏️
                   </button>
+
+                  {/* Move (notes only) */}
+                  <template x-if="item.type === 'file'">
+                    <button
+                      type="button"
+                      class="hover:text-primary p-0.5"
+                      x-on:click="openMoveModal(item.path, $event)"
+                      title="Verschieben"
+                    >
+                      📦
+                    </button>
+                  </template>
 
                   {/* Delete */}
                   <button
@@ -314,32 +331,70 @@ export const NotesPage = () => {
           <div class="flex items-center gap-1.5 md:gap-2 truncate min-w-0">
             <button
               type="button"
+              x-show="appMode === 'notes'"
               class="btn btn-ghost btn-xs btn-square md:hidden shrink-0"
               x-on:click="mobileMenuOpen = !mobileMenuOpen"
               title="Menü öffnen"
             >
               ☰
             </button>
-            <span class="text-xs font-mono opacity-50 hidden md:inline">
+
+            {/* App Mode Switch: Notizen | Kanban */}
+            <div class="join border border-base-content/20 rounded-lg p-0.5 bg-base-200 shrink-0 mr-1">
+              <button
+                type="button"
+                class="join-item btn btn-xs px-2 font-normal"
+                x-bind:class="appMode === 'notes' ? 'btn-primary font-medium' : 'btn-ghost'"
+                x-on:click="switchAppMode('notes')"
+                title="Notizen-Ansicht"
+              >
+                📝<span class="hidden sm:inline ml-1">Notizen</span>
+              </button>
+              <button
+                type="button"
+                class="join-item btn btn-xs px-2 font-normal"
+                x-bind:class="appMode === 'kanban' ? 'btn-primary font-medium' : 'btn-ghost'"
+                x-on:click="switchAppMode('kanban')"
+                title="Kanban-Boards"
+              >
+                📋<span class="hidden sm:inline ml-1">Kanban</span>
+              </button>
+            </div>
+
+            <span
+              x-show="appMode === 'notes'"
+              class="text-xs font-mono opacity-50 hidden md:inline"
+            >
               Root /
             </span>
             <span
+              x-show="appMode === 'notes'"
               class="font-bold text-xs sm:text-sm md:text-base text-base-content truncate"
               x-text="notePath ? notePath : 'Keine Notiz gewählt'"
             >
             </span>
             <span
-              x-show="isDirty"
+              x-show="appMode === 'notes' && isDirty"
               class="badge badge-warning badge-xs font-mono shrink-0"
             >
               ungespeichert
+            </span>
+            <span
+              x-show="appMode === 'kanban'"
+              class="font-bold text-xs sm:text-sm md:text-base text-base-content truncate"
+              x-text="kanbanBoardTitle || 'Kanban'"
+              style="display: none;"
+            >
             </span>
           </div>
 
           {/* Right Toolbar Controls */}
           <div class="flex items-center gap-1.5 sm:gap-3 shrink-0">
-            {/* View Mode Toggle: Edit | Split | Preview */}
-            <div class="join border border-base-content/20 rounded-lg p-0.5 bg-base-200">
+            {/* View Mode Toggle: Edit | Split | Preview (Notes only) */}
+            <div
+              x-show="appMode === 'notes'"
+              class="join border border-base-content/20 rounded-lg p-0.5 bg-base-200"
+            >
               <button
                 type="button"
                 class="join-item btn btn-xs px-2 sm:px-2.5 font-normal"
@@ -369,9 +424,10 @@ export const NotesPage = () => {
               </button>
             </div>
 
-            {/* Save Button */}
+            {/* Save Button (Notes Edit/Split only) */}
             <button
               type="button"
+              x-show="appMode === 'notes' && viewMode !== 'preview'"
               class="btn btn-primary btn-sm px-2.5 sm:px-4 gap-1 shadow-sm"
               x-on:click="saveCurrentNote()"
               x-bind:disabled="!notePath || isSaving"
@@ -387,6 +443,17 @@ export const NotesPage = () => {
               </span>
             </button>
 
+            {/* Quick Add Card (Kanban only) */}
+            <button
+              type="button"
+              x-show="appMode === 'kanban'"
+              class="btn btn-primary btn-sm px-2.5 sm:px-4 gap-1 shadow-sm"
+              x-on:click="openKanbanCardModal(null, activeKanbanColumn)"
+              style="display: none;"
+            >
+              + <span class="hidden sm:inline">Karte</span>
+            </button>
+
             {/* Theme Toggle */}
             <ThemeToggle />
           </div>
@@ -394,7 +461,7 @@ export const NotesPage = () => {
 
         {/* Note Tags Bar */}
         <div
-          x-show="notePath"
+          x-show="appMode === 'notes' && notePath"
           class="px-3 md:px-6 py-1.5 border-b border-base-content/10 bg-base-200/40 flex flex-col gap-2"
           style="display: none;"
         >
@@ -416,6 +483,7 @@ export const NotesPage = () => {
                 </button>
                 <button
                   type="button"
+                  x-show="viewMode !== 'preview'"
                   class="opacity-70 hover:opacity-100 cursor-pointer ml-0.5"
                   x-on:click="removeNoteTag(tag)"
                   title="Tag entfernen"
@@ -434,17 +502,28 @@ export const NotesPage = () => {
 
             <button
               type="button"
+              x-show="viewMode !== 'preview'"
               class="btn btn-ghost btn-xs text-[11px] ml-1"
               x-on:click="showTagPicker = !showTagPicker"
               x-bind:disabled="isSaving"
             >
               <span x-text="showTagPicker ? '✕ Schließen' : '+ Tag'"></span>
             </button>
+
+            <button
+              type="button"
+              x-show="viewMode !== 'preview'"
+              class="btn btn-ghost btn-xs text-[11px] ml-auto gap-1"
+              x-on:click="openMoveModal(notePath)"
+              title="Aktuelle Notiz in einen anderen Ordner verschieben"
+            >
+              📦 <span class="hidden sm:inline">Verschieben</span>
+            </button>
           </div>
 
           {/* Tag Picker Dropdown Panel */}
           <div
-            x-show="showTagPicker"
+            x-show="showTagPicker && viewMode !== 'preview'"
             class="p-2 rounded-lg bg-base-100 border border-base-content/15 shadow-sm flex flex-wrap gap-1.5 max-h-40 overflow-y-auto"
             style="display: none;"
           >
@@ -468,8 +547,8 @@ export const NotesPage = () => {
           </div>
         </div>
 
-        {/* Workspace Body */}
-        <div class="flex-1 flex overflow-hidden">
+        {/* Workspace Body (Notes) */}
+        <div x-show="appMode === 'notes'" class="flex-1 flex overflow-hidden">
           {/* Editor Pane */}
           <div
             class="flex-1 flex flex-col bg-base-100 overflow-hidden relative border-r border-base-content/5"
@@ -587,7 +666,404 @@ export const NotesPage = () => {
             </div>
           </div>
         </div>
+
+        {/* Workspace Body (Kanban) */}
+        <div
+          x-show="appMode === 'kanban'"
+          class="flex-1 flex flex-col overflow-hidden bg-base-100"
+          style="display: none;"
+        >
+          {/* Kanban Toolbar: Board Select, Search, Tags, NSFW */}
+          <div class="px-3 md:px-6 py-2.5 border-b border-base-content/10 bg-base-200/40 flex flex-wrap items-center gap-2 justify-between">
+            <div class="flex flex-wrap items-center gap-2">
+              <select
+                class="select select-bordered select-xs font-medium"
+                x-model="activeKanbanBoardId"
+                x-on:change="loadKanbanBoard(activeKanbanBoardId)"
+              >
+                <template x-for="b in kanbanBoards" x-bind:key="b.id">
+                  <option
+                    x-bind:value="b.id"
+                    x-text="b.title + ' (' + b.cardCount + ')'"
+                  >
+                  </option>
+                </template>
+              </select>
+
+              <button
+                type="button"
+                class="btn btn-ghost btn-xs"
+                x-on:click="createKanbanBoard()"
+                title="Neues Kanban-Board anlegen"
+              >
+                + Board
+              </button>
+
+              {/* Search */}
+              <div class="relative">
+                <input
+                  type="text"
+                  placeholder="Karten filtern..."
+                  class="input input-bordered input-xs pl-6 w-40 sm:w-52"
+                  x-model="kanbanQuery"
+                  x-on:input="loadKanbanBoard(activeKanbanBoardId)"
+                />
+                <span class="absolute left-2 top-1 text-[11px] opacity-50">
+                  🔍
+                </span>
+                <button
+                  type="button"
+                  x-show="kanbanQuery"
+                  x-on:click="kanbanQuery = ''; loadKanbanBoard(activeKanbanBoardId)"
+                  class="absolute right-1.5 top-0.5 text-[11px] opacity-50 hover:opacity-100"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+
+            {/* Tag Filters + NSFW Status */}
+            <div class="flex flex-wrap items-center gap-1.5">
+              <template x-for="t in kanbanBoardTags" x-bind:key="t">
+                <button
+                  type="button"
+                  class="badge badge-xs cursor-pointer transition"
+                  x-bind:class="kanbanTagFilter.toLowerCase() === t.toLowerCase() ? (isNsfwTag(t) ? 'badge-error text-error-content' : 'badge-primary') : (isNsfwTag(t) ? 'badge-error badge-outline' : 'badge-ghost border-base-content/20')"
+                  x-on:click="toggleKanbanTagFilter(t)"
+                  x-text="t"
+                >
+                </button>
+              </template>
+
+              <button
+                type="button"
+                x-show="!nsfwUnlocked && kanbanHiddenCount > 0"
+                class="badge badge-xs badge-ghost border-base-content/20 cursor-pointer gap-1"
+                x-on:click="openNsfwUnlockModal()"
+                style="display: none;"
+              >
+                🔒 <span x-text="kanbanHiddenCount"></span> ausgeblendet
+              </button>
+
+              <button
+                type="button"
+                x-show="nsfwUnlocked"
+                class="badge badge-xs badge-error badge-outline cursor-pointer gap-1"
+                x-on:click="lockNsfw()"
+                style="display: none;"
+              >
+                🔓 NSFW (Sperren)
+              </button>
+            </div>
+          </div>
+
+          {/* Mobile Column Tabs */}
+          <div class="flex lg:hidden border-b border-base-content/10 bg-base-200/30 overflow-x-auto px-2 py-1.5 gap-1 shrink-0">
+            <template x-for="col in kanbanColumns" x-bind:key="col">
+              <button
+                type="button"
+                class="btn btn-xs whitespace-nowrap gap-1"
+                x-bind:class="activeKanbanColumn === col ? 'btn-primary' : 'btn-ghost'"
+                x-on:click="activeKanbanColumn = col"
+              >
+                <span x-text="col"></span>
+                <span
+                  class="badge badge-xs font-mono opacity-80"
+                  x-text="getKanbanColumnCards(col).length"
+                >
+                </span>
+              </button>
+            </template>
+          </div>
+
+          {/* Columns Grid */}
+          <div class="flex-1 grid grid-cols-1 lg:grid-flow-col lg:auto-cols-fr gap-3 p-3 md:p-4 overflow-hidden">
+            <template x-for="col in kanbanColumns" x-bind:key="col">
+              <section
+                class="flex-col bg-base-200/60 border border-base-content/10 rounded-xl overflow-hidden min-h-0 transition"
+                x-bind:class="(activeKanbanColumn === col ? 'flex' : 'hidden lg:flex') + (dragOverColumn === col ? ' ring-2 ring-primary bg-primary/5' : '')"
+                x-on:dragover="$event.preventDefault(); dragOverColumn = col"
+                x-on:dragleave="if (dragOverColumn === col) dragOverColumn = ''"
+                x-on:drop="$event.preventDefault(); handleKanbanDrop(col)"
+              >
+                {/* Column Header */}
+                <div class="px-3 py-2.5 border-b border-base-content/10 flex items-center justify-between bg-base-200/80 shrink-0">
+                  <div class="flex items-center gap-2 min-w-0">
+                    <h2
+                      class="font-bold text-xs uppercase tracking-wider truncate"
+                      x-text="col"
+                    >
+                    </h2>
+                    <span
+                      class="badge badge-xs badge-ghost font-mono"
+                      x-text="getKanbanColumnCards(col).length"
+                    >
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    class="btn btn-ghost btn-xs btn-square"
+                    x-on:click="openKanbanCardModal(null, col)"
+                    title="Karte in dieser Spalte anlegen"
+                  >
+                    +
+                  </button>
+                </div>
+
+                {/* Cards List */}
+                <div class="flex-1 overflow-y-auto p-2.5 space-y-2.5">
+                  <template
+                    x-for="card in getKanbanColumnCards(col)"
+                    x-bind:key="card.id"
+                  >
+                    <article
+                      draggable="true"
+                      x-on:dragstart="handleKanbanDragStart(card, $event)"
+                      x-on:dragend="handleKanbanDragEnd()"
+                      class="bg-base-100 border rounded-lg p-3 shadow-xs transition flex flex-col gap-2 cursor-grab active:cursor-grabbing"
+                      x-bind:class="isKanbanCardOverdue(card) ? 'border-error ring-1 ring-error/40' : 'border-base-content/10 hover:border-primary/40'"
+                    >
+                      <div class="flex items-start justify-between gap-2">
+                        <h3
+                          class="font-semibold text-xs sm:text-sm leading-snug"
+                          x-text="card.title"
+                        >
+                        </h3>
+                        <div class="flex items-center gap-0.5 shrink-0">
+                          <button
+                            type="button"
+                            class="btn btn-ghost btn-xs btn-square opacity-60 hover:opacity-100"
+                            x-on:click="openKanbanCardModal(card)"
+                            title="Bearbeiten"
+                          >
+                            ✏️
+                          </button>
+                          <button
+                            type="button"
+                            class="btn btn-ghost btn-xs btn-square opacity-60 hover:text-error hover:opacity-100"
+                            x-on:click="deleteKanbanCard(card.id)"
+                            title="Löschen"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Markdown Description */}
+                      <div
+                        x-show="card.description"
+                        class="prose prose-xs max-w-none text-xs opacity-80 break-words [&_a]:text-primary [&_a]:underline"
+                        x-html="renderKanbanMarkdown(card.description)"
+                        x-on:click="handleKanbanBodyClick($event)"
+                      >
+                      </div>
+
+                      {/* Tags */}
+                      <div
+                        x-show="card.tags && card.tags.length > 0"
+                        class="flex flex-wrap gap-1"
+                      >
+                        <template x-for="tag in card.tags" x-bind:key="tag">
+                          <span
+                            class="badge badge-xs"
+                            x-bind:class="isNsfwTag(tag) ? 'badge-error text-error-content' : 'badge-ghost border-base-content/15'"
+                            x-text="tag"
+                          >
+                          </span>
+                        </template>
+                      </div>
+
+                      {/* Footer: Card ID, Due Date & Mobile Quick-Move */}
+                      <div class="flex flex-wrap items-center justify-between gap-2 pt-1.5 border-t border-base-content/5">
+                        <div class="flex items-center gap-1.5 min-w-0 shrink-0">
+                          <span
+                            class="text-[10px] font-mono opacity-40 shrink-0"
+                            x-text="card.id"
+                          >
+                          </span>
+                          <span
+                            x-show="card.dueDate"
+                            class="badge badge-xs font-mono gap-1 whitespace-nowrap shrink-0"
+                            x-bind:class="isKanbanCardOverdue(card) ? 'badge-error text-error-content' : 'badge-ghost border-base-content/15'"
+                            x-text="'📅 ' + card.dueDate"
+                          >
+                          </span>
+                        </div>
+                        <select
+                          class="select select-bordered select-xs text-[11px] h-6 min-h-0 w-auto max-w-[10.5rem] shrink-0 lg:hidden"
+                          x-bind:value="card.column"
+                          x-on:change="moveKanbanCard(card.id, $event.target.value)"
+                          title="In Liste verschieben"
+                        >
+                          <template
+                            x-for="targetCol in kanbanColumns"
+                            x-bind:key="targetCol"
+                          >
+                            <option
+                              x-bind:value="targetCol"
+                              x-bind:selected="targetCol === card.column"
+                              x-text="'→ ' + targetCol"
+                            >
+                            </option>
+                          </template>
+                        </select>
+                      </div>
+                    </article>
+                  </template>
+
+                  <div
+                    x-show="getKanbanColumnCards(col).length === 0"
+                    class="text-[11px] opacity-40 text-center py-8 border border-dashed border-base-content/15 rounded-lg"
+                  >
+                    Keine Karten
+                  </div>
+                </div>
+              </section>
+            </template>
+          </div>
+        </div>
       </main>
+
+      {/* Kanban Card Create / Edit Modal */}
+      <div
+        x-show="kanbanCardModalOpen"
+        x-on:click="closeKanbanCardModal()"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4"
+        style="display: none;"
+      >
+        <div
+          class="bg-base-100 border border-base-content/15 rounded-xl shadow-2xl max-w-md w-full p-5 flex flex-col gap-3"
+          x-on:click="$event.stopPropagation()"
+        >
+          <h3
+            class="font-bold text-base"
+            x-text="kanbanEditingCardId ? 'Karte bearbeiten' : 'Neue Karte'"
+          >
+          </h3>
+
+          <div class="flex flex-col gap-1">
+            <label class="text-xs font-medium opacity-75">Titel</label>
+            <input
+              type="text"
+              class="input input-bordered input-sm w-full"
+              placeholder="Kurzer Titel..."
+              x-model="kanbanCardFormTitle"
+            />
+          </div>
+
+          <div class="flex flex-col gap-1">
+            <label class="text-xs font-medium opacity-75">Liste</label>
+            <select
+              class="select select-bordered select-sm w-full"
+              x-model="kanbanCardFormColumn"
+            >
+              <template x-for="col in kanbanColumns" x-bind:key="col">
+                <option x-bind:value="col" x-text="col"></option>
+              </template>
+            </select>
+          </div>
+
+          <div class="flex flex-col gap-1">
+            <label class="text-xs font-medium opacity-75">
+              Fälligkeitsdatum (optional)
+            </label>
+            <input
+              type="date"
+              class="input input-bordered input-sm w-full font-mono text-xs"
+              x-model="kanbanCardFormDueDate"
+            />
+          </div>
+
+          <div class="flex flex-col gap-1">
+            <label class="text-xs font-medium opacity-75">
+              Tags (kommagetrennt)
+            </label>
+            <input
+              type="text"
+              class="input input-bordered input-sm w-full font-mono text-xs"
+              placeholder="z. B. Projekt, Dringend"
+              x-model="kanbanCardFormTags"
+            />
+          </div>
+
+          <div class="flex flex-col gap-1">
+            <label class="text-xs font-medium opacity-75">
+              Beschreibung (Markdown)
+            </label>
+            <textarea
+              rows="4"
+              class="textarea textarea-bordered textarea-sm w-full font-mono text-xs"
+              placeholder="Notiz verlinken: [Titel](?note=Pfad/Notiz.md)"
+              x-model="kanbanCardFormDescription"
+            >
+            </textarea>
+          </div>
+
+          <div class="flex justify-end gap-2 mt-1">
+            <button
+              type="button"
+              class="btn btn-ghost btn-sm"
+              x-on:click="closeKanbanCardModal()"
+            >
+              Abbrechen
+            </button>
+            <button
+              type="button"
+              class="btn btn-primary btn-sm"
+              x-on:click="saveKanbanCard()"
+            >
+              Speichern
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Move Note / Folder Modal */}
+      <div
+        x-show="moveModalOpen"
+        x-on:click="closeMoveModal()"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4"
+        style="display: none;"
+      >
+        <div
+          class="bg-base-100 border border-base-content/15 rounded-xl shadow-2xl max-w-sm w-full p-5 flex flex-col gap-3"
+          x-on:click="$event.stopPropagation()"
+        >
+          <h3 class="font-bold text-base">📦 Element verschieben</h3>
+          <div class="text-xs font-mono opacity-70 truncate" x-text="moveSourcePath">
+          </div>
+
+          <div class="flex flex-col gap-1">
+            <label class="text-xs font-medium opacity-75">Zielordner</label>
+            <select
+              class="select select-bordered select-sm w-full font-mono text-xs"
+              x-model="moveTargetFolder"
+            >
+              <option value="">/ (Stammverzeichnis)</option>
+              <template x-for="folder in availableMoveFolders" x-bind:key="folder">
+                <option x-bind:value="folder" x-text="folder"></option>
+              </template>
+            </select>
+          </div>
+
+          <div class="flex justify-end gap-2 mt-1">
+            <button
+              type="button"
+              class="btn btn-ghost btn-sm"
+              x-on:click="closeMoveModal()"
+            >
+              Abbrechen
+            </button>
+            <button
+              type="button"
+              class="btn btn-primary btn-sm"
+              x-on:click="confirmMoveItem()"
+            >
+              Verschieben
+            </button>
+          </div>
+        </div>
+      </div>
 
       {/* NSFW Confirmation Modal */}
       <div

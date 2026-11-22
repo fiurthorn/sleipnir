@@ -46,11 +46,13 @@ configureMarkedHighlight();
 document.addEventListener("alpine:init", () => {
   Alpine.data("notemate", () => ({
     // Persistent view settings
+    appMode: Alpine.$persist("notes").as("notemate_app_mode_v1"),
     viewMode: Alpine.$persist(
       globalThis.innerWidth < 1024 ? "preview" : "split",
     ).as("notemate_view_mode_v1"),
     expandedFolders: Alpine.$persist([]).as("notemate_expanded_v1"),
     activePath: Alpine.$persist("Willkommen.md").as("notemate_active_path_v1"),
+    activeKanbanBoardId: Alpine.$persist("projekte").as("notemate_kanban_board_v1"),
 
     tree: [],
     // Note State (Top-level properties to comply with Alpine CSP AST parser)
@@ -71,6 +73,30 @@ document.addEventListener("alpine:init", () => {
     nsfwHiddenCount: 0,
     nsfwModalOpen: false,
     pendingNsfwPath: "",
+
+    // Move Modal
+    moveModalOpen: false,
+    moveSourcePath: "",
+    moveTargetFolder: "",
+
+    // Kanban State
+    kanbanBoards: [],
+    kanbanBoardTitle: "",
+    kanbanColumns: ["Eingang", "Zurückgestellt", "In Bearbeitung", "Fertiggestellt"],
+    kanbanCards: [],
+    kanbanHiddenCount: 0,
+    kanbanQuery: "",
+    kanbanTagFilter: "",
+    activeKanbanColumn: "Eingang",
+    draggedCardId: "",
+    dragOverColumn: "",
+    kanbanCardModalOpen: false,
+    kanbanEditingCardId: "",
+    kanbanCardFormTitle: "",
+    kanbanCardFormColumn: "Eingang",
+    kanbanCardFormDueDate: "",
+    kanbanCardFormTags: "",
+    kanbanCardFormDescription: "",
 
     // Recipe Servings Scaling Module
     recipeBaseServings: null,
@@ -99,6 +125,14 @@ document.addEventListener("alpine:init", () => {
     async init() {
       await Promise.all([this.refreshTree(), this.refreshTags()]);
 
+      // Check ?note=... query parameter for direct note links
+      const params = new URLSearchParams(globalThis.location.search || "");
+      const linkedNote = params.get("note");
+      if (linkedNote) {
+        this.appMode = "notes";
+        this.activePath = linkedNote;
+      }
+
       // Open active note or first available note
       let loaded = false;
       if (this.activePath) {
@@ -111,14 +145,28 @@ document.addEventListener("alpine:init", () => {
         }
       }
 
+      if (this.appMode === "kanban") {
+        await this.refreshKanban();
+      }
+
       // Keyboard shortcuts
       globalThis.addEventListener("keydown", (e) => {
-        if (e.key === "Escape" && this.nsfwModalOpen) {
-          this.closeNsfwModal();
-          return;
+        if (e.key === "Escape") {
+          if (this.moveModalOpen) {
+            this.closeMoveModal();
+            return;
+          }
+          if (this.kanbanCardModalOpen) {
+            this.closeKanbanCardModal();
+            return;
+          }
+          if (this.nsfwModalOpen) {
+            this.closeNsfwModal();
+            return;
+          }
         }
         // Ctrl+S / Cmd+S: Save Note
-        if ((e.ctrlKey || e.metaKey) && e.key === "s") {
+        if ((e.ctrlKey || e.metaKey) && e.key === "s" && this.appMode === "notes") {
           e.preventDefault();
           this.saveCurrentNote();
         }
@@ -171,6 +219,9 @@ document.addEventListener("alpine:init", () => {
         if (this.searchQuery.trim()) {
           await this.performSearch();
         }
+        if (this.appMode === "kanban") {
+          await this.refreshKanban();
+        }
         if (targetPath) {
           await this.loadNote(targetPath, false);
         }
@@ -193,6 +244,12 @@ document.addEventListener("alpine:init", () => {
         await Promise.all([this.refreshTree(), this.refreshTags()]);
         if (this.searchQuery.trim()) {
           await this.performSearch();
+        }
+        if (this.appMode === "kanban") {
+          if (this.isNsfwTag(this.kanbanTagFilter)) {
+            this.kanbanTagFilter = "";
+          }
+          await this.refreshKanban();
         }
         if (wasViewingNsfw) {
           const first = this.findFirstFile(this.tree);
@@ -602,6 +659,71 @@ document.addEventListener("alpine:init", () => {
       }
     },
 
+    get availableMoveFolders() {
+      const folders = [];
+      const src = this.moveSourcePath;
+      const collect = (nodes) => {
+        if (!Array.isArray(nodes)) return;
+        for (const node of nodes) {
+          if (node.type !== "directory") continue;
+          if (!src || (node.path !== src && !node.path.startsWith(`${src}/`))) {
+            folders.push(node.path);
+          }
+          if (node.children) collect(node.children);
+        }
+      };
+      collect(this.tree);
+      return folders.sort((a, b) => a.localeCompare(b, "de", { sensitivity: "base" }));
+    },
+
+    openMoveModal(path, event = null) {
+      if (event && event.stopPropagation) event.stopPropagation();
+      if (!path || !path.endsWith(".md")) return;
+      this.moveSourcePath = path;
+      const parts = path.split("/");
+      parts.pop();
+      this.moveTargetFolder = parts.join("/");
+      this.moveModalOpen = true;
+    },
+
+    closeMoveModal() {
+      this.moveModalOpen = false;
+      this.moveSourcePath = "";
+      this.moveTargetFolder = "";
+    },
+
+    async confirmMoveItem() {
+      const oldPath = this.moveSourcePath;
+      if (!oldPath) return;
+
+      const fileName = oldPath.split("/").pop() || "";
+      const newPath = this.moveTargetFolder ? `${this.moveTargetFolder}/${fileName}` : fileName;
+      if (newPath === oldPath) {
+        this.closeMoveModal();
+        return;
+      }
+
+      try {
+        const res = await fetch("./api/rename", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ oldPath, newPath }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || "HTTP " + res.status);
+
+        const wasOpen = this.notePath === oldPath;
+        this.closeMoveModal();
+        await this.refreshTree();
+        if (wasOpen) {
+          await this.loadNote(newPath, false);
+        }
+        this.showToast("✓ Verschoben");
+      } catch (err) {
+        this.showToast("Fehler beim Verschieben: " + err.message);
+      }
+    },
+
     // Clipboard & Drag-and-Drop Image Paste
     async handlePaste(event) {
       const items = event.clipboardData?.items;
@@ -963,6 +1085,266 @@ document.addEventListener("alpine:init", () => {
         hour: "2-digit",
         minute: "2-digit",
       });
+    },
+
+    // Kanban Methods
+    async switchAppMode(mode) {
+      if (mode !== "notes" && mode !== "kanban") return;
+      this.appMode = mode;
+      this.mobileMenuOpen = false;
+      if (mode === "kanban") {
+        await this.refreshKanban();
+      }
+    },
+
+    async refreshKanban() {
+      await this.loadKanbanBoards();
+      const targetId = this.activeKanbanBoardId || this.kanbanBoards[0]?.id;
+      if (targetId) {
+        await this.loadKanbanBoard(targetId);
+      }
+    },
+
+    async loadKanbanBoards() {
+      try {
+        const res = await fetch("./api/kanban/boards");
+        if (res.ok) {
+          const data = await res.json();
+          this.kanbanBoards = data.boards || [];
+          if (
+            this.kanbanBoards.length > 0 &&
+            !this.kanbanBoards.some((b) => b.id === this.activeKanbanBoardId)
+          ) {
+            this.activeKanbanBoardId = this.kanbanBoards[0].id;
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load kanban boards:", err);
+      }
+    },
+
+    async loadKanbanBoard(boardId) {
+      if (!boardId) return;
+      try {
+        const params = new URLSearchParams();
+        if (this.kanbanQuery.trim()) params.set("q", this.kanbanQuery.trim());
+        if (this.kanbanTagFilter.trim()) params.set("tag", this.kanbanTagFilter.trim());
+        const qs = params.toString();
+        const url = `./api/kanban/boards/${encodeURIComponent(boardId)}${qs ? `?${qs}` : ""}`;
+        const res = await fetch(url);
+        if (res.ok) {
+          const data = await res.json();
+          this.activeKanbanBoardId = data.board.id;
+          this.kanbanBoardTitle = data.board.title;
+          this.kanbanColumns = data.board.columns || [];
+          this.kanbanCards = data.board.cards || [];
+          this.kanbanHiddenCount = Number(data.hiddenCount || 0);
+          this.nsfwUnlocked = Boolean(data.nsfwUnlocked);
+          if (
+            this.kanbanColumns.length > 0 &&
+            !this.kanbanColumns.includes(this.activeKanbanColumn)
+          ) {
+            this.activeKanbanColumn = this.kanbanColumns[0];
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load kanban board:", err);
+      }
+    },
+
+    get kanbanBoardTags() {
+      const seen = new Map();
+      for (const card of this.kanbanCards || []) {
+        for (const tag of card.tags || []) {
+          const key = String(tag).toLowerCase();
+          if (!seen.has(key)) seen.set(key, tag);
+        }
+      }
+      return [...seen.values()].sort((a, b) => a.localeCompare(b, "de", { sensitivity: "base" }));
+    },
+
+    getKanbanColumnCards(column) {
+      return (this.kanbanCards || [])
+        .filter((c) => c.column === column)
+        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+    },
+
+    toggleKanbanTagFilter(tag) {
+      if (!tag) return;
+      this.kanbanTagFilter = this.kanbanTagFilter.toLowerCase() === tag.toLowerCase() ? "" : tag;
+      this.loadKanbanBoard(this.activeKanbanBoardId);
+    },
+
+    async createKanbanBoard() {
+      const title = prompt("Name des neuen Kanban-Boards:");
+      if (!title || !title.trim()) return;
+      try {
+        const res = await fetch("./api/kanban/boards", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ title: title.trim() }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "HTTP " + res.status);
+        this.activeKanbanBoardId = data.board.id;
+        await this.refreshKanban();
+        this.showToast("✓ Kanban-Board angelegt");
+      } catch (err) {
+        this.showToast("Fehler beim Erstellen des Boards: " + err.message);
+      }
+    },
+
+    openKanbanCardModal(card = null, defaultColumn = "") {
+      if (card) {
+        this.kanbanEditingCardId = card.id;
+        this.kanbanCardFormTitle = card.title || "";
+        this.kanbanCardFormColumn = card.column || this.kanbanColumns[0] || "Eingang";
+        this.kanbanCardFormDueDate = card.dueDate || "";
+        this.kanbanCardFormTags = (card.tags || []).join(", ");
+        this.kanbanCardFormDescription = card.description || "";
+      } else {
+        this.kanbanEditingCardId = "";
+        this.kanbanCardFormTitle = "";
+        this.kanbanCardFormColumn = defaultColumn || this.activeKanbanColumn || this.kanbanColumns[0] || "Eingang";
+        this.kanbanCardFormDueDate = "";
+        this.kanbanCardFormTags = "";
+        this.kanbanCardFormDescription = "";
+      }
+      this.kanbanCardModalOpen = true;
+    },
+
+    closeKanbanCardModal() {
+      this.kanbanCardModalOpen = false;
+      this.kanbanEditingCardId = "";
+    },
+
+    async saveKanbanCard() {
+      const title = this.kanbanCardFormTitle.trim();
+      if (!title) {
+        this.showToast("Fehler: Kartentitel darf nicht leer sein.");
+        return;
+      }
+      const tags = this.kanbanCardFormTags
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean);
+      const payload = {
+        title,
+        column: this.kanbanCardFormColumn,
+        dueDate: this.kanbanCardFormDueDate ? this.kanbanCardFormDueDate : null,
+        tags,
+        description: this.kanbanCardFormDescription || "",
+      };
+
+      try {
+        const isEdit = Boolean(this.kanbanEditingCardId);
+        const url = isEdit
+          ? `./api/kanban/boards/${encodeURIComponent(this.activeKanbanBoardId)}/cards/${encodeURIComponent(this.kanbanEditingCardId)}`
+          : `./api/kanban/boards/${encodeURIComponent(this.activeKanbanBoardId)}/cards`;
+        const res = await fetch(url, {
+          method: isEdit ? "PATCH" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "HTTP " + res.status);
+        this.closeKanbanCardModal();
+        await this.refreshKanban();
+        this.showToast(isEdit ? "✓ Karte aktualisiert" : "✓ Karte angelegt");
+      } catch (err) {
+        this.showToast("Fehler beim Speichern der Karte: " + err.message);
+      }
+    },
+
+    async moveKanbanCard(cardId, targetColumn) {
+      if (!cardId || !targetColumn) return;
+      try {
+        const url = `./api/kanban/boards/${encodeURIComponent(this.activeKanbanBoardId)}/cards/${encodeURIComponent(cardId)}`;
+        const res = await fetch(url, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ column: targetColumn }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "HTTP " + res.status);
+        await this.refreshKanban();
+      } catch (err) {
+        this.showToast("Fehler beim Verschieben: " + err.message);
+      }
+    },
+
+    async deleteKanbanCard(cardId) {
+      if (!cardId || !confirm("Karte wirklich löschen?")) return;
+      try {
+        const url = `./api/kanban/boards/${encodeURIComponent(this.activeKanbanBoardId)}/cards/${encodeURIComponent(cardId)}`;
+        const res = await fetch(url, { method: "DELETE" });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.error || "HTTP " + res.status);
+        }
+        await this.refreshKanban();
+        this.showToast("✓ Karte gelöscht");
+      } catch (err) {
+        this.showToast("Fehler beim Löschen: " + err.message);
+      }
+    },
+
+    handleKanbanDragStart(card, event) {
+      this.draggedCardId = card.id;
+      if (event?.dataTransfer) {
+        event.dataTransfer.effectAllowed = "move";
+        event.dataTransfer.setData("text/plain", card.id);
+      }
+    },
+
+    handleKanbanDragEnd() {
+      this.draggedCardId = "";
+      this.dragOverColumn = "";
+    },
+
+    async handleKanbanDrop(targetColumn) {
+      const cardId = this.draggedCardId;
+      this.dragOverColumn = "";
+      this.draggedCardId = "";
+      if (!cardId || !targetColumn) return;
+      const existing = (this.kanbanCards || []).find((c) => c.id === cardId);
+      if (existing && existing.column === targetColumn) return;
+      await this.moveKanbanCard(cardId, targetColumn);
+    },
+
+    isKanbanCardOverdue(card) {
+      if (!card || !card.dueDate) return false;
+      if (String(card.column || "").trim().toLowerCase() === "fertiggestellt") {
+        return false;
+      }
+      const now = new Date();
+      const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${
+        String(now.getDate()).padStart(2, "0")
+      }`;
+      return card.dueDate < today;
+    },
+
+    renderKanbanMarkdown(text) {
+      if (!text) return "";
+      if (typeof globalThis.marked !== "undefined" && globalThis.marked.parse) {
+        return globalThis.marked.parse(text);
+      }
+      return String(text).replace(/\n/g, "<br>");
+    },
+
+    handleKanbanBodyClick(event) {
+      const anchor = event.target?.closest?.("a");
+      if (!anchor) return;
+      const href = anchor.getAttribute("href") || "";
+      if (href.includes("?note=")) {
+        event.preventDefault();
+        const queryPart = href.split("?")[1] || "";
+        const noteParam = new URLSearchParams(queryPart).get("note");
+        if (noteParam) {
+          this.appMode = "notes";
+          this.loadNote(noteParam);
+        }
+      }
     },
   }));
 });

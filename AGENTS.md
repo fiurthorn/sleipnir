@@ -30,7 +30,7 @@ im Dateikopf folgenden Hinweis tragen:
 
 ---
 
-## ⚖️ 2. Die 5 Eisernen Architektur-Gesetze
+## ⚖️ 2. Die 6 Eisernen Architektur-Gesetze
 
 ### ① Strikte Typisierung — Absolutes `any`-Verbot
 
@@ -112,6 +112,16 @@ if (user.isAuthenticated) {
   [`.gitignore`](file:///.gitignore).
 - Sensible Secrets im Server immer über `Deno.env.get("...")` laden.
 
+### ⑥ API- & MCP-Parität (Dual-Interface-Prinzip)
+
+- Jeder neue Domänen-Endpunkt (REST-API) in einer App mit MCP-Server
+  (`mountMcp`) wird **standardmäßig auch als MCP-Tool** bereitgestellt (sofern
+  keine reine Browser-/UI-Mechanik wie Cookie-Gates oder Datei-Uploads).
+- Beide Schnittstellen (HTTP-API und MCP) delegieren an denselben
+  Domain-/Storage-Service – **keine duplizierte Business-Logik**.
+- MCP-Tools nutzen konsequent `MCP_ANNOTATIONS` (`readOnly`, `write`,
+  `writeIdempotent`, `destructive`) und Zod-Schemas mit klaren Beschreibungen.
+
 ---
 
 ## 🗂 3. Workspace-Topologie
@@ -185,5 +195,7 @@ fehlerfrei sein:
 4. `just fmt` $\rightarrow$ Sauber formatiert.
 5. Header-Check $\rightarrow$ Neuer/refaktorierter Code enthält den _Stefan &
    Sam_-Kodex-Header.
-6. Git-Hook $\rightarrow$ Ein `git commit` läuft automatisch durch alle
+6. API/MCP-Parität $\rightarrow$ Neue Fach-Endpunkte auch als MCP-Tool
+   prüfen/ergänzen.
+7. Git-Hook $\rightarrow$ Ein `git commit` läuft automatisch durch alle
    Validierungen.
