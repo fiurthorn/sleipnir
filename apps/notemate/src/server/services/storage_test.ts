@@ -83,3 +83,49 @@ Deno.test("NoteStorage - formats markdown and tables on save", async () => {
     await Deno.remove(tempDir, { recursive: true });
   }
 });
+
+Deno.test("NoteStorage - filters NSFW notes, directories, search, tags, and attachments", async () => {
+  const tempDir = await Deno.makeTempDir();
+  try {
+    const storage = new NoteStorage({ dataDir: tempDir });
+    await storage.saveNote("Safe.md", "---\ntags:\n  - Notiz\n---\n\nHallo Welt");
+    await storage.saveNote("Secret Folder/Hidden Note.md", "---\ntags:\n  - nsfw\n  - Idee\n---\n\nGeheimer Text");
+    await storage.createFolder("Empty Folder");
+
+    const attach = await storage.saveAttachment(
+      "secret.png",
+      new Uint8Array([1, 2, 3]),
+      "Secret Folder/Hidden Note.md",
+    );
+
+    // Tree filtering
+    const lockedTree = await storage.getTreeFiltered(false);
+    assertEquals(lockedTree.hiddenCount, 1);
+    const topNames = lockedTree.tree.map((n) => n.name);
+    assertEquals(topNames.includes("Secret Folder"), false);
+    assertEquals(topNames.includes("Empty Folder"), true);
+    assertEquals(topNames.includes("Safe"), true);
+
+    const unlockedTree = await storage.getTreeFiltered(true);
+    assertEquals(unlockedTree.hiddenCount, 0);
+    assertEquals(unlockedTree.tree.some((n) => n.name === "Secret Folder"), true);
+
+    // Search filtering
+    const lockedSearch = await storage.searchNotes("Geheimer", 25, { includeNsfw: false });
+    assertEquals(lockedSearch.length, 0);
+    const unlockedSearch = await storage.searchNotes("Geheimer", 25, { includeNsfw: true });
+    assertEquals(unlockedSearch.length, 1);
+
+    // Tag filtering
+    const lockedTags = await storage.listAllTags(undefined, { includeNsfw: false });
+    assertEquals(lockedTags.some((t) => t.tag.toLowerCase() === "nsfw"), false);
+    const ideeLocked = lockedTags.find((t) => t.tag === "Idee");
+    assertEquals(ideeLocked?.count, 0);
+
+    // Attachment NSFW ownership
+    assertEquals(await storage.isAttachmentNsfw(attach.relPath), true);
+    assertEquals(await storage.isAttachmentNsfw("Safe/other.png"), false);
+  } finally {
+    await Deno.remove(tempDir, { recursive: true });
+  }
+});

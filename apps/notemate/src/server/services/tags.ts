@@ -84,8 +84,16 @@ export function resolveAllowedTags(inputTags: string[]): string[] {
   return deduplicateTags(resolved);
 }
 
-function cleanTagValue(raw: string): string {
+export function cleanTagValue(raw: string): string {
   return raw.trim().replace(/^['"]|['"]$/g, "").trim();
+}
+
+/**
+ * Checks whether a tag list contains the `nsfw` tag (case-insensitive).
+ */
+export function hasNsfwTag(tags?: readonly string[]): boolean {
+  if (!Array.isArray(tags)) return false;
+  return tags.some((tag) => cleanTagValue(tag).toLowerCase() === "nsfw");
 }
 
 function deduplicateTags(tags: string[]): string[] {

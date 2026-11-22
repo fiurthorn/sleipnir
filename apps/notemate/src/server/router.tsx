@@ -50,7 +50,7 @@ export default function App(basePath?: string, developMode: boolean = false) {
   app.get("", rootHandler);
 
   // Notes and Attachments API
-  notesApi(app, storage);
+  notesApi(app, storage, basePath);
 
   // MCP Endpoint (Streamable HTTP)
   mountMcp(app, () => createNotemateMcpServer(storage), "/mcp", {

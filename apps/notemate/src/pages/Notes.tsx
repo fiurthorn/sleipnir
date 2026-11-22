@@ -262,6 +262,36 @@ export const NotesPage = () => {
           </div>
         </div>
 
+        {/* NSFW Gate Status Bar */}
+        <div x-show="!nsfwUnlocked && nsfwHiddenCount > 0" style="display: none;">
+          <button
+            type="button"
+            class="w-full px-3 py-1.5 border-t border-base-content/10 bg-base-200/70 hover:bg-base-300/70 text-[11px] text-base-content/70 flex items-center justify-between transition cursor-pointer"
+            x-on:click="openNsfwUnlockModal()"
+            title="Ausgeblendete NSFW-Inhalte für 1 Stunde freischalten"
+          >
+            <span>
+              🔒 <strong x-text="nsfwHiddenCount"></strong> ausgeblendet
+            </span>
+            <span class="text-[10px] opacity-60">Freischalten</span>
+          </button>
+        </div>
+
+        <div
+          x-show="nsfwUnlocked"
+          class="px-3 py-1.5 border-t border-error/20 bg-error/10 text-[11px] text-error flex items-center justify-between"
+          style="display: none;"
+        >
+          <span>🔓 NSFW aktiv (1h)</span>
+          <button
+            type="button"
+            class="font-mono hover:underline cursor-pointer"
+            x-on:click="lockNsfw()"
+          >
+            Sperren
+          </button>
+        </div>
+
         {/* Sidebar Footer */}
         <div class="p-3 border-t border-base-content/10 bg-base-200/50 flex justify-between items-center text-[11px] text-base-content/60 font-mono">
           <span>📁 ./data/notes</span>
@@ -558,6 +588,44 @@ export const NotesPage = () => {
           </div>
         </div>
       </main>
+
+      {/* NSFW Confirmation Modal */}
+      <div
+        x-show="nsfwModalOpen"
+        x-on:click="closeNsfwModal()"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4"
+        style="display: none;"
+      >
+        <div
+          class="bg-base-100 border border-base-content/15 rounded-xl shadow-2xl max-w-sm w-full p-5 flex flex-col gap-3"
+          x-on:click="$event.stopPropagation()"
+        >
+          <div class="flex items-center gap-2 text-base font-bold">
+            <span>🔞</span>
+            <span>NSFW-Inhalte freischalten?</span>
+          </div>
+          <p class="text-xs opacity-75 leading-relaxed">
+            Notizen und Bilder mit dem Tag <code>nsfw</code> werden für <strong>1 Stunde</strong>{" "}
+            sichtbar gemacht. Du kannst sie jederzeit über die Sidebar wieder sperren.
+          </p>
+          <div class="flex justify-end gap-2 mt-2">
+            <button
+              type="button"
+              class="btn btn-ghost btn-sm"
+              x-on:click="closeNsfwModal()"
+            >
+              Abbrechen
+            </button>
+            <button
+              type="button"
+              class="btn btn-error btn-sm"
+              x-on:click="confirmUnlockNsfw()"
+            >
+              Freischalten (1h)
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };

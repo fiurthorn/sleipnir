@@ -8,7 +8,7 @@
 import { PersistentSearchIndex } from "@sleipnir/core/search";
 import { basename, extname, join, normalize, relative, resolve } from "@std/path";
 import { formatMarkdown } from "./formatter.ts";
-import { addTagsToMarkdown, ALLOWED_TAG_DEFINITIONS, extractTagsFromMarkdown, resolveAllowedTags, setTagsInMarkdown } from "./tags.ts";
+import { addTagsToMarkdown, ALLOWED_TAG_DEFINITIONS, extractTagsFromMarkdown, hasNsfwTag, resolveAllowedTags, setTagsInMarkdown } from "./tags.ts";
 
 export interface TreeNode {
   name: string;
@@ -134,6 +134,54 @@ Notemate ist deine **hierarchische, ablenkungsfreie Markdown-Ablage** – direkt
    */
   async getTree(): Promise<TreeNode[]> {
     return await this.scanDirectory(this.baseDir);
+  }
+
+  /**
+   * Returns the hierarchical tree, optionally filtering out `nsfw` notes
+   * and directories that only contained `nsfw` notes.
+   */
+  async getTreeFiltered(
+    includeNsfw: boolean,
+  ): Promise<{ tree: TreeNode[]; hiddenCount: number }> {
+    const rawTree = await this.getTree();
+    if (includeNsfw) {
+      return { tree: rawTree, hiddenCount: 0 };
+    }
+    return this.filterTreeNsfw(rawTree);
+  }
+
+  private filterTreeNsfw(
+    nodes: TreeNode[],
+  ): { tree: TreeNode[]; hiddenCount: number } {
+    const filtered: TreeNode[] = [];
+    let hiddenCount = 0;
+
+    for (const node of nodes) {
+      if (node.type === "file") {
+        if (hasNsfwTag(node.tags)) {
+          hiddenCount += 1;
+          continue;
+        }
+        filtered.push(node);
+        continue;
+      }
+
+      const rawChildren = node.children ?? [];
+      const childResult = this.filterTreeNsfw(rawChildren);
+      hiddenCount += childResult.hiddenCount;
+
+      // Hide directories that became empty solely due to NSFW filtering
+      if (rawChildren.length > 0 && childResult.tree.length === 0) {
+        continue;
+      }
+
+      filtered.push({
+        ...node,
+        children: childResult.tree,
+      });
+    }
+
+    return { tree: filtered, hiddenCount };
   }
 
   private async scanDirectory(currentDir: string): Promise<TreeNode[]> {
@@ -353,6 +401,31 @@ Notemate ist deine **hierarchische, ablenkungsfreie Markdown-Ablage** – direkt
   }
 
   /**
+   * Checks whether an attachment path belongs to a note tagged with `nsfw`.
+   */
+  async isAttachmentNsfw(relPath: string): Promise<boolean> {
+    if (!relPath || typeof relPath !== "string") return false;
+
+    const clean = relPath.replace(/^(\/|\\)+/, "");
+    const slashIdx = clean.lastIndexOf("/");
+    if (slashIdx <= 0) return false;
+
+    const attachSubdir = clean.slice(0, slashIdx);
+    const files = await this.collectMarkdownFiles(this.baseDir);
+
+    for (const fullPath of files) {
+      const noteRelPath = relative(this.baseDir, fullPath).replace(/\\/g, "/");
+      if (this.getAttachmentSubdir(noteRelPath) !== attachSubdir) {
+        continue;
+      }
+      const content = await Deno.readTextFile(fullPath).catch(() => "");
+      return hasNsfwTag(extractTagsFromMarkdown(content));
+    }
+
+    return false;
+  }
+
+  /**
    * Retrieves an attachment file for serving.
    * Supports nested paths (e.g. "Rezepte/Pasta/Carbonara/img_123.png")
    * and falls back to the legacy .attachments/ directory.
@@ -405,10 +478,16 @@ Notemate ist deine **hierarchische, ablenkungsfreie Markdown-Ablage** – direkt
   /**
    * Full-text search across all notes using MiniSearch (title & tags boosted).
    */
-  async searchNotes(query: string, limit = 25): Promise<SearchResult[]> {
+  async searchNotes(
+    query: string,
+    limit?: number,
+    options?: { includeNsfw?: boolean },
+  ): Promise<SearchResult[]> {
     const trimmed = query.trim();
     if (!trimmed) return [];
 
+    const effectiveLimit = limit ?? 25;
+    const includeNsfw = options?.includeNsfw ?? true;
     const files = await this.collectMarkdownFiles(this.baseDir);
     const entries = await Promise.all(
       files.map(async (fullPath) => {
@@ -445,9 +524,11 @@ Notemate ist deine **hierarchische, ablenkungsfreie Markdown-Ablage** – direkt
     );
 
     await this.searchIndex.syncFromEntries(entries);
-    const hits = this.searchIndex.search(trimmed, limit);
+    const searchLimit = includeNsfw ? effectiveLimit : Math.max(effectiveLimit * 3, 50);
+    const hits = this.searchIndex.search(trimmed, searchLimit);
+    const visibleHits = includeNsfw ? hits : hits.filter((hit) => !hasNsfwTag(hit.doc.tagList)).slice(0, effectiveLimit);
 
-    return hits.map((hit) => ({
+    return visibleHits.map((hit) => ({
       path: hit.id,
       title: hit.doc.title || basename(hit.id, ".md"),
       snippet: hit.doc.snippet || "",
@@ -502,24 +583,32 @@ Notemate ist deine **hierarchische, ablenkungsfreie Markdown-Ablage** – direkt
    */
   async listAllTags(
     folder?: string,
+    options?: { includeNsfw?: boolean },
   ): Promise<Array<{ tag: string; category: string; count: number }>> {
+    const includeNsfw = options?.includeNsfw ?? true;
     const startDir = folder ? this.resolveSafePath(folder) : this.baseDir;
     const files = await this.collectMarkdownFiles(startDir);
     const usage = new Map<string, number>();
 
     for (const fullPath of files) {
       const content = await Deno.readTextFile(fullPath);
-      for (const tag of extractTagsFromMarkdown(content)) {
+      const tags = extractTagsFromMarkdown(content);
+      if (!includeNsfw && hasNsfwTag(tags)) {
+        continue;
+      }
+      for (const tag of tags) {
         const key = tag.toLowerCase();
         usage.set(key, (usage.get(key) ?? 0) + 1);
       }
     }
 
-    return ALLOWED_TAG_DEFINITIONS.map((def) => ({
-      tag: def.tag,
-      category: def.category,
-      count: usage.get(def.tag.toLowerCase()) ?? 0,
-    }));
+    return ALLOWED_TAG_DEFINITIONS
+      .filter((def) => includeNsfw || def.tag.toLowerCase() !== "nsfw")
+      .map((def) => ({
+        tag: def.tag,
+        category: def.category,
+        count: usage.get(def.tag.toLowerCase()) ?? 0,
+      }));
   }
 
   /**

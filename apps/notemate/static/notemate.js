@@ -66,6 +66,12 @@ document.addEventListener("alpine:init", () => {
     selectedTag: "",
     showTagPicker: false,
 
+    // NSFW Gate
+    nsfwUnlocked: false,
+    nsfwHiddenCount: 0,
+    nsfwModalOpen: false,
+    pendingNsfwPath: "",
+
     // Recipe Servings Scaling Module
     recipeBaseServings: null,
     recipeCurrentServings: null,
@@ -107,6 +113,10 @@ document.addEventListener("alpine:init", () => {
 
       // Keyboard shortcuts
       globalThis.addEventListener("keydown", (e) => {
+        if (e.key === "Escape" && this.nsfwModalOpen) {
+          this.closeNsfwModal();
+          return;
+        }
         // Ctrl+S / Cmd+S: Save Note
         if ((e.ctrlKey || e.metaKey) && e.key === "s") {
           e.preventDefault();
@@ -131,9 +141,75 @@ document.addEventListener("alpine:init", () => {
         if (res.ok) {
           const data = await res.json();
           this.tree = data.tree || [];
+          this.nsfwUnlocked = Boolean(data.nsfwUnlocked);
+          this.nsfwHiddenCount = Number(data.hiddenCount || 0);
         }
       } catch (err) {
         console.error("Failed to load file tree:", err);
+      }
+    },
+
+    openNsfwUnlockModal(targetPath = "") {
+      this.pendingNsfwPath = targetPath || "";
+      this.nsfwModalOpen = true;
+    },
+
+    closeNsfwModal() {
+      this.nsfwModalOpen = false;
+      this.pendingNsfwPath = "";
+    },
+
+    async confirmUnlockNsfw() {
+      try {
+        const res = await fetch("./api/nsfw/unlock", { method: "POST" });
+        if (!res.ok) {
+          throw new Error("HTTP " + res.status);
+        }
+        const targetPath = this.pendingNsfwPath;
+        this.closeNsfwModal();
+        await Promise.all([this.refreshTree(), this.refreshTags()]);
+        if (this.searchQuery.trim()) {
+          await this.performSearch();
+        }
+        if (targetPath) {
+          await this.loadNote(targetPath, false);
+        }
+        this.showToast("✓ NSFW-Inhalte für 1 Stunde freigeschaltet");
+      } catch (err) {
+        this.showToast("Fehler beim Freischalten: " + err.message);
+      }
+    },
+
+    async lockNsfw() {
+      try {
+        const res = await fetch("./api/nsfw/lock", { method: "POST" });
+        if (!res.ok) {
+          throw new Error("HTTP " + res.status);
+        }
+        if (this.isNsfwTag(this.selectedTag)) {
+          this.selectedTag = "";
+        }
+        const wasViewingNsfw = this.hasNsfwTag(this.noteTags);
+        await Promise.all([this.refreshTree(), this.refreshTags()]);
+        if (this.searchQuery.trim()) {
+          await this.performSearch();
+        }
+        if (wasViewingNsfw) {
+          const first = this.findFirstFile(this.tree);
+          if (first) {
+            await this.loadNote(first.path, false);
+          } else {
+            this.notePath = "";
+            this.noteTitle = "";
+            this.noteContent = "";
+            this.noteUpdatedAt = null;
+            this.noteTags = [];
+            this.isDirty = false;
+          }
+        }
+        this.showToast("🔒 NSFW-Inhalte gesperrt");
+      } catch (err) {
+        this.showToast("Fehler beim Sperren: " + err.message);
       }
     },
 
@@ -317,6 +393,13 @@ document.addEventListener("alpine:init", () => {
       this.isLoading = true;
       try {
         const res = await fetch(`./api/notes?path=${encodeURIComponent(path)}`);
+        if (res.status === 403) {
+          const errData = await res.json().catch(() => ({}));
+          if (errData.error === "NSFW_LOCKED" && checkDirty) {
+            this.openNsfwUnlockModal(path);
+          }
+          return false;
+        }
         if (res.ok) {
           const data = await res.json();
           this.notePath = data.note.path;

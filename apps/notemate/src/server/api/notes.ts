@@ -6,14 +6,59 @@
  */
 
 import type { Sleipnir, SleipnirContext } from "@sleipnir/core";
+import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import type { NoteStorage } from "../services/storage.ts";
+import { hasNsfwTag } from "../services/tags.ts";
 
-export function notesApi(app: Sleipnir, storage: NoteStorage) {
+const NSFW_COOKIE_NAME = "notemate_nsfw";
+const NSFW_COOKIE_MAX_AGE_SECONDS = 3600;
+
+function isNsfwUnlocked(c: SleipnirContext): boolean {
+  return getCookie(c, NSFW_COOKIE_NAME) === "1";
+}
+
+function getCookiePath(basePath?: string): string {
+  const trimmed = basePath?.trim();
+  return trimmed ? trimmed : "/";
+}
+
+function isHttpsRequest(c: SleipnirContext): boolean {
+  return (
+    c.req.header("x-forwarded-proto") === "https" ||
+    c.req.url.startsWith("https://")
+  );
+}
+
+export function notesApi(app: Sleipnir, storage: NoteStorage, basePath?: string) {
+  const cookiePath = getCookiePath(basePath);
+
+  // NSFW Gate (1h Cookie)
+  app.post("/api/nsfw/unlock", (c: SleipnirContext) => {
+    setCookie(c, NSFW_COOKIE_NAME, "1", {
+      path: cookiePath,
+      maxAge: NSFW_COOKIE_MAX_AGE_SECONDS,
+      httpOnly: true,
+      sameSite: "Lax",
+      secure: isHttpsRequest(c),
+    });
+    return c.json({
+      ok: true,
+      nsfwUnlocked: true,
+      maxAgeSeconds: NSFW_COOKIE_MAX_AGE_SECONDS,
+    });
+  });
+
+  app.post("/api/nsfw/lock", (c: SleipnirContext) => {
+    deleteCookie(c, NSFW_COOKIE_NAME, { path: cookiePath });
+    return c.json({ ok: true, nsfwUnlocked: false });
+  });
+
   // Tree & Hierarchy
   app.get("/api/tree", async (c: SleipnirContext) => {
     try {
-      const tree = await storage.getTree();
-      return c.json({ tree });
+      const nsfwUnlocked = isNsfwUnlocked(c);
+      const { tree, hiddenCount } = await storage.getTreeFiltered(nsfwUnlocked);
+      return c.json({ tree, nsfwUnlocked, hiddenCount });
     } catch (e) {
       const err = e instanceof Error ? e.message : "Internal error";
       return c.json({ error: err }, 500);
@@ -29,6 +74,12 @@ export function notesApi(app: Sleipnir, storage: NoteStorage) {
 
     try {
       const note = await storage.getNote(path);
+      if (hasNsfwTag(note.tags) && !isNsfwUnlocked(c)) {
+        return c.json(
+          { error: "NSFW_LOCKED", message: "Diese Notiz ist als NSFW markiert." },
+          403,
+        );
+      }
       return c.json({ note });
     } catch (e) {
       const err = e instanceof Error ? e.message : "Note not found";
@@ -138,7 +189,9 @@ export function notesApi(app: Sleipnir, storage: NoteStorage) {
   app.get("/api/search", async (c: SleipnirContext) => {
     const q = c.req.query("q") ?? "";
     try {
-      const results = await storage.searchNotes(q);
+      const results = await storage.searchNotes(q, 25, {
+        includeNsfw: isNsfwUnlocked(c),
+      });
       return c.json({ results });
     } catch (e) {
       const err = e instanceof Error ? e.message : "Search error";
@@ -149,7 +202,9 @@ export function notesApi(app: Sleipnir, storage: NoteStorage) {
   // Tags
   app.get("/api/tags", async (c: SleipnirContext) => {
     try {
-      const tags = await storage.listAllTags();
+      const tags = await storage.listAllTags(undefined, {
+        includeNsfw: isNsfwUnlocked(c),
+      });
       return c.json({ tags });
     } catch (e) {
       const err = e instanceof Error ? e.message : "Failed to list tags";
@@ -271,6 +326,11 @@ export function notesApi(app: Sleipnir, storage: NoteStorage) {
       return c.text("Not found", 404);
     }
 
+    const isNsfw = await storage.isAttachmentNsfw(decoded);
+    if (isNsfw && !isNsfwUnlocked(c)) {
+      return c.text("NSFW content locked", 403);
+    }
+
     const attachment = await storage.getAttachment(decoded);
     if (!attachment) {
       return c.text("Attachment not found", 404);
@@ -280,7 +340,7 @@ export function notesApi(app: Sleipnir, storage: NoteStorage) {
       status: 200,
       headers: {
         "Content-Type": attachment.contentType,
-        "Cache-Control": "public, max-age=31536000, immutable",
+        "Cache-Control": isNsfw ? "private, no-store" : "public, max-age=31536000, immutable",
       },
     });
   };
