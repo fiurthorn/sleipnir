@@ -10,6 +10,7 @@ import type { Sleipnir, SleipnirContext } from "./sleipnir.ts";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { z } from "zod";
+import { LOGO, LOGO_WORDMARK } from "./assets/icon.ts";
 
 export { McpServer, z };
 
@@ -225,23 +226,26 @@ function renderMcpOverviewHtml(
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/x-icon" href="${LOGO}" />
   <title>${title} · MCP Übersicht</title>
   <style>
     :root {
-      --bg: #1e222a;
-      --surface: #282c34;
-      --surface-2: #21252b;
-      --border: #3b4252;
-      --text: #eceff4;
+      --bg: #1e242b;
+      --surface: #252c35;
+      --surface-2: #161b21;
+      --border: #333c47;
+      --text: #f5e6d3;
       --muted: #a3be8c;
-      --sub: #9aa5b4;
-      --accent: #88c0d0;
+      --sub: #c7b5a1;
+      --accent: #d96b43;
+      --accent-light: #e69a73;
+      --copper-dark: #c85a32;
       --ro-bg: rgba(163, 190, 140, 0.16);
       --ro-fg: #a3be8c;
-      --wr-bg: rgba(235, 203, 139, 0.16);
-      --wr-fg: #ebcb8b;
-      --del-bg: rgba(191, 97, 106, 0.18);
-      --del-fg: #bf616a;
+      --wr-bg: rgba(230, 154, 115, 0.16);
+      --wr-fg: #e69a73;
+      --del-bg: rgba(200, 90, 50, 0.20);
+      --del-fg: #e07a5f;
     }
     * { box-sizing: border-box; }
     body {
@@ -250,6 +254,13 @@ function renderMcpOverviewHtml(
       background: var(--bg);
       color: var(--text);
       line-height: 1.5;
+      border-top: 3px solid var(--copper-dark);
+    }
+    .brand-logo {
+      height: 38px;
+      width: auto;
+      display: block;
+      margin-bottom: 0.65rem;
     }
     .container {
       max-width: 980px;
@@ -359,6 +370,7 @@ function renderMcpOverviewHtml(
   <div class="container">
     <header>
       <div>
+        <img src="${LOGO_WORDMARK}" alt="fiurthorn" class="brand-logo" />
         <h1>${title}</h1>
         <p class="subtitle">${description}</p>
         <div class="endpoint-box"><code>${escapeHtml(endpointUrl)}</code></div>

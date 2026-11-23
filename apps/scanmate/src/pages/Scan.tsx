@@ -61,87 +61,60 @@ export function ScanPage({ basePath: _basePath }: { basePath: string }) {
             </div>
           </div>
 
-          {/* Neuer Scan Button */}
-          <button
-            type="button"
-            class="btn btn-primary btn-sm w-full gap-2 shadow-sm mt-1 font-bold"
-            x-on:click="openNewScan(); mobileMenuOpen = false;"
-          >
-            <span>📸 Neuer Scan</span>
-          </button>
-
           {/* Schnellsuchleiste */}
           <div class="relative mt-1">
             <input
               type="text"
               placeholder="Dokumente durchsuchen..."
-              class="input input-bordered input-sm w-full pl-8 text-xs font-sans"
-              x-model="Alpine.store('scanmate').searchQuery"
+              class="input input-bordered input-sm w-full pl-8 text-sm md:text-xs font-sans"
+              x-model="searchQuery"
             />
             <span class="absolute left-2.5 top-2 text-xs opacity-50">🔍</span>
             <button
               type="button"
-              x-show="Alpine.store('scanmate').searchQuery"
-              x-on:click="Alpine.store('scanmate').searchQuery = ''"
+              x-show="searchQuery"
+              x-on:click="searchQuery = ''"
               class="absolute right-2 top-2 text-xs opacity-50 hover:opacity-100"
             >
               ✕
             </button>
           </div>
 
-          {/* Filterleiste: Ordner & Kategorie */}
-          <div class="grid grid-cols-2 gap-2 text-xs px-0.5">
-            <div>
-              <span class="text-[10px] font-bold uppercase opacity-50 block mb-0.5">
-                Ordner
-              </span>
-              <select
-                x-model="Alpine.store('scanmate').filterFolder"
-                class="select select-bordered select-xs w-full text-[11px]"
+          {/* Sidebar Tag Filter (wie NoteMate) */}
+          <div
+            x-show="availableTags.length > 0"
+            class="flex flex-col gap-1.5 pb-1 border-b border-base-content/10"
+            style="display: none;"
+          >
+            <div class="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider opacity-60 px-0.5">
+              <span>🏷️ Tags</span>
+              <button
+                type="button"
+                x-show="selectedTag"
+                x-on:click="clearTagFilter()"
+                class="text-primary hover:underline font-mono normal-case"
               >
-                <option value="">Alle Ordner</option>
-                <template
-                  x-for="f in Alpine.store('scanmate').folders"
-                  {...{ ":key": "f" }}
+                Filter zurücksetzen
+              </button>
+            </div>
+            <div class="flex flex-wrap gap-1 max-h-24 overflow-y-auto pr-1">
+              <template x-for="tagItem in availableTags" {...{ ":key": "tagItem.tag" }}>
+                <button
+                  type="button"
+                  x-on:click="toggleTagFilter(tagItem.tag)"
+                  class="badge badge-sm md:badge-xs cursor-pointer gap-1 transition"
+                  x-bind:class="isTagSelected(tagItem.tag) ? 'badge-primary' : 'badge-ghost border-base-content/15 hover:border-primary/50'"
                 >
-                  <option
-                    {...{ ":value": "f" }}
-                    x-text="f ? f : 'Hauptordner (/) '"
-                  >
-                  </option>
-                </template>
-              </select>
-            </div>
-
-            <div>
-              <span class="text-[10px] font-bold uppercase opacity-50 block mb-0.5">
-                Kategorie
-              </span>
-              <select
-                x-model="Alpine.store('scanmate').filterCategory"
-                class="select select-bordered select-xs w-full text-[11px]"
-              >
-                <option value="">Alle</option>
-                <option value="Brief">Brief</option>
-                <option value="Rechnung">Rechnung</option>
-                <option value="Quittung">Quittung</option>
-                <option value="Behörde">Behörde</option>
-                <option value="Vertrag">Vertrag</option>
-                <option value="Versicherung">Versicherung</option>
-                <option value="Bank">Bank</option>
-                <option value="Rezept">Rezept</option>
-                <option value="Sonstiges">Sonstiges</option>
-              </select>
+                  <span x-text="tagItem.tag"></span>
+                  <span class="opacity-60 font-mono text-[9px]" x-text="tagItem.count"></span>
+                </button>
+              </template>
             </div>
           </div>
 
-          <div class="divider my-0 text-xs opacity-50">
-            Archiv (<span x-text="filteredDocuments().length"></span>)
-          </div>
-
-          {/* Dokumentenliste in der Sidebar */}
-          <div class="flex-1 overflow-y-auto space-y-1.5 pr-1 custom-scrollbar">
-            <template x-if="Alpine.store('scanmate').isLoading">
+          {/* Hierarchischer Archiv-Baum (wie NoteMate) */}
+          <div class="flex-1 overflow-y-auto space-y-0.5 pr-1 select-none text-sm md:text-xs">
+            <template x-if="isLoading">
               <div class="text-center py-6 text-xs opacity-60">
                 <span class="loading loading-spinner loading-xs text-primary">
                 </span>
@@ -149,62 +122,54 @@ export function ScanPage({ basePath: _basePath }: { basePath: string }) {
               </div>
             </template>
 
-            <template x-if="!Alpine.store('scanmate').isLoading && filteredDocuments().length === 0">
+            <template x-if="!isLoading && visibleTreeItems.length === 0">
               <div class="text-xs opacity-50 text-center py-8">
                 Keine Dokumente gefunden.
               </div>
             </template>
 
             <template
-              x-for="doc in filteredDocuments()"
-              {...{ ":key": "doc.id" }}
+              x-for="item in visibleTreeItems"
+              {...{ ":key": "item.treeKey" }}
             >
               <div
-                class="p-2.5 rounded-xl text-xs hover:bg-base-300 cursor-pointer transition flex flex-col gap-1 border border-base-content/5 relative group"
-                x-bind:class="Alpine.store('scanmate').activeDoc?.id === doc.id && activeTab === 'archive' ? 'bg-primary/10 border-primary/40' : 'bg-base-100/50'"
-                x-on:click="activeTab = 'archive'; Alpine.store('scanmate').activeDoc = doc; mobileMenuOpen = false;"
+                class="group flex items-center justify-between py-2 md:py-1.5 px-2 rounded-md transition cursor-pointer"
+                x-bind:class="isTreeItemActive(item) ? 'bg-primary text-primary-content font-medium shadow-sm' : 'hover:bg-base-300 text-base-content/85'"
+                x-bind:style="getTreeItemStyle(item)"
+                x-on:click="selectTreeItem(item)"
               >
-                <div class="flex items-center justify-between gap-1">
+                <div class="flex items-center gap-1.5 truncate flex-1 min-w-0">
+                  <template x-if="item.type === 'directory'">
+                    <span
+                      class="text-[10px] opacity-60 w-3 text-center"
+                      x-text="isFolderExpanded(item.path) ? '▼' : '▶'"
+                    >
+                    </span>
+                  </template>
+                  <template x-if="item.type === 'doc'">
+                    <span class="w-3"></span>
+                  </template>
+
                   <span
-                    class="badge badge-xs font-bold"
-                    x-bind:class="doc.category === 'Rechnung' ? 'badge-warning' : (doc.category === 'Quittung' ? 'badge-success' : 'badge-neutral')"
-                    x-text="doc.category"
+                    class="text-xs shrink-0"
+                    x-text="item.type === 'directory' ? (isFolderExpanded(item.path) ? '📂' : '📁') : '📄'"
                   >
                   </span>
+
                   <span
-                    class="text-[10px] opacity-60"
-                    x-text="doc.date || doc.createdAt.split('T')[0]"
+                    class="truncate"
+                    x-text="item.type === 'directory' ? item.name : item.doc.title"
                   >
                   </span>
                 </div>
 
-                <div
-                  class="font-bold text-base-content truncate flex items-center gap-1.5"
-                  x-text="doc.title"
-                >
-                </div>
-
-                <div class="flex items-center justify-between gap-1 text-[11px] opacity-70">
-                  <span class="truncate" x-text="doc.sender || 'Kein Absender'">
-                  </span>
+                <template x-if="item.type === 'doc' && item.doc.totalAmount">
                   <span
-                    x-show="doc.targetPath"
-                    class="text-[9px] font-mono bg-base-300 px-1 py-0.5 rounded text-base-content/70 truncate max-w-[90px]"
-                    x-text="doc.targetPath"
+                    class="text-[10px] font-mono opacity-75 shrink-0 ml-1"
+                    x-text="formatAmount(item.doc.totalAmount)"
                   >
                   </span>
-                </div>
-
-                <div class="flex items-center justify-between mt-0.5 pt-1 border-t border-base-content/5 text-[10px]">
-                  <span class="opacity-50" x-text="`${doc.pageCount} Seite(n)`">
-                  </span>
-                  <span
-                    x-show="doc.totalAmount"
-                    class="font-black text-success"
-                    x-text="`${doc.totalAmount.toFixed(2)} €`"
-                  >
-                  </span>
-                </div>
+                </template>
               </div>
             </template>
           </div>
@@ -246,7 +211,7 @@ export function ScanPage({ basePath: _basePath }: { basePath: string }) {
             </span>
             <span
               class="font-bold text-xs sm:text-sm md:text-base text-base-content truncate"
-              x-text="activeTab === 'new' ? 'Neues Dokument erfassen' : (Alpine.store('scanmate').activeDoc ? Alpine.store('scanmate').activeDoc.title : 'Archiv Übersicht')"
+              x-text="getHeaderTitle()"
             >
             </span>
           </div>
@@ -268,7 +233,7 @@ export function ScanPage({ basePath: _basePath }: { basePath: string }) {
                 class="btn btn-xs join-item"
               >
                 Erfassung{" "}
-                <span x-show="pages.length > 0" x-text="`(${pages.length})`">
+                <span x-show="pages.length > 0" x-text="'(' + pages.length + ')'">
                 </span>
               </button>
             </div>
@@ -280,7 +245,7 @@ export function ScanPage({ basePath: _basePath }: { basePath: string }) {
           x-show="activeTab === 'archive'"
           class="flex-1 flex flex-col p-3 md:p-6 overflow-y-auto"
         >
-          <template x-if="Alpine.store('scanmate').activeDoc">
+          <template x-if="activeDoc">
             <div class="max-w-5xl mx-auto w-full flex flex-col gap-6">
               {/* Header Box */}
               <div class="bg-base-200 border border-base-content/10 rounded-2xl p-4 sm:p-6 flex flex-col sm:flex-row justify-between items-start gap-4">
@@ -288,39 +253,39 @@ export function ScanPage({ basePath: _basePath }: { basePath: string }) {
                   <div class="flex flex-wrap items-center gap-2 mb-2">
                     <span
                       class="badge badge-primary font-bold"
-                      x-text="Alpine.store('scanmate').activeDoc.category"
+                      x-text="activeDoc.category"
                     >
                     </span>
                     <span
                       class="text-xs opacity-60"
-                      x-text="Alpine.store('scanmate').activeDoc.date || Alpine.store('scanmate').activeDoc.createdAt.split('T')[0]"
+                      x-text="formatDocDate(activeDoc)"
                     >
                     </span>
                     <span
                       class="badge badge-ghost text-xs font-mono"
-                      x-text="`${Alpine.store('scanmate').activeDoc.pageCount} Seite(n)`"
+                      x-text="activeDoc.pageCount + ' Seite(n)'"
                     >
                     </span>
                     <span
-                      x-show="Alpine.store('scanmate').activeDoc.targetPath"
+                      x-show="activeDoc.targetPath"
                       class="badge badge-outline text-xs font-mono"
-                      x-text="`📁 ${Alpine.store('scanmate').activeDoc.targetPath}`"
+                      x-text="'📁 ' + activeDoc.targetPath"
                     >
                     </span>
                   </div>
                   <h2
                     class="text-xl sm:text-2xl font-black text-base-content"
-                    x-text="Alpine.store('scanmate').activeDoc.title"
+                    x-text="activeDoc.title"
                   >
                   </h2>
                   <p
-                    x-show="Alpine.store('scanmate').activeDoc.sender"
+                    x-show="activeDoc.sender"
                     class="text-xs sm:text-sm opacity-80 mt-1"
                   >
                     Absender:{" "}
                     <span
                       class="font-semibold"
-                      x-text="Alpine.store('scanmate').activeDoc.sender"
+                      x-text="activeDoc.sender"
                     >
                     </span>
                   </p>
@@ -328,7 +293,7 @@ export function ScanPage({ basePath: _basePath }: { basePath: string }) {
 
                 <div class="flex items-center gap-2 shrink-0">
                   <a
-                    x-bind:href="`./api/pdf/${Alpine.store('scanmate').activeDoc.fileNamePdf}`"
+                    x-bind:href="getPdfUrl(activeDoc)"
                     target="_blank"
                     class="btn btn-outline btn-xs sm:btn-sm gap-1.5"
                     title="PDF in neuem Tab öffnen"
@@ -336,7 +301,7 @@ export function ScanPage({ basePath: _basePath }: { basePath: string }) {
                     <span>Öffnen ↗</span>
                   </a>
                   <a
-                    x-bind:href="`./api/pdf/${Alpine.store('scanmate').activeDoc.fileNamePdf}`"
+                    x-bind:href="getPdfUrl(activeDoc)"
                     download
                     class="btn btn-primary btn-xs sm:btn-sm gap-1.5"
                     title="PDF herunterladen"
@@ -345,7 +310,7 @@ export function ScanPage({ basePath: _basePath }: { basePath: string }) {
                   </a>
                   <button
                     type="button"
-                    x-on:click="deleteDoc(Alpine.store('scanmate').activeDoc)"
+                    x-on:click="deleteDoc(activeDoc)"
                     class="btn btn-ghost btn-xs sm:btn-sm btn-square text-error"
                     title="Dokument löschen"
                   >
@@ -367,7 +332,7 @@ export function ScanPage({ basePath: _basePath }: { basePath: string }) {
                       <span class="text-xs opacity-70">Betrag:</span>
                       <span
                         class="text-base sm:text-lg font-black text-success"
-                        x-text="Alpine.store('scanmate').activeDoc.totalAmount ? `${Alpine.store('scanmate').activeDoc.totalAmount.toFixed(2)} €` : '—'"
+                        x-text="formatAmount(activeDoc.totalAmount)"
                       >
                       </span>
                     </div>
@@ -375,7 +340,7 @@ export function ScanPage({ basePath: _basePath }: { basePath: string }) {
                       <span class="text-xs opacity-70">Fälligkeit:</span>
                       <span
                         class="text-xs font-bold text-error"
-                        x-text="Alpine.store('scanmate').activeDoc.dueDate || '—'"
+                        x-text="activeDoc.dueDate || '—'"
                       >
                       </span>
                     </div>
@@ -383,7 +348,7 @@ export function ScanPage({ basePath: _basePath }: { basePath: string }) {
                       <span class="text-xs opacity-70">Empfänger:</span>
                       <span
                         class="text-xs font-medium"
-                        x-text="Alpine.store('scanmate').activeDoc.recipient || '—'"
+                        x-text="activeDoc.recipient || '—'"
                       >
                       </span>
                     </div>
@@ -396,17 +361,17 @@ export function ScanPage({ basePath: _basePath }: { basePath: string }) {
                     </div>
                     <div class="flex flex-wrap gap-1.5">
                       <template
-                        x-for="t in Alpine.store('scanmate').activeDoc.tags"
+                        x-for="t in activeDoc.tags"
                         {...{ ":key": "t" }}
                       >
                         <span
                           class="badge badge-neutral badge-sm"
-                          x-text="`#${t}`"
+                          x-text="'#' + t"
                         >
                         </span>
                       </template>
                       <span
-                        x-show="!Alpine.store('scanmate').activeDoc.tags || Alpine.store('scanmate').activeDoc.tags.length === 0"
+                        x-show="!activeDoc.tags || activeDoc.tags.length === 0"
                         class="text-xs opacity-40 italic"
                       >
                         Keine Tags vorhanden
@@ -420,34 +385,57 @@ export function ScanPage({ basePath: _basePath }: { basePath: string }) {
                       ✨ KI-Zusammenfassung
                     </div>
                     <p
-                      class="text-xs leading-relaxed opacity-80"
-                      x-text="Alpine.store('scanmate').activeDoc.summary || 'Keine Zusammenfassung hinterlegt.'"
+                      class="text-sm sm:text-xs leading-relaxed opacity-80"
+                      x-text="activeDoc.summary || 'Keine Zusammenfassung hinterlegt.'"
                     >
                     </p>
                   </div>
                 </div>
 
-                {/* PDF Viewer Spalte (2 Spalten breit) */}
+                {/* Beleg-Vorschau Spalte (2 Spalten breit, klickbar zum PDF-Öffnen auf allen Geräten) */}
                 <div class="md:col-span-2 flex flex-col gap-4">
-                  <div class="bg-base-200 border border-base-content/10 rounded-2xl overflow-hidden h-[450px] sm:h-[600px] flex flex-col">
+                  <div class="bg-base-200 border border-base-content/10 rounded-2xl overflow-hidden max-w-[600px] flex flex-col">
                     <div class="p-3 bg-base-300 border-b border-base-content/10 flex justify-between items-center text-xs">
                       <span
                         class="font-mono opacity-60 truncate"
-                        x-text="Alpine.store('scanmate').activeDoc.fileNamePdf"
+                        x-text="activeDoc.fileNamePdf"
                       >
                       </span>
-                      <span class="badge badge-xs">PDF Preview</span>
+                      <span class="badge badge-xs shrink-0">Vorschau · Seite 1</span>
                     </div>
-                    <iframe
-                      x-bind:src="`./api/pdf/${Alpine.store('scanmate').activeDoc.fileNamePdf}`"
-                      class="w-full flex-1 border-0 bg-base-100"
+                    <a
+                      x-bind:href="getPdfUrl(activeDoc)"
+                      target="_blank"
+                      class="block relative group bg-base-100 overflow-hidden"
+                      title="Volles PDF im Browser öffnen"
                     >
-                    </iframe>
+                      <img
+                        x-show="!previewError"
+                        x-bind:src="getPreviewUrl(activeDoc)"
+                        x-on:error="previewError = true"
+                        alt="Beleg-Vorschau"
+                        class="w-full h-auto max-h-[380px] object-cover object-top transition group-hover:opacity-90"
+                      />
+                      <div
+                        x-show="previewError"
+                        class="p-8 text-center text-xs opacity-70 flex flex-col items-center gap-2"
+                        style="display: none;"
+                      >
+                        <span class="text-3xl">📄</span>
+                        <span>Vorschau-Bild nicht vorhanden · PDF öffnen ↗</span>
+                      </div>
+                      <div
+                        x-show="!previewError"
+                        class="absolute bottom-2 right-2 badge badge-neutral badge-sm shadow-md opacity-90 group-hover:badge-primary transition"
+                      >
+                        🔍 PDF öffnen ↗
+                      </div>
+                    </a>
                   </div>
 
                   {/* Volltext Transkript */}
                   <div
-                    x-show="Alpine.store('scanmate').activeDoc.ocrText"
+                    x-show="activeDoc.ocrText"
                     class="collapse collapse-arrow bg-base-200 border border-base-content/10 rounded-2xl"
                   >
                     <input type="checkbox" />
@@ -457,7 +445,7 @@ export function ScanPage({ basePath: _basePath }: { basePath: string }) {
                     <div class="collapse-content">
                       <pre
                         class="text-[11px] font-mono whitespace-pre-wrap max-h-60 overflow-y-auto bg-base-100 p-3 rounded-xl border border-base-content/5"
-                        x-text="Alpine.store('scanmate').activeDoc.ocrText"
+                        x-text="activeDoc.ocrText"
                       ></pre>
                     </div>
                   </div>
@@ -466,7 +454,7 @@ export function ScanPage({ basePath: _basePath }: { basePath: string }) {
             </div>
           </template>
 
-          <template x-if="!Alpine.store('scanmate').activeDoc">
+          <template x-if="!activeDoc">
             <div class="h-full flex flex-col items-center justify-center text-center opacity-60 p-8">
               <span class="text-5xl mb-3">📑</span>
               <h3 class="font-bold text-lg">Kein Dokument ausgewählt</h3>
@@ -484,7 +472,7 @@ export function ScanPage({ basePath: _basePath }: { basePath: string }) {
           </template>
         </div>
 
-        {/* WORKSPACE CONTENT: TAB 2 - ERFASSUNG & KI SYNTHESE */}
+        {/* WORKSPACE CONTENT: TAB 2 - ERFASSUNG FÜR AGENT-QUEUE */}
         <div
           x-show="activeTab === 'new'"
           class="flex-1 flex flex-col p-3 md:p-6 overflow-y-auto"
@@ -497,7 +485,7 @@ export function ScanPage({ basePath: _basePath }: { basePath: string }) {
                   Neues Dokument erfassen
                 </h2>
                 <p class="text-xs opacity-60">
-                  Seiten ablichten, per Vision-KI analysieren & archivieren
+                  Seiten scannen und direkt in die Agent-Queue legen
                 </p>
               </div>
 
@@ -511,11 +499,11 @@ export function ScanPage({ basePath: _basePath }: { basePath: string }) {
                 </button>
                 <button
                   type="button"
-                  x-on:click="saveCurrentDocument()"
+                  x-on:click="queueCurrentScan()"
                   x-bind:disabled="pages.length === 0 || isSaving"
                   class="btn btn-primary btn-xs sm:btn-sm gap-2 font-bold shadow-md"
                 >
-                  <span x-show="!isSaving">💾 Speichern</span>
+                  <span x-show="!isSaving">📥 In Agent-Queue legen</span>
                   <span
                     x-show="isSaving"
                     class="loading loading-spinner loading-xs"
@@ -526,9 +514,8 @@ export function ScanPage({ basePath: _basePath }: { basePath: string }) {
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
-              {/* Linke Seite: Seiten-Galerie & KI Steuerung */}
-              <div class="md:col-span-5 flex flex-col gap-4">
-                {/* Galerie Box */}
+              {/* Linke Seite: Seiten-Galerie */}
+              <div class="md:col-span-6 flex flex-col gap-4">
                 <div class="bg-base-200 border border-base-content/10 rounded-2xl p-4 flex flex-col gap-3">
                   <div class="flex justify-between items-center">
                     <span class="text-xs font-bold uppercase tracking-wider opacity-70">
@@ -574,7 +561,7 @@ export function ScanPage({ basePath: _basePath }: { basePath: string }) {
                         <div class="p-2 flex justify-between items-center text-xs bg-base-200/50">
                           <span
                             class="font-bold text-[11px]"
-                            x-text="`S. ${idx + 1}`"
+                            x-text="'S. ' + (idx + 1)"
                           >
                           </span>
                           <div class="flex items-center gap-1">
@@ -600,246 +587,97 @@ export function ScanPage({ basePath: _basePath }: { basePath: string }) {
                     </template>
                   </div>
                 </div>
+              </div>
 
-                {/* KI Analyse Card */}
-                <div class="bg-base-200 border border-base-content/10 rounded-2xl p-4 flex flex-col gap-3">
-                  <div class="flex items-center gap-1.5 font-bold text-xs">
-                    <span>✨</span>
-                    <span>KI-Vision Analyse & OCR</span>
+              {/* Rechte Seite: Label & Warteschlange */}
+              <div class="md:col-span-6 flex flex-col gap-4">
+                <div class="bg-base-200 border border-base-content/10 rounded-2xl p-4 sm:p-5 flex flex-col gap-3">
+                  <div class="text-xs font-bold uppercase tracking-wider opacity-70 border-b border-base-content/10 pb-2">
+                    Agent-Queue Übergabe
                   </div>
-                  <p class="text-[11px] opacity-60">
-                    Extrahiert Titel, Absender, Beträge, Tags und Inhaltszusammenfassung automatisch aus den Scans.
-                  </p>
 
                   <div class="form-control">
-                    <label class="label py-1 text-[11px] opacity-70">
-                      Vision-Modell
+                    <label class="label py-1 text-[11px] opacity-70 font-bold">
+                      Optionales Label
                     </label>
-                    <select
-                      x-model="Alpine.store('scanmate').selectedModel"
-                      class="select select-bordered select-xs w-full text-xs"
-                    >
-                      <template
-                        x-for="m in Alpine.store('scanmate').models"
-                        {...{ ":key": "m.id" }}
-                      >
-                        <option {...{ ":value": "m.id" }} x-text="m.name">
-                        </option>
-                      </template>
-                    </select>
+                    <input
+                      type="text"
+                      x-model="queueLabel"
+                      placeholder="z.B. Stromrechnung, Steuerbescheid..."
+                      class="input input-bordered input-sm text-xs"
+                    />
                   </div>
+
+                  <p class="text-[11px] opacity-70 leading-relaxed">
+                    Der Scan landet in der Pending-Queue. Dein Agent analysiert die Seiten einheitlich und legt das Dokument nach{" "}
+                    <code>Kategorie/Absender/Jahr</code> im Archiv ab.
+                  </p>
 
                   <button
                     type="button"
-                    x-on:click="runAiExtraction()"
-                    x-bind:disabled="pages.length === 0 || isAnalyzing"
-                    class="btn btn-primary btn-sm w-full gap-2 mt-1 shadow-sm font-bold"
+                    x-on:click="queueCurrentScan()"
+                    x-bind:disabled="pages.length === 0 || isSaving"
+                    class="btn btn-primary btn-sm w-full gap-2 font-bold shadow-sm mt-1"
                   >
-                    <span x-show="!isAnalyzing">✨ Jetzt analysieren</span>
+                    <span x-show="!isSaving">📥 In Agent-Queue legen</span>
                     <span
-                      x-show="isAnalyzing"
+                      x-show="isSaving"
                       class="loading loading-spinner loading-xs"
                     >
                     </span>
-                    <span x-show="isAnalyzing">Analysiere...</span>
                   </button>
                 </div>
-              </div>
 
-              {/* Rechte Seite: Metadaten-Formular */}
-              <div class="md:col-span-7 bg-base-200 border border-base-content/10 rounded-2xl p-4 sm:p-5 flex flex-col gap-4">
-                <div class="text-xs font-bold uppercase tracking-wider opacity-70 border-b border-base-content/10 pb-2 flex justify-between items-center">
-                  <span>Metadaten & Zielordner</span>
-                </div>
-
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {/* Zielordner / Ablagepfad wie bei Notemate */}
-                  <div class="form-control sm:col-span-2">
-                    <label class="label py-1 text-[11px] opacity-70 font-bold">
-                      📁 Zielordner (Ablagepfad)
-                    </label>
-                    <div class="flex gap-2">
-                      <select
-                        x-model="metadata.targetPath"
-                        class="select select-bordered select-sm text-xs flex-1"
-                      >
-                        <option value="">Hauptordner (./data/documents)</option>
-                        <template
-                          x-for="f in Alpine.store('scanmate').folders"
-                          {...{ ":key": "f" }}
-                        >
-                          <option x-show="f" {...{ ":value": "f" }} x-text="f">
-                          </option>
-                        </template>
-                      </select>
-                      <input
-                        type="text"
-                        x-model="metadata.targetPath"
-                        placeholder="oder neuen Pfad tippen (z.B. Finanzen/2026)"
-                        class="input input-bordered input-sm text-xs flex-1 font-mono"
-                      />
-                    </div>
-                    <span class="text-[10px] opacity-50 mt-1">
-                      Wähle einen bestehenden Ordner oder erstelle flexibel neue Unterverzeichnisse.
+                {/* Offene Queue */}
+                <div class="bg-base-200 border border-base-content/10 rounded-2xl p-4 sm:p-5 flex flex-col gap-3">
+                  <div class="flex items-center justify-between border-b border-base-content/10 pb-2">
+                    <span class="text-xs font-bold uppercase tracking-wider opacity-70">
+                      Offene Agent-Queue (<span x-text="pendingScans.length"></span>)
                     </span>
-                  </div>
-
-                  <div class="form-control sm:col-span-2">
-                    <label class="label py-1 text-[11px] opacity-70">
-                      Titel / Betreff
-                    </label>
-                    <input
-                      type="text"
-                      x-model="metadata.title"
-                      placeholder="z.B. Bescheid / Rechnung"
-                      class="input input-bordered input-sm text-xs font-bold"
-                    />
-                  </div>
-
-                  <div class="form-control">
-                    <label class="label py-1 text-[11px] opacity-70">
-                      Kategorie
-                    </label>
-                    <select
-                      x-model="metadata.category"
-                      class="select select-bordered select-sm text-xs"
-                    >
-                      <option value="Brief">Brief</option>
-                      <option value="Rechnung">Rechnung</option>
-                      <option value="Quittung">Quittung</option>
-                      <option value="Behörde">Behörde</option>
-                      <option value="Vertrag">Vertrag</option>
-                      <option value="Versicherung">Versicherung</option>
-                      <option value="Bank">Bank</option>
-                      <option value="Rezept">Rezept</option>
-                      <option value="Sonstiges">Sonstiges</option>
-                    </select>
-                  </div>
-
-                  <div class="form-control">
-                    <label class="label py-1 text-[11px] opacity-70">
-                      Dokumentdatum
-                    </label>
-                    <input
-                      type="date"
-                      x-model="metadata.date"
-                      class="input input-bordered input-sm text-xs"
-                    />
-                  </div>
-
-                  <div class="form-control">
-                    <label class="label py-1 text-[11px] opacity-70">
-                      Absender / Aussteller
-                    </label>
-                    <input
-                      type="text"
-                      x-model="metadata.sender"
-                      placeholder="z.B. Telekom, Finanzamt"
-                      class="input input-bordered input-sm text-xs"
-                    />
-                  </div>
-
-                  <div class="form-control">
-                    <label class="label py-1 text-[11px] opacity-70">
-                      Empfänger
-                    </label>
-                    <input
-                      type="text"
-                      x-model="metadata.recipient"
-                      placeholder="z.B. Stefan"
-                      class="input input-bordered input-sm text-xs"
-                    />
-                  </div>
-
-                  <div class="form-control">
-                    <label class="label py-1 text-[11px] opacity-70">
-                      Gesamtbetrag (€)
-                    </label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      x-model="metadata.totalAmount"
-                      placeholder="0.00"
-                      class="input input-bordered input-sm text-xs font-mono"
-                    />
-                  </div>
-
-                  <div class="form-control">
-                    <label class="label py-1 text-[11px] opacity-70">
-                      Fälligkeitsdatum
-                    </label>
-                    <input
-                      type="date"
-                      x-model="metadata.dueDate"
-                      class="input input-bordered input-sm text-xs"
-                    />
-                  </div>
-                </div>
-
-                {/* Tags */}
-                <div class="form-control">
-                  <label class="label py-1 text-[11px] opacity-70">Tags</label>
-                  <div class="flex gap-2">
-                    <input
-                      type="text"
-                      x-model="metadata.tagInput"
-                      {...{ "x-on:keydown.enter.prevent": "addTag()" }}
-                      placeholder="Tag tippen & Enter..."
-                      class="input input-bordered input-sm text-xs flex-1"
-                    />
                     <button
                       type="button"
-                      x-on:click="addTag()"
-                      class="btn btn-outline btn-sm"
+                      x-on:click="loadPendingScans()"
+                      class="btn btn-ghost btn-xs font-mono"
                     >
-                      +
+                      ↻
                     </button>
                   </div>
-                  <div class="flex flex-wrap gap-1 mt-2">
+
+                  <template x-if="pendingScans.length === 0">
+                    <p class="text-xs opacity-50 italic py-2">
+                      Keine wartenden Scans in der Queue.
+                    </p>
+                  </template>
+
+                  <div class="flex flex-col gap-2 max-h-64 overflow-y-auto">
                     <template
-                      x-for="(t, idx) in metadata.tags"
-                      {...{ ":key": "idx" }}
+                      x-for="item in pendingScans"
+                      {...{ ":key": "item.id" }}
                     >
-                      <span class="badge badge-neutral badge-sm gap-1">
-                        <span x-text="`#${t}`"></span>
+                      <div class="bg-base-100 border border-base-content/10 rounded-xl px-3 py-2 flex items-center justify-between gap-2 text-xs">
+                        <div class="min-w-0">
+                          <div
+                            class="font-semibold truncate"
+                            x-text="item.label || item.id"
+                          >
+                          </div>
+                          <div class="text-[10px] opacity-60 font-mono">
+                            <span x-text="item.pageCount + ' Seite(n)'"></span>
+                            {" · "}
+                            <span x-text="item.createdAt.slice(0, 16).replace('T', ' ')"></span>
+                          </div>
+                        </div>
                         <button
                           type="button"
-                          x-on:click="removeTag(idx)"
-                          class="hover:text-error"
+                          x-on:click="deletePendingScanItem(item.id)"
+                          class="btn btn-ghost btn-xs btn-square text-error shrink-0"
+                          title="Aus Queue entfernen"
                         >
-                          ×
+                          ✕
                         </button>
-                      </span>
+                      </div>
                     </template>
                   </div>
-                </div>
-
-                {/* Zusammenfassung */}
-                <div class="form-control">
-                  <label class="label py-1 text-[11px] opacity-70">
-                    Zusammenfassung
-                  </label>
-                  <textarea
-                    x-model="metadata.summary"
-                    rows="3"
-                    class="textarea textarea-bordered text-xs leading-relaxed"
-                    placeholder="Wird durch KI ausgefüllt oder manuell eingegeben..."
-                  >
-                  </textarea>
-                </div>
-
-                {/* OCR Text */}
-                <div class="form-control">
-                  <label class="label py-1 text-[11px] opacity-70">
-                    OCR-Transkript
-                  </label>
-                  <textarea
-                    x-model="metadata.ocrText"
-                    rows="4"
-                    class="textarea textarea-bordered text-xs font-mono leading-relaxed"
-                    placeholder="Erkannter Volltext..."
-                  >
-                  </textarea>
                 </div>
               </div>
             </div>

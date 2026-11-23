@@ -602,13 +602,11 @@ Notemate ist deine **hierarchische, ablenkungsfreie Markdown-Ablage** – direkt
       }
     }
 
-    return ALLOWED_TAG_DEFINITIONS
-      .filter((def) => includeNsfw || def.tag.toLowerCase() !== "nsfw")
-      .map((def) => ({
-        tag: def.tag,
-        category: def.category,
-        count: usage.get(def.tag.toLowerCase()) ?? 0,
-      }));
+    return ALLOWED_TAG_DEFINITIONS.map((def) => ({
+      tag: def.tag,
+      category: def.category,
+      count: !includeNsfw && def.tag.toLowerCase() === "nsfw" ? 0 : (usage.get(def.tag.toLowerCase()) ?? 0),
+    }));
   }
 
   /**

@@ -13,6 +13,7 @@ import {
   deletePendingScan,
   getDocumentById,
   getDocumentPdfBytes,
+  getDocumentPreviewBytes,
   getScanSession,
   listAllDocuments,
   listFolderPaths,
@@ -179,12 +180,10 @@ api.delete("/documents/:id", async (c) => {
   return c.json({ ok: true });
 });
 
-// GET /api/pdf/* - PDF-Datei streamen/herunterladen (auch in Unterordnern)
+// GET /api/pdf/* - PDF-Datei streamen/herunterladen (auch in Unterordnern & mit basePath)
 api.get("/pdf/*", async (c) => {
-  const fullPath = c.req.path.replace(/^\/api\/pdf\//, "").replace(
-    /^\/pdf\//,
-    "",
-  );
+  const match = c.req.path.match(/\/(?:api\/)?pdf\/(.+)$/);
+  const fullPath = match ? decodeURIComponent(match[1]) : "";
   if (!fullPath || !fullPath.endsWith(".pdf")) {
     return c.text("Ungültiger Dateiname", 400);
   }
@@ -201,6 +200,28 @@ api.get("/pdf/*", async (c) => {
     headers: {
       "Content-Type": "application/pdf",
       "Content-Disposition": `inline; filename="${baseFileName}"`,
+    },
+  });
+});
+
+// GET /api/preview/* - Seite-1-Vorschaubild eines archivierten PDFs
+api.get("/preview/*", async (c) => {
+  const match = c.req.path.match(/\/(?:api\/)?preview\/(.+)$/);
+  const fullPath = match ? decodeURIComponent(match[1]) : "";
+  if (!fullPath || !fullPath.endsWith(".pdf")) {
+    return c.text("Ungültiger Dateiname", 400);
+  }
+
+  const preview = await getDocumentPreviewBytes(fullPath);
+  if (!preview) {
+    return c.text("Vorschau nicht gefunden", 404);
+  }
+
+  return new Response(preview.data as unknown as BodyInit, {
+    status: 200,
+    headers: {
+      "Content-Type": preview.contentType,
+      "Cache-Control": "public, max-age=86400",
     },
   });
 });

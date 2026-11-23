@@ -42,7 +42,6 @@ export const NotesPage = () => {
             <div class="flex items-center gap-1">
               <button
                 type="button"
-                x-show="viewMode !== 'preview'"
                 class="btn btn-ghost btn-xs btn-square"
                 x-on:click="createNewFolder()"
                 title="Neuer Ordner im Stammverzeichnis"
@@ -51,7 +50,6 @@ export const NotesPage = () => {
               </button>
               <button
                 type="button"
-                x-show="viewMode !== 'preview'"
                 class="btn btn-primary btn-xs btn-square"
                 x-on:click="createNewNote()"
                 title="Neue Notiz im Stammverzeichnis"
@@ -74,7 +72,7 @@ export const NotesPage = () => {
             <input
               type="text"
               placeholder="Notizen durchsuchen..."
-              class="input input-bordered input-sm w-full pl-8 text-xs font-sans"
+              class="input input-bordered input-sm w-full pl-8 text-sm md:text-xs font-sans"
               x-model="searchQuery"
               x-on:input="performSearch()"
               x-on:keydown="onSearchKeydown($event)"
@@ -112,7 +110,7 @@ export const NotesPage = () => {
                 <button
                   type="button"
                   x-on:click="toggleTagFilter(tagItem.tag)"
-                  class="badge badge-xs cursor-pointer gap-1 transition"
+                  class="badge badge-sm md:badge-xs cursor-pointer gap-1 transition"
                   x-bind:class="selectedTag === tagItem.tag ? (isNsfwTag(tagItem.tag) ? 'badge-error text-error-content' : 'badge-primary') : (isNsfwTag(tagItem.tag) ? 'badge-error badge-outline' : 'badge-ghost border-base-content/15 hover:border-primary/50')"
                 >
                   <span x-text="tagItem.tag"></span>
@@ -178,11 +176,11 @@ export const NotesPage = () => {
           {/* Hierarchical Tree View (Default view) */}
           <div
             x-show="!searchQuery.trim()"
-            class="flex-1 overflow-y-auto space-y-0.5 pr-1 select-none text-xs"
+            class="flex-1 overflow-y-auto space-y-0.5 pr-1 select-none text-sm md:text-xs"
           >
             <template x-for="item in visibleTreeItems" x-bind:key="item.path">
               <div
-                class="group flex items-center justify-between py-1.5 px-2 rounded-md transition cursor-pointer"
+                class="group flex items-center justify-between py-2 md:py-1.5 px-2 rounded-md transition cursor-pointer"
                 x-bind:class="notePath === item.path ? 'bg-primary text-primary-content font-medium shadow-sm' : 'hover:bg-base-300 text-base-content/85'"
                 x-bind:style="'padding-left: ' + (item.depth * 14 + 8) + 'px'"
                 x-on:click="selectTreeItem(item)"
@@ -218,16 +216,13 @@ export const NotesPage = () => {
                   </template>
                 </div>
 
-                {/* Node Action Buttons (only in Edit/Split mode) */}
-                <div
-                  x-show="viewMode !== 'preview'"
-                  class="opacity-80 md:opacity-0 md:group-hover:opacity-100 flex items-center gap-1 shrink-0 ml-1 transition"
-                >
-                  {/* If directory: Add file / Add subfolder buttons */}
+                {/* Node Action Buttons */}
+                <div class="flex items-center gap-1 shrink-0 ml-1">
+                  {/* Add note in folder (always visible) */}
                   <template x-if="item.type === 'directory'">
                     <button
                       type="button"
-                      class="hover:text-primary p-0.5"
+                      class="opacity-70 md:opacity-0 md:group-hover:opacity-100 hover:text-primary p-0.5 transition"
                       x-on:click="createNewNote(item.path, $event)"
                       title="Notiz in diesem Ordner anlegen"
                     >
@@ -235,37 +230,43 @@ export const NotesPage = () => {
                     </button>
                   </template>
 
-                  {/* Rename */}
-                  <button
-                    type="button"
-                    class="hover:text-primary p-0.5"
-                    x-on:click="renameItem(item.path, $event)"
-                    title="Umbenennen"
+                  {/* Edit/Delete Actions (only in Edit/Split mode) */}
+                  <div
+                    x-show="viewMode !== 'preview'"
+                    class="opacity-80 md:opacity-0 md:group-hover:opacity-100 flex items-center gap-1 transition"
                   >
-                    ✏️
-                  </button>
-
-                  {/* Move (notes only) */}
-                  <template x-if="item.type === 'file'">
+                    {/* Rename */}
                     <button
                       type="button"
                       class="hover:text-primary p-0.5"
-                      x-on:click="openMoveModal(item.path, $event)"
-                      title="Verschieben"
+                      x-on:click="renameItem(item.path, $event)"
+                      title="Umbenennen"
                     >
-                      📦
+                      ✏️
                     </button>
-                  </template>
 
-                  {/* Delete */}
-                  <button
-                    type="button"
-                    class="hover:text-error p-0.5"
-                    x-on:click="deleteItem(item.path, item.type === 'directory', $event)"
-                    title="Löschen"
-                  >
-                    ✕
-                  </button>
+                    {/* Move (notes only) */}
+                    <template x-if="item.type === 'file'">
+                      <button
+                        type="button"
+                        class="hover:text-primary p-0.5"
+                        x-on:click="openMoveModal(item.path, $event)"
+                        title="Verschieben"
+                      >
+                        📦
+                      </button>
+                    </template>
+
+                    {/* Delete */}
+                    <button
+                      type="button"
+                      class="hover:text-error p-0.5"
+                      x-on:click="deleteItem(item.path, item.type === 'directory', $event)"
+                      title="Löschen"
+                    >
+                      ✕
+                    </button>
+                  </div>
                 </div>
               </div>
             </template>
@@ -424,6 +425,17 @@ export const NotesPage = () => {
               </button>
             </div>
 
+            {/* Copy Markdown Note Link (Notes only) */}
+            <button
+              type="button"
+              x-show="appMode === 'notes' && notePath"
+              class="btn btn-ghost btn-xs sm:btn-sm px-2 gap-1"
+              x-on:click="copyNoteLink()"
+              title="Markdown-Link für Kanban/Notizen kopieren"
+            >
+              🔗<span class="hidden sm:inline text-xs">Link</span>
+            </button>
+
             {/* Save Button (Notes Edit/Split only) */}
             <button
               type="button"
@@ -562,7 +574,7 @@ export const NotesPage = () => {
               x-on:drop="handleDrop($event)"
               x-on:dragover="$event.preventDefault()"
               placeholder="Beginne hier zu schreiben... (Markdown unterstützt. Bilder direkt per Strg+V einfügen!)"
-              class="flex-1 p-3 sm:p-6 font-mono text-xs sm:text-sm leading-relaxed outline-none resize-none bg-transparent text-base-content/90 placeholder:opacity-40"
+              class="flex-1 p-3 sm:p-6 font-mono text-sm leading-relaxed outline-none resize-none bg-transparent text-base-content/90 placeholder:opacity-40"
               x-bind:disabled="!notePath || isLoading"
             >
             </textarea>
@@ -659,8 +671,9 @@ export const NotesPage = () => {
               </template>
 
               <article
-                class="prose prose-sm md:prose-base markdown-body"
+                class="prose prose-base markdown-body"
                 x-html="renderMarkdown(noteContent, recipeCurrentServings)"
+                x-on:click="handlePreviewClick($event)"
               >
               </article>
             </div>
@@ -782,9 +795,9 @@ export const NotesPage = () => {
               <section
                 class="flex-col bg-base-200/60 border border-base-content/10 rounded-xl overflow-hidden min-h-0 transition"
                 x-bind:class="(activeKanbanColumn === col ? 'flex' : 'hidden lg:flex') + (dragOverColumn === col ? ' ring-2 ring-primary bg-primary/5' : '')"
-                x-on:dragover="$event.preventDefault(); dragOverColumn = col"
-                x-on:dragleave="if (dragOverColumn === col) dragOverColumn = ''"
-                x-on:drop="$event.preventDefault(); handleKanbanDrop(col)"
+                x-on:dragover="handleKanbanDragOver(col, $event)"
+                x-on:dragleave="handleKanbanDragLeave(col)"
+                x-on:drop="handleKanbanDrop(col, $event)"
               >
                 {/* Column Header */}
                 <div class="px-3 py-2.5 border-b border-base-content/10 flex items-center justify-between bg-base-200/80 shrink-0">
@@ -825,7 +838,7 @@ export const NotesPage = () => {
                     >
                       <div class="flex items-start justify-between gap-2">
                         <h3
-                          class="font-semibold text-xs sm:text-sm leading-snug"
+                          class="font-semibold text-sm leading-snug"
                           x-text="card.title"
                         >
                         </h3>
@@ -852,9 +865,9 @@ export const NotesPage = () => {
                       {/* Markdown Description */}
                       <div
                         x-show="card.description"
-                        class="prose prose-xs max-w-none text-xs opacity-80 break-words [&_a]:text-primary [&_a]:underline"
+                        class="prose prose-sm sm:prose-xs max-w-none text-sm sm:text-xs opacity-80 break-words [&_a]:text-primary [&_a]:underline"
                         x-html="renderKanbanMarkdown(card.description)"
-                        x-on:click="handleKanbanBodyClick($event)"
+                        x-on:click="handleKanbanBodyClick($event, card)"
                       >
                       </div>
 
@@ -890,7 +903,7 @@ export const NotesPage = () => {
                           </span>
                         </div>
                         <select
-                          class="select select-bordered select-xs text-[11px] h-6 min-h-0 w-auto max-w-[10.5rem] shrink-0 lg:hidden"
+                          class="select select-bordered select-sm md:select-xs text-xs h-7 min-h-0 w-auto max-w-[11rem] shrink-0 lg:hidden"
                           x-bind:value="card.column"
                           x-on:change="moveKanbanCard(card.id, $event.target.value)"
                           title="In Liste verschieben"

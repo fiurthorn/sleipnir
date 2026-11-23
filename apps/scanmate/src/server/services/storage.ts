@@ -217,6 +217,11 @@ export async function saveDocument(
   const pdfBytes = await createPdfFromImages(payload.pages);
   await Deno.writeFile(pdfFullPath, pdfBytes);
 
+  // 1b. Seite 1 als kompakte Bild-Vorschau ablegen
+  if (payload.pages.length > 0) {
+    await saveFirstPagePreview(targetDir, baseName, payload.pages[0]).catch(() => undefined);
+  }
+
   // 2. Metadaten-Objekt erzeugen & validieren
   const metadata: DocumentMetadata = {
     id,
@@ -299,7 +304,55 @@ export async function deleteDocument(id: string): Promise<boolean> {
     }
   }
 
+  for (const ext of [".preview.jpg", ".preview.png"]) {
+    try {
+      await Deno.remove(join(DOCUMENTS_DIR, doc.fileNamePdf.replace(/\.pdf$/i, ext)));
+    } catch {
+      // ignoriere
+    }
+  }
+
   return true;
+}
+
+async function saveFirstPagePreview(
+  targetDir: string,
+  baseName: string,
+  firstPageDataUrl: string,
+): Promise<void> {
+  const match = firstPageDataUrl.match(/^data:([^;]+);base64,(.+)$/);
+  const mime = match ? match[1].toLowerCase() : "image/jpeg";
+  const b64 = match ? match[2] : firstPageDataUrl;
+  const raw = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+  const ext = mime.includes("png") ? ".preview.png" : ".preview.jpg";
+  await Deno.writeFile(join(targetDir, `${baseName}${ext}`), raw);
+}
+
+export async function getDocumentPreviewBytes(
+  relPdfPath: string,
+): Promise<{ data: Uint8Array; contentType: string } | null> {
+  const normalized = relPdfPath.replace(/\\/g, "/");
+  if (!normalized || normalized.includes("..") || normalized.startsWith("/")) {
+    return null;
+  }
+
+  const base = normalized.replace(/\.pdf$/i, "");
+  for (
+    const [ext, contentType] of [
+      [".preview.jpg", "image/jpeg"],
+      [".preview.png", "image/png"],
+    ] as const
+  ) {
+    const fullPath = join(DOCUMENTS_DIR, `${base}${ext}`);
+    try {
+      const data = await Deno.readFile(fullPath);
+      return { data, contentType };
+    } catch {
+      // next candidate
+    }
+  }
+
+  return null;
 }
 
 export async function getDocumentPdfBytes(

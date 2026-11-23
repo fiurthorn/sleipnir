@@ -31,11 +31,13 @@ function configureMarkedHighlight() {
           }
 
           const langBadge = lang
-            ? `<span class="absolute top-2 right-2 text-[10px] uppercase font-mono opacity-50 px-1.5 py-0.5 rounded bg-base-300/80 select-none">${lang}</span>`
+            ? `<span class="text-[10px] uppercase font-mono opacity-60 px-1.5 py-0.5 rounded bg-base-300/80 select-none">${lang}</span>`
             : "";
+          const copyBtn =
+            `<button type="button" data-copy-code class="btn btn-ghost btn-xs h-6 min-h-0 px-2 text-[10px] font-mono bg-base-300/90 hover:bg-base-300 border border-base-content/15 opacity-80 md:opacity-0 md:group-hover:opacity-100 transition" title="Code kopieren">📋 Kopieren</button>`;
           const langClass = validLang ? ` language-${validLang}` : "";
 
-          return `<div class="relative group my-3"><pre class="hljs rounded-lg p-4 overflow-x-auto text-xs font-mono leading-relaxed"><code class="${langClass}">${highlighted}</code></pre>${langBadge}</div>`;
+          return `<div class="relative group my-3"><pre class="hljs rounded-lg p-4 overflow-x-auto text-xs font-mono leading-relaxed"><code class="${langClass}">${highlighted}</code></pre><div class="absolute top-2 right-2 flex items-center gap-1.5">${langBadge}${copyBtn}</div></div>`;
         },
       },
     });
@@ -316,6 +318,20 @@ document.addEventListener("alpine:init", () => {
       const nextTags = [...(this.noteTags || []), tag];
       await this.updateNoteTags(nextTags);
       this.showTagPicker = false;
+      if (this.isNsfwTag(tag) && !this.nsfwUnlocked) {
+        const first = this.findFirstFile(this.tree);
+        if (first) {
+          await this.loadNote(first.path, false);
+        } else {
+          this.notePath = "";
+          this.noteTitle = "";
+          this.noteContent = "";
+          this.noteUpdatedAt = null;
+          this.noteTags = [];
+          this.isDirty = false;
+        }
+        this.showToast("🔒 Notiz als NSFW markiert und ausgeblendet");
+      }
     },
 
     async removeNoteTag(tag) {
@@ -499,6 +515,27 @@ document.addEventListener("alpine:init", () => {
       this.detectRecipe(this.noteContent);
     },
 
+    async copyNoteLink() {
+      if (!this.notePath) return;
+      const label = this.noteTitle || this.notePath.split("/").pop()?.replace(/\.md$/i, "") || "Notiz";
+      const encodedPath = this.notePath
+        .split("/")
+        .map((part) => encodeURIComponent(part))
+        .join("/");
+      const markdownLink = `[${label}](?note=${encodedPath})`;
+
+      try {
+        if (navigator.clipboard?.writeText) {
+          await navigator.clipboard.writeText(markdownLink);
+          this.showToast("✓ Link kopiert: " + markdownLink);
+          return;
+        }
+      } catch {
+        // Fallback below
+      }
+      prompt("Markdown-Link kopieren:", markdownLink);
+    },
+
     async saveCurrentNote() {
       if (!this.notePath) return;
 
@@ -556,6 +593,9 @@ document.addEventListener("alpine:init", () => {
 
         if (res.ok) {
           await this.refreshTree();
+          if (this.viewMode === "preview") {
+            this.viewMode = "edit";
+          }
           await this.loadNote(fullPath);
           this.showToast("✓ Notiz angelegt");
         }
@@ -1027,6 +1067,91 @@ document.addEventListener("alpine:init", () => {
       return this.renderMarkdown(this.noteContent, this.recipeCurrentServings);
     },
 
+    enableTaskCheckboxes(html) {
+      if (!html) return "";
+      let idx = 0;
+      return html.replace(/<input\b([^>]*type=["']checkbox["'][^>]*)>/gi, (_m, attrs) => {
+        const cleaned = String(attrs)
+          .replace(/\s+disabled(?:=["'][^"']*["'])?/gi, "")
+          .trim();
+        const taskIdx = idx++;
+        return `<input ${cleaned} data-task-index="${taskIdx}" class="checkbox checkbox-xs align-middle mr-1.5 cursor-pointer" />`;
+      });
+    },
+
+    toggleMarkdownTask(markdown, targetIndex) {
+      if (!markdown || targetIndex < 0) return markdown;
+      const lines = markdown.split("\n");
+      let currentIdx = 0;
+      let inFence = false;
+      let inFrontmatter = lines[0]?.trim() === "---";
+
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const trimmed = line.trim();
+
+        if (i > 0 && inFrontmatter) {
+          if (trimmed === "---") inFrontmatter = false;
+          continue;
+        }
+        if (inFrontmatter) continue;
+
+        if (/^(?:```|~~~)/.test(trimmed)) {
+          inFence = !inFence;
+          continue;
+        }
+        if (inFence) continue;
+
+        const match = line.match(/^(\s*(?:[-*+]|\d+[.)])\s+\[)([ xX])(\].*)$/);
+        if (!match) continue;
+
+        if (currentIdx === targetIndex) {
+          const nextMark = match[2].toLowerCase() === "x" ? " " : "x";
+          lines[i] = `${match[1]}${nextMark}${match[3]}`;
+          return lines.join("\n");
+        }
+        currentIdx += 1;
+      }
+
+      return markdown;
+    },
+
+    async handlePreviewClick(event) {
+      const checkbox = event.target?.closest?.("[data-task-index]");
+      if (checkbox) {
+        const idx = parseInt(checkbox.getAttribute("data-task-index") || "", 10);
+        if (!isNaN(idx) && this.notePath) {
+          const nextContent = this.toggleMarkdownTask(this.noteContent, idx);
+          if (nextContent !== this.noteContent) {
+            this.noteContent = nextContent;
+            await this.saveCurrentNote();
+          }
+        }
+        return;
+      }
+
+      const btn = event.target?.closest?.("[data-copy-code]");
+      if (!btn) return;
+      const codeEl = btn.closest(".relative")?.querySelector("pre code");
+      const rawText = codeEl?.textContent ?? "";
+      if (!rawText) return;
+
+      try {
+        if (navigator.clipboard?.writeText) {
+          await navigator.clipboard.writeText(rawText);
+          const prev = btn.textContent;
+          btn.textContent = "✓ Kopiert";
+          setTimeout(() => {
+            btn.textContent = prev || "📋 Kopieren";
+          }, 1500);
+          return;
+        }
+      } catch {
+        // Fallback below
+      }
+      prompt("Code kopieren:", rawText);
+    },
+
     // Markdown rendering
     renderMarkdown(content, servings) {
       if (!content) return "";
@@ -1062,7 +1187,7 @@ document.addEventListener("alpine:init", () => {
         );
 
       if (typeof globalThis.marked !== "undefined" && globalThis.marked.parse) {
-        return globalThis.marked.parse(normalized);
+        return this.enableTaskCheckboxes(globalThis.marked.parse(normalized));
       }
       return normalized.replace(/\n/g, "<br>");
     },
@@ -1302,8 +1427,21 @@ document.addEventListener("alpine:init", () => {
       this.dragOverColumn = "";
     },
 
-    async handleKanbanDrop(targetColumn) {
-      const cardId = this.draggedCardId;
+    handleKanbanDragOver(col, event) {
+      if (event?.preventDefault) event.preventDefault();
+      if (event?.dataTransfer) event.dataTransfer.dropEffect = "move";
+      this.dragOverColumn = col;
+    },
+
+    handleKanbanDragLeave(col) {
+      if (this.dragOverColumn === col) {
+        this.dragOverColumn = "";
+      }
+    },
+
+    async handleKanbanDrop(targetColumn, event) {
+      if (event?.preventDefault) event.preventDefault();
+      const cardId = this.draggedCardId || event?.dataTransfer?.getData("text/plain") || "";
       this.dragOverColumn = "";
       this.draggedCardId = "";
       if (!cardId || !targetColumn) return;
@@ -1327,12 +1465,37 @@ document.addEventListener("alpine:init", () => {
     renderKanbanMarkdown(text) {
       if (!text) return "";
       if (typeof globalThis.marked !== "undefined" && globalThis.marked.parse) {
-        return globalThis.marked.parse(text);
+        return this.enableTaskCheckboxes(globalThis.marked.parse(text));
       }
       return String(text).replace(/\n/g, "<br>");
     },
 
-    handleKanbanBodyClick(event) {
+    async handleKanbanBodyClick(event, card = null) {
+      const checkbox = event.target?.closest?.("[data-task-index]");
+      if (checkbox && card) {
+        const idx = parseInt(checkbox.getAttribute("data-task-index") || "", 10);
+        if (!isNaN(idx)) {
+          const nextDesc = this.toggleMarkdownTask(card.description || "", idx);
+          if (nextDesc !== card.description) {
+            card.description = nextDesc;
+            try {
+              const url = `./api/kanban/boards/${encodeURIComponent(this.activeKanbanBoardId)}/cards/${
+                encodeURIComponent(card.id)
+              }`;
+              const res = await fetch(url, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ description: nextDesc }),
+              });
+              if (!res.ok) throw new Error("HTTP " + res.status);
+            } catch (err) {
+              this.showToast("Fehler beim Speichern der Checkbox: " + err.message);
+            }
+          }
+        }
+        return;
+      }
+
       const anchor = event.target?.closest?.("a");
       if (!anchor) return;
       const href = anchor.getAttribute("href") || "";

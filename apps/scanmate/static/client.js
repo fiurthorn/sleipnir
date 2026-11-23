@@ -28,6 +28,58 @@ document.addEventListener("alpine:init", () => {
     pages: [], // Array von { id, dataUrl, rotation }
     isAnalyzing: false,
     isSaving: false,
+    expandedFolders: Alpine.$persist([]).as("scanmate_expanded_v1"),
+    selectedTag: "",
+    previewError: false,
+
+    get activeDoc() {
+      return Alpine.store("scanmate").activeDoc;
+    },
+
+    get isLoading() {
+      return Alpine.store("scanmate").isLoading;
+    },
+
+    get searchQuery() {
+      return Alpine.store("scanmate").searchQuery;
+    },
+
+    set searchQuery(val) {
+      Alpine.store("scanmate").searchQuery = val;
+    },
+
+    formatAmount(val) {
+      return typeof val === "number" ? `${val.toFixed(2)} €` : "—";
+    },
+
+    formatDocDate(doc) {
+      if (!doc) return "";
+      return doc.date || (doc.createdAt ? doc.createdAt.split("T")[0] : "");
+    },
+
+    getPdfUrl(doc) {
+      return doc && doc.fileNamePdf ? `./api/pdf/${doc.fileNamePdf}` : "";
+    },
+
+    getPreviewUrl(doc) {
+      return doc && doc.fileNamePdf ? `./api/preview/${doc.fileNamePdf}` : "";
+    },
+
+    renderPdfIframe(doc) {
+      const url = this.getPdfUrl(doc);
+      if (!url) return "";
+      const safeUrl = url
+        .replace(/&/g, "&amp;")
+        .replace(/"/g, "&quot;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+      return `<iframe src="${safeUrl}" class="w-full h-full flex-1 border-0 bg-base-100"></iframe>`;
+    },
+
+    getHeaderTitle() {
+      if (this.activeTab === "new") return "Neues Dokument erfassen";
+      return this.activeDoc ? this.activeDoc.title : "Archiv Übersicht";
+    },
 
     // Extrahierte / editierbare Metadaten für den neuen Scan
     metadata: {
@@ -44,11 +96,14 @@ document.addEventListener("alpine:init", () => {
       ocrText: "",
       targetPath: "", // Zielordner
     },
+    queueLabel: "",
+    pendingScans: [],
 
     async init() {
       await this.loadModels();
       await this.loadFolders();
       await this.loadDocuments();
+      await this.loadPendingScans();
     },
 
     async loadFolders() {
@@ -93,6 +148,9 @@ document.addEventListener("alpine:init", () => {
           const data = await res.json();
           if (data.ok && Array.isArray(data.documents)) {
             Alpine.store("scanmate").documents = data.documents;
+            if (!Alpine.store("scanmate").activeDoc && data.documents.length > 0) {
+              Alpine.store("scanmate").activeDoc = data.documents[0];
+            }
           }
         }
       } catch (err) {
@@ -106,12 +164,12 @@ document.addEventListener("alpine:init", () => {
       const store = Alpine.store("scanmate");
       let list = store.documents;
 
-      if (store.filterCategory) {
-        list = list.filter((d) => d.category === store.filterCategory);
-      }
-
-      if (store.filterFolder) {
-        list = list.filter((d) => (d.targetPath || "") === store.filterFolder);
+      if (this.selectedTag) {
+        const target = this.selectedTag.toLowerCase();
+        list = list.filter((d) =>
+          Array.isArray(d.tags) &&
+          d.tags.some((t) => String(t).toLowerCase() === target)
+        );
       }
 
       if (store.searchQuery && store.searchQuery.trim().length > 0) {
@@ -120,6 +178,8 @@ document.addEventListener("alpine:init", () => {
           return (
             (d.title && d.title.toLowerCase().includes(q)) ||
             (d.sender && d.sender.toLowerCase().includes(q)) ||
+            (d.category && d.category.toLowerCase().includes(q)) ||
+            (d.targetPath && d.targetPath.toLowerCase().includes(q)) ||
             (d.summary && d.summary.toLowerCase().includes(q)) ||
             (d.ocrText && d.ocrText.toLowerCase().includes(q)) ||
             (d.tags && d.tags.some((t) => t.toLowerCase().includes(q)))
@@ -127,6 +187,153 @@ document.addEventListener("alpine:init", () => {
         });
       }
 
+      return list;
+    },
+
+    get availableTags() {
+      const store = Alpine.store("scanmate");
+      const counts = new Map();
+      for (const doc of store.documents || []) {
+        for (const raw of doc.tags || []) {
+          const tag = String(raw).trim();
+          if (!tag) continue;
+          const key = tag.toLowerCase();
+          const existing = counts.get(key);
+          if (existing) {
+            existing.count += 1;
+          } else {
+            counts.set(key, { tag, count: 1 });
+          }
+        }
+      }
+      return [...counts.values()].sort((a, b) =>
+        b.count - a.count || a.tag.localeCompare(b.tag, "de", { sensitivity: "base" })
+      );
+    },
+
+    toggleTagFilter(tag) {
+      if (!tag) return;
+      this.selectedTag = this.selectedTag.toLowerCase() === tag.toLowerCase() ? "" : tag;
+    },
+
+    clearTagFilter() {
+      this.selectedTag = "";
+    },
+
+    isFolderExpanded(folderPath) {
+      return Array.isArray(this.expandedFolders) && this.expandedFolders.includes(folderPath);
+    },
+
+    toggleFolder(folderPath) {
+      if (this.isFolderExpanded(folderPath)) {
+        this.expandedFolders = this.expandedFolders.filter((p) => p !== folderPath);
+      } else {
+        this.expandedFolders = [...(this.expandedFolders || []), folderPath];
+      }
+    },
+
+    selectTreeItem(item) {
+      if (!item) return;
+      if (item.type === "directory") {
+        this.toggleFolder(item.path);
+        return;
+      }
+      const store = Alpine.store("scanmate");
+      const doc = (store.documents || []).find((d) => d.id === item.id) || item.doc;
+      if (doc) {
+        this.activeTab = "archive";
+        this.previewError = false;
+        store.activeDoc = doc;
+        this.mobileMenuOpen = false;
+      }
+    },
+
+    isTreeItemActive(item) {
+      if (!item || item.type !== "doc") return false;
+      return (
+        this.activeTab === "archive" &&
+        Alpine.store("scanmate").activeDoc?.id === item.id
+      );
+    },
+
+    getTreeItemStyle(item) {
+      const depth = item?.depth || 0;
+      return `padding-left: ${depth * 14 + 8}px`;
+    },
+
+    isTagSelected(tag) {
+      if (!this.selectedTag || !tag) return false;
+      return this.selectedTag.toLowerCase() === String(tag).toLowerCase();
+    },
+
+    get visibleTreeItems() {
+      const store = Alpine.store("scanmate");
+      const docs = this.filteredDocuments();
+      const hasFilter = Boolean((store.searchQuery && store.searchQuery.trim()) || this.selectedTag);
+
+      const root = { children: new Map(), docs: [] };
+      const ensureDir = (folderPath) => {
+        const parts = String(folderPath || "").split("/").filter(Boolean);
+        let curr = root;
+        let acc = "";
+        for (const part of parts) {
+          acc = acc ? `${acc}/${part}` : part;
+          if (!curr.children.has(part)) {
+            curr.children.set(part, {
+              name: part,
+              path: acc,
+              children: new Map(),
+              docs: [],
+            });
+          }
+          curr = curr.children.get(part);
+        }
+        return curr;
+      };
+
+      if (!hasFilter) {
+        for (const folder of store.folders || []) {
+          if (folder) ensureDir(folder);
+        }
+      }
+
+      for (const doc of docs) {
+        const dir = doc.targetPath ? ensureDir(doc.targetPath) : root;
+        dir.docs.push(doc);
+      }
+
+      const list = [];
+      const traverse = (node, depth = 0) => {
+        const dirs = [...node.children.values()].sort((a, b) =>
+          a.name.localeCompare(b.name, "de", { sensitivity: "base" })
+        );
+        for (const dir of dirs) {
+          list.push({
+            treeKey: `dir:${dir.path}`,
+            type: "directory",
+            name: dir.name,
+            path: dir.path,
+            depth,
+          });
+          if (hasFilter || this.isFolderExpanded(dir.path)) {
+            traverse(dir, depth + 1);
+          }
+        }
+        const sortedDocs = [...node.docs].sort((a, b) =>
+          (b.date || b.createdAt || "").localeCompare(a.date || a.createdAt || "")
+        );
+        for (const doc of sortedDocs) {
+          list.push({
+            treeKey: `doc:${doc.id}`,
+            type: "doc",
+            id: doc.id,
+            doc,
+            depth,
+          });
+        }
+      };
+
+      traverse(root, 0);
       return list;
     },
 
@@ -304,6 +511,65 @@ document.addEventListener("alpine:init", () => {
       }
     },
 
+    async loadPendingScans() {
+      try {
+        const res = await fetch("./api/pending");
+        if (res.ok) {
+          const data = await res.json();
+          if (data.ok && Array.isArray(data.items)) {
+            this.pendingScans = data.items;
+          }
+        }
+      } catch (err) {
+        console.error("Fehler beim Laden der Pending-Queue:", err);
+      }
+    },
+
+    async queueCurrentScan() {
+      if (this.pages.length === 0) {
+        alert("Bitte scanne mindestens eine Seite.");
+        return;
+      }
+      this.isSaving = true;
+      try {
+        const res = await fetch("./api/pending", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            pages: this.pages.map((p) => p.dataUrl),
+            label: this.queueLabel.trim() || undefined,
+          }),
+        });
+        const data = await res.json();
+        if (data.ok) {
+          this.pages = [];
+          this.queueLabel = "";
+          await this.loadPendingScans();
+        } else {
+          alert(`Fehler beim Einreihen: ${data.error || "Unbekannt"}`);
+        }
+      } catch (err) {
+        console.error("Fehler beim Einreihen:", err);
+        alert(`Verbindungsfehler: ${err.message}`);
+      } finally {
+        this.isSaving = false;
+      }
+    },
+
+    async deletePendingScanItem(id) {
+      if (!id) return;
+      try {
+        const res = await fetch(`./api/pending/${encodeURIComponent(id)}`, {
+          method: "DELETE",
+        });
+        if (res.ok) {
+          await this.loadPendingScans();
+        }
+      } catch (err) {
+        console.error("Fehler beim Löschen aus Queue:", err);
+      }
+    },
+
     async deleteDoc(doc) {
       if (!confirm(`Dokument "${doc.title}" wirklich löschen?`)) return;
 
@@ -330,7 +596,7 @@ document.addEventListener("alpine:init", () => {
     pageIndex: -1,
     mode: "camera", // "camera" | "crop"
     cropSubMode: "crop", // "crop" | "preview"
-    filterMode: "bw", // "bw" | "grayscale" | "color"
+    filterMode: "grayscale", // "bw" | "grayscale" | "color"
     videoStream: null,
     facingMode: "environment",
     hasCamera: true,
@@ -346,7 +612,7 @@ document.addEventListener("alpine:init", () => {
         this.pageIndex = e.detail.pageIndex;
         this.open = true;
         this.cropSubMode = "crop";
-        this.filterMode = "bw";
+        this.filterMode = "grayscale";
 
         if (e.detail.existingImage) {
           this.stopCamera();
@@ -678,6 +944,64 @@ document.addEventListener("alpine:init", () => {
         ctx.strokeStyle = "#3b82f6";
         ctx.stroke();
       });
+
+      if (this.activeCorner && this.corners[this.activeCorner]) {
+        this.drawCornerLoupe(ctx, canvas, this.corners[this.activeCorner], scaleX, scaleY);
+      }
+    },
+
+    drawCornerLoupe(ctx, canvas, srcPoint, scaleX, scaleY) {
+      const dispX = srcPoint.x * scaleX;
+      const dispY = srcPoint.y * scaleY;
+      const radius = Math.min(58, Math.max(40, Math.round(canvas.width * 0.08)));
+      const zoom = 2.4;
+      const offset = radius + 34;
+
+      const lx = Math.max(radius + 8, Math.min(canvas.width - radius - 8, dispX));
+      const ly = dispY > offset + radius + 8 ? dispY - offset : Math.min(canvas.height - radius - 8, dispY + offset);
+
+      const sampleRadius = (radius / scaleX) / zoom;
+      const sx = srcPoint.x - sampleRadius;
+      const sy = srcPoint.y - sampleRadius;
+      const sSize = sampleRadius * 2;
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(lx, ly, radius, 0, Math.PI * 2);
+      ctx.clip();
+
+      ctx.fillStyle = "#111827";
+      ctx.fillRect(lx - radius, ly - radius, radius * 2, radius * 2);
+      ctx.drawImage(
+        this.sourceCanvas,
+        sx,
+        sy,
+        sSize,
+        sSize,
+        lx - radius,
+        ly - radius,
+        radius * 2,
+        radius * 2,
+      );
+
+      // Fadenkreuz
+      ctx.strokeStyle = "rgba(59, 130, 246, 0.9)";
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(lx - 14, ly);
+      ctx.lineTo(lx + 14, ly);
+      ctx.moveTo(lx, ly - 14);
+      ctx.lineTo(lx, ly + 14);
+      ctx.stroke();
+      ctx.restore();
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(lx, ly, radius, 0, Math.PI * 2);
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = "#3b82f6";
+      ctx.stroke();
+      ctx.restore();
     },
 
     updatePreview() {

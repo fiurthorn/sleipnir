@@ -116,9 +116,10 @@ Deno.test("NoteStorage - filters NSFW notes, directories, search, tags, and atta
     const unlockedSearch = await storage.searchNotes("Geheimer", 25, { includeNsfw: true });
     assertEquals(unlockedSearch.length, 1);
 
-    // Tag filtering
+    // Tag filtering: nsfw has count 0 when locked (hidden in sidebar filter, still assignable in picker)
     const lockedTags = await storage.listAllTags(undefined, { includeNsfw: false });
-    assertEquals(lockedTags.some((t) => t.tag.toLowerCase() === "nsfw"), false);
+    const nsfwLocked = lockedTags.find((t) => t.tag.toLowerCase() === "nsfw");
+    assertEquals(nsfwLocked?.count, 0);
     const ideeLocked = lockedTags.find((t) => t.tag === "Idee");
     assertEquals(ideeLocked?.count, 0);
 

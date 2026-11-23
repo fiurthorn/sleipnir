@@ -30,6 +30,8 @@ export default function App(basePath?: string, developMode: boolean = false) {
   app.use(
     "*",
     secureHeaders({
+      xFrameOptions: false,
+      crossOriginResourcePolicy: false,
       contentSecurityPolicy: {
         defaultSrc: ["'self'"],
         scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "blob:"],
@@ -37,9 +39,9 @@ export default function App(basePath?: string, developMode: boolean = false) {
         imgSrc: ["'self'", "data:", "blob:"],
         fontSrc: ["'self'"],
         connectSrc: ["'self'", "*"],
-        frameSrc: ["'self'", "blob:"],
+        frameSrc: ["'self'", "blob:", "data:"],
+        objectSrc: ["'self'", "blob:"],
         workerSrc: ["'self'", "blob:"],
-        upgradeInsecureRequests: [],
       },
     }),
   );

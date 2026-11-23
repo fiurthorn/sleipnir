@@ -30,6 +30,13 @@
   --color-nord-aurora-green: #a3be8c;
   --color-nord-aurora-purple: #b48ead;
   --color-nord-earth-brown: #5e4533;
+
+  /* Fiurthorn Copper Brand Colors */
+  --color-fiurthorn-copper-dark: #c85a32; /* Dunkles Kupfer / Rostrot (Flammenspitzen & Rand) */
+  --color-fiurthorn-copper: #d96b43; /* Kupfer-Orange */
+  --color-fiurthorn-copper-light: #e69a73; /* Helles Kupfer / Warmes Gold-Orange (Mitte) */
+  --color-fiurthorn-cream: #f5e6d3; /* Cremefarbenes Off-White (Schrift & Hornspitze) */
+  --color-fiurthorn-bg: #1e242b; /* Dunkelblau-Anthrazit (Hintergrund) */
 }
 
 /* Light Theme: Corvus (Nord Snow Storm Basis) */
@@ -76,4 +83,27 @@
   --color-success: var(--color-nord-aurora-green);
   --color-warning: var(--color-nord-aurora-orange);
   --color-error: var(--color-nord-aurora-red);
+}
+
+/* Fiurthorn Copper Theme */
+[data-theme="fiurthorn-copper"] {
+  color-scheme: dark;
+  --color-primary: var(--color-fiurthorn-copper); /* #d96b43 */
+  --color-primary-content: var(--color-fiurthorn-cream); /* #f5e6d3 */
+  --color-secondary: var(--color-fiurthorn-copper-dark); /* #c85a32 */
+  --color-secondary-content: var(--color-fiurthorn-cream);
+  --color-accent: var(--color-fiurthorn-copper-light); /* #e69a73 */
+  --color-accent-content: var(--color-fiurthorn-bg); /* #1e242b */
+  --color-neutral: #262e37;
+  --color-neutral-content: var(--color-fiurthorn-cream);
+
+  --color-base-100: #252c35;
+  --color-base-200: var(--color-fiurthorn-bg); /* #1e242b */
+  --color-base-300: #161b21;
+  --color-base-content: var(--color-fiurthorn-cream); /* #f5e6d3 */
+
+  --color-info: var(--color-nord-frost-8);
+  --color-success: var(--color-nord-aurora-green);
+  --color-warning: var(--color-fiurthorn-copper-light);
+  --color-error: var(--color-fiurthorn-copper-dark);
 }
