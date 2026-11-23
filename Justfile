@@ -5,6 +5,7 @@ default:
 mod chatmate 'apps/chatmate/Justfile'
 mod notemate 'apps/notemate/Justfile'
 mod scanmate 'apps/scanmate/Justfile'
+mod theme 'packages/sleipnir-theme/Justfile'
 
 version := replace(replace_regex(`git describe --tags --always --match=v*`, "v|-g.*", ""), "-", ".")
 

@@ -1,0 +1,11 @@
+[private]
+default:
+    @just --list
+
+[doc('Paketiert das Sleipnir VS Code Theme als .vsix')]
+package:
+    deno run -A npm:@vscode/vsce package --allow-missing-repository -o sleipnir-theme.vsix
+
+[doc('Paketiert und installiert das Sleipnir Theme in code-server')]
+install: package
+    code-server --force --install-extension sleipnir-theme.vsix

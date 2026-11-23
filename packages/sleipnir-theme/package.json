@@ -1,0 +1,29 @@
+{
+  "name": "sleipnir-theme",
+  "displayName": "Sleipnir Theme (Nord + Fiurthorn Copper)",
+  "description": "Unified Nord & Fiurthorn Copper Light/Dark theme for the Sleipnir Stack.",
+  "version": "1.0.0",
+  "publisher": "fiurthorn",
+  "license": "MIT",
+  "icon": "icon.png",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Themes"
+  ],
+  "contributes": {
+    "themes": [
+      {
+        "label": "Sleipnir Dark",
+        "uiTheme": "vs-dark",
+        "path": "./themes/sleipnir-dark.json"
+      },
+      {
+        "label": "Sleipnir Light",
+        "uiTheme": "vs",
+        "path": "./themes/sleipnir-light.json"
+      }
+    ]
+  }
+}

@@ -4,6 +4,7 @@ shelf/
 
 doc/*draft*.md
 *.g.ts
+*.vsix
 test.ts
 .env
 .env.*
