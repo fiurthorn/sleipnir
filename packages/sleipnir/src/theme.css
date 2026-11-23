@@ -5,6 +5,8 @@
  * Architektur & Review: Stefan | Implementation & Synthese: Sam
  */
 
+@source "./";
+
 @theme {
   /* Nord Colors: Polar Night */
   --color-nord-polar-night-0: #2e3440; /* Haupt-Hintergrund Dunkel */

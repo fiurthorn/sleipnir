@@ -10,7 +10,8 @@ import type { Sleipnir, SleipnirContext } from "./sleipnir.ts";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { z } from "zod";
-import { LOGO, LOGO_WORDMARK } from "./assets/icon.ts";
+import { LOGO, LOGO_WORDMARK, LOGO_WORDMARK_LIGHT } from "./assets/icon.ts";
+import { proxyRedirect, themeInit } from "./utils.ts";
 
 export { McpServer, z };
 
@@ -128,23 +129,23 @@ function formatParamType(meta: SchemaPropertyMeta): string {
 
 function renderAnnotationBadges(ann?: ListedTool["annotations"]): string {
   if (!ann) {
-    return `<span class="badge badge-neutral">unknown</span>`;
+    return `<span class="badge badge-xs badge-ghost uppercase font-mono">unknown</span>`;
   }
 
   const badges: string[] = [];
   if (ann.readOnlyHint) {
-    badges.push(`<span class="badge badge-readonly">readOnly</span>`);
+    badges.push(`<span class="badge badge-xs badge-success uppercase font-mono">readOnly</span>`);
   } else if (ann.destructiveHint) {
-    badges.push(`<span class="badge badge-destructive">destructive</span>`);
+    badges.push(`<span class="badge badge-xs badge-error uppercase font-mono">destructive</span>`);
   } else {
-    badges.push(`<span class="badge badge-write">write</span>`);
+    badges.push(`<span class="badge badge-xs badge-warning uppercase font-mono">write</span>`);
   }
 
   if (ann.idempotentHint) {
-    badges.push(`<span class="badge badge-subtle">idempotent</span>`);
+    badges.push(`<span class="badge badge-xs badge-outline uppercase font-mono opacity-75">idempotent</span>`);
   }
   if (ann.openWorldHint) {
-    badges.push(`<span class="badge badge-subtle">openWorld</span>`);
+    badges.push(`<span class="badge badge-xs badge-outline uppercase font-mono opacity-75">openWorld</span>`);
   }
   return badges.join("");
 }
@@ -152,27 +153,29 @@ function renderAnnotationBadges(ann?: ListedTool["annotations"]): string {
 function renderToolParams(schema?: ListedTool["inputSchema"]): string {
   const props = schema?.properties;
   if (!props || Object.keys(props).length === 0) {
-    return `<div class="params-empty">Keine Parameter erforderlich</div>`;
+    return `<div class="text-xs opacity-60 italic border-t border-base-content/10 pt-3">Keine Parameter erforderlich</div>`;
   }
 
   const required = new Set(schema.required ?? []);
   const rows = Object.entries(props).map(([name, meta]) => {
-    const reqBadge = required.has(name) ? `<span class="req">required</span>` : `<span class="opt">optional</span>`;
+    const reqBadge = required.has(name)
+      ? `<span class="badge badge-xs badge-warning badge-outline font-mono">required</span>`
+      : `<span class="badge badge-xs badge-ghost font-mono opacity-70">optional</span>`;
     const typeText = escapeHtml(formatParamType(meta));
     const descText = meta.description ? escapeHtml(meta.description) : "";
     return `
-      <div class="param-row">
-        <div class="param-head">
-          <code>${escapeHtml(name)}</code>
-          <span class="param-type">${typeText}</span>
+      <div class="text-xs flex flex-col gap-0.5">
+        <div class="flex items-center gap-2 flex-wrap">
+          <code class="font-mono font-semibold text-primary">${escapeHtml(name)}</code>
+          <span class="opacity-60 font-mono text-[11px]">${typeText}</span>
           ${reqBadge}
         </div>
-        ${descText ? `<div class="param-desc">${descText}</div>` : ""}
+        ${descText ? `<div class="opacity-75 pl-0.5">${descText}</div>` : ""}
       </div>
     `;
   });
 
-  return `<div class="params">${rows.join("")}</div>`;
+  return `<div class="flex flex-col gap-2.5 border-t border-base-content/10 pt-3">${rows.join("")}</div>`;
 }
 
 function renderMcpOverviewHtml(
@@ -201,204 +204,109 @@ function renderMcpOverviewHtml(
 
   const workflowHtml = docs?.workflowSteps && docs.workflowSteps.length > 0
     ? `
-      <section class="card">
-        <h2>Empfohlener Agent-Workflow</h2>
-        <ol class="workflow">
-          ${docs.workflowSteps.map((step) => `<li>${escapeHtml(step)}</li>`).join("")}
-        </ol>
+      <section class="card bg-base-100 border border-base-content/10 shadow-sm">
+        <div class="card-body p-5 gap-2">
+          <h2 class="card-title text-base">Empfohlener Agent-Workflow</h2>
+          <ol class="list-decimal pl-5 space-y-1.5 text-sm opacity-90">
+            ${docs.workflowSteps.map((step) => `<li>${escapeHtml(step)}</li>`).join("")}
+          </ol>
+        </div>
       </section>
     `
     : "";
 
   const toolsHtml = tools.map((tool) => `
-    <article class="tool-card">
-      <div class="tool-header">
-        <code class="tool-name">${escapeHtml(tool.name)}</code>
-        <div class="badges">${renderAnnotationBadges(tool.annotations)}</div>
+    <article class="card bg-base-100 border border-base-content/10 shadow-sm">
+      <div class="card-body p-5 gap-3">
+        <div class="flex flex-wrap justify-between items-center gap-2">
+          <code class="text-base font-bold font-mono text-primary">${escapeHtml(tool.name)}</code>
+          <div class="flex gap-1.5 flex-wrap">${renderAnnotationBadges(tool.annotations)}</div>
+        </div>
+        ${tool.description ? `<p class="text-sm opacity-85">${escapeHtml(tool.description)}</p>` : ""}
+        ${renderToolParams(tool.inputSchema)}
       </div>
-      ${tool.description ? `<p class="tool-desc">${escapeHtml(tool.description)}</p>` : ""}
-      ${renderToolParams(tool.inputSchema)}
     </article>
   `).join("");
 
   return `<!DOCTYPE html>
-<html lang="de">
+<html data-theme="corvus" lang="de">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link rel="icon" type="image/x-icon" href="${LOGO}" />
+  <link rel="icon" type="image/svg+xml" href="${LOGO}" />
+  <link href="./static/styles.css" rel="stylesheet" />
+  <script defer src="./static/sleipnir-client.min.js"></script>
+  <script defer src="./static/vendor/alpine.min.js"></script>
+  <script>(${proxyRedirect})();(${themeInit})();</script>
   <title>${title} · MCP Übersicht</title>
-  <style>
-    :root {
-      --bg: #1e242b;
-      --surface: #252c35;
-      --surface-2: #161b21;
-      --border: #333c47;
-      --text: #f5e6d3;
-      --muted: #a3be8c;
-      --sub: #c7b5a1;
-      --accent: #d96b43;
-      --accent-light: #e69a73;
-      --copper-dark: #c85a32;
-      --ro-bg: rgba(163, 190, 140, 0.16);
-      --ro-fg: #a3be8c;
-      --wr-bg: rgba(230, 154, 115, 0.16);
-      --wr-fg: #e69a73;
-      --del-bg: rgba(200, 90, 50, 0.20);
-      --del-fg: #e07a5f;
-    }
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      line-height: 1.5;
-      border-top: 3px solid var(--copper-dark);
-    }
-    .brand-logo {
-      height: 38px;
-      width: auto;
-      display: block;
-      margin-bottom: 0.65rem;
-    }
-    .container {
-      max-width: 980px;
-      margin: 0 auto;
-      padding: 2rem 1.25rem 4rem;
-      display: flex;
-      flex-direction: column;
-      gap: 1.25rem;
-    }
-    header {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: space-between;
-      align-items: flex-start;
-      gap: 1rem;
-      border-bottom: 1px solid var(--border);
-      padding-bottom: 1rem;
-    }
-    h1 { margin: 0; font-size: 1.6rem; color: var(--accent); }
-    h2 { margin: 0 0 0.75rem; font-size: 1.05rem; color: var(--text); }
-    .subtitle { margin: 0.25rem 0 0; color: var(--sub); font-size: 0.95rem; }
-    .meta-pills { display: flex; gap: 0.5rem; flex-wrap: wrap; }
-    .pill {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 999px;
-      padding: 0.2rem 0.7rem;
-      font-size: 0.78rem;
-      color: var(--sub);
-    }
-    .card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 1.1rem 1.25rem;
-    }
-    pre {
-      margin: 0.5rem 0 0;
-      background: var(--surface-2);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 0.9rem;
-      overflow-x: auto;
-      font-size: 0.85rem;
-      color: #d8dee9;
-    }
-    code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
-    .endpoint-box {
-      display: inline-block;
-      margin-top: 0.35rem;
-      background: var(--surface-2);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 0.3rem 0.6rem;
-      font-size: 0.88rem;
-      color: var(--accent);
-    }
-    .workflow { margin: 0; padding-left: 1.25rem; color: #d8dee9; font-size: 0.92rem; }
-    .workflow li { margin: 0.35rem 0; }
-    .tools-grid { display: flex; flex-direction: column; gap: 0.85rem; }
-    .tool-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 1rem 1.2rem;
-    }
-    .tool-header {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: space-between;
-      align-items: center;
-      gap: 0.5rem;
-    }
-    .tool-name { font-size: 1rem; font-weight: 700; color: var(--accent); }
-    .tool-desc { margin: 0.45rem 0 0.75rem; color: #d8dee9; font-size: 0.92rem; }
-    .badges { display: flex; gap: 0.4rem; flex-wrap: wrap; }
-    .badge {
-      font-size: 0.72rem;
-      font-weight: 600;
-      padding: 0.15rem 0.55rem;
-      border-radius: 999px;
-      letter-spacing: 0.02em;
-      text-transform: uppercase;
-    }
-    .badge-readonly { background: var(--ro-bg); color: var(--ro-fg); border: 1px solid rgba(163,190,140,0.35); }
-    .badge-write { background: var(--wr-bg); color: var(--wr-fg); border: 1px solid rgba(235,203,139,0.35); }
-    .badge-destructive { background: var(--del-bg); color: var(--del-fg); border: 1px solid rgba(191,97,106,0.4); }
-    .badge-subtle, .badge-neutral { background: var(--surface-2); color: var(--sub); border: 1px solid var(--border); }
-    .params {
-      display: flex;
-      flex-direction: column;
-      gap: 0.45rem;
-      border-top: 1px solid var(--border);
-      padding-top: 0.7rem;
-    }
-    .params-empty { font-size: 0.82rem; color: var(--sub); font-style: italic; }
-    .param-row { font-size: 0.85rem; }
-    .param-head { display: flex; align-items: center; gap: 0.45rem; flex-wrap: wrap; }
-    .param-type { color: var(--sub); font-size: 0.78rem; }
-    .req { color: #ebcb8b; font-size: 0.72rem; font-weight: 600; }
-    .opt { color: var(--sub); font-size: 0.72rem; }
-    .param-desc { color: var(--sub); margin-top: 0.1rem; padding-left: 0.25rem; }
-    .legend { display: flex; gap: 0.75rem; flex-wrap: wrap; font-size: 0.82rem; color: var(--sub); align-items: center; }
-  </style>
 </head>
-<body>
-  <div class="container">
-    <header>
-      <div>
-        <img src="${LOGO_WORDMARK}" alt="fiurthorn" class="brand-logo" />
-        <h1>${title}</h1>
-        <p class="subtitle">${description}</p>
-        <div class="endpoint-box"><code>${escapeHtml(endpointUrl)}</code></div>
+<body class="bg-base-200 text-base-content min-h-screen antialiased">
+  <div class="max-w-5xl mx-auto px-4 sm:px-6 py-8 flex flex-col gap-5">
+    <header class="flex flex-wrap justify-between items-start gap-4 border-b border-base-content/15 pb-5">
+      <div class="flex flex-col gap-1.5">
+        <img
+          src="${LOGO_WORDMARK}"
+          alt="fiurthorn"
+          class="h-9 w-auto self-start mb-1"
+          x-data
+          x-show="$store.theme.mode === 'dark'"
+          style="display: none;"
+        />
+        <img
+          src="${LOGO_WORDMARK_LIGHT}"
+          alt="fiurthorn"
+          class="h-9 w-auto self-start mb-1"
+          x-data
+          x-show="$store.theme.mode !== 'dark'"
+        />
+        <h1 class="text-2xl font-black text-primary tracking-tight">${title}</h1>
+        <p class="text-sm opacity-75">${description}</p>
+        <div class="mt-1">
+          <code class="inline-block bg-base-100 border border-base-content/15 rounded-md px-2.5 py-1 text-xs font-mono text-primary">${
+    escapeHtml(endpointUrl)
+  }</code>
+        </div>
       </div>
-      <div class="meta-pills">
-        <span class="pill">v${escapeHtml(serverVersion)}</span>
-        <span class="pill">Streamable HTTP (Stateless)</span>
-        <span class="pill">${tools.length} Tools</span>
+
+      <div class="flex items-center gap-2 flex-wrap">
+        <span class="badge badge-outline font-mono text-xs">v${escapeHtml(serverVersion)}</span>
+        <span class="badge badge-outline font-mono text-xs">Streamable HTTP</span>
+        <span class="badge badge-primary font-mono text-xs">${tools.length} Tools</span>
+        <button
+          type="button"
+          x-data
+          x-on:click="$store.theme.toggle()"
+          class="btn btn-ghost btn-sm btn-circle opacity-80 hover:opacity-100"
+          title="Theme wechseln (Hell / Dunkel)"
+          aria-label="Theme wechseln"
+        >
+          <span x-show="$store.theme.mode === 'dark'" style="display: none;">☀️</span>
+          <span x-show="$store.theme.mode !== 'dark'">🌙</span>
+        </button>
       </div>
     </header>
 
-    <section class="card">
-      <h2>Client-Anbindung (Claude / Cursor / Antigravity / OpenCode)</h2>
-      <p class="subtitle">Füge diesen Block in deine MCP-Client-Konfiguration ein (Transport: HTTP):</p>
-      <pre><code>${escapeHtml(configSnippet)}</code></pre>
+    <section class="card bg-base-100 border border-base-content/10 shadow-sm">
+      <div class="card-body p-5 gap-2">
+        <h2 class="card-title text-base">Client-Anbindung (Claude / Cursor / Antigravity / OpenCode)</h2>
+        <p class="text-xs opacity-70">Füge diesen Block in deine MCP-Client-Konfiguration ein (Transport: HTTP):</p>
+        <pre class="bg-base-300/70 border border-base-content/10 rounded-lg p-3.5 overflow-x-auto text-xs font-mono"><code>${
+    escapeHtml(configSnippet)
+  }</code></pre>
+      </div>
     </section>
 
     ${workflowHtml}
 
-    <section class="legend">
-      <span><strong>Legende:</strong></span>
-      <span class="badge badge-readonly">readOnly</span><span>Liest nur Daten</span>
-      <span class="badge badge-write">write</span><span>Legt an / verändert</span>
-      <span class="badge badge-destructive">destructive</span><span>Löscht Daten</span>
-      <span class="badge badge-subtle">idempotent</span><span>Mehrfachaufruf sicher</span>
+    <section class="flex gap-3 flex-wrap text-xs opacity-80 items-center px-1">
+      <span class="font-bold">Legende:</span>
+      <span class="badge badge-xs badge-success uppercase font-mono">readOnly</span><span>Liest nur Daten</span>
+      <span class="badge badge-xs badge-warning uppercase font-mono">write</span><span>Legt an / verändert</span>
+      <span class="badge badge-xs badge-error uppercase font-mono">destructive</span><span>Löscht Daten</span>
+      <span class="badge badge-xs badge-outline uppercase font-mono">idempotent</span><span>Mehrfachaufruf sicher</span>
     </section>
 
-    <section class="tools-grid">
+    <section class="flex flex-col gap-3.5">
       ${toolsHtml}
     </section>
   </div>
