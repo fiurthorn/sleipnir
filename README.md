@@ -4,6 +4,10 @@ Ein modulares Monorepo für lokale, dateibasierte Produktivitäts- und KI-Tools 
 
 Das Projekt folgt konsequent dem **Filesystem-as-Single-Source-of-Truth**-Prinzip: keine schwere Datenbank, alle Assets lokal gebündelt (kein Laufzeit-CDN) und alle Dienste bereit für Reverse-Proxies (`BASE_PATH`) sowie `podman compose` mit `--watch`.
 
+> [!IMPORTANT]
+> **Sicherheitshinweis für den Betrieb (Self-Hosting):**
+> Alle Dienste in diesem Stack sind für den Betrieb in einem **privaten Netzwerk (z. B. via Tailscale)** oder hinter einem **Reverse-Proxy mit vorgelagerter Authentifizierung** ausgelegt. Die Apps bringen bewusst **keine eigene Benutzer-Authentifizierung** mit (abgesehen vom optionalen 1h-NSFW-Pin-Gate in `notemate`) und sollten **nicht ungeschützt direkt aus dem öffentlichen Internet erreichbar** gemacht werden. API-Keys und Zugangsdaten gehören ausschließlich in lokale `.env`-Dateien (durch `.gitignore` ausgeschlossen).
+
 ---
 
 ## 🏗 Gesamtarchitektur
@@ -106,6 +110,7 @@ podman compose up -d
 - **Chatmate:** `http://localhost:3002`
 - **Notemate:** `http://localhost:3003` (MCP: `http://localhost:3003/mcp`)
 - **Scanmate:** `http://localhost:3004` (MCP: `http://localhost:3004/mcp`)
+- **Agentmate:** `http://localhost:3005` (Vercel AI SDK + OpenRouter + MCP-Client)
 
 ### Lokal mit Deno / Just
 
@@ -114,6 +119,7 @@ podman compose up -d
 deno task dev:chatmate
 deno task dev:notemate
 deno task dev:scanmate
+deno task dev:agentmate
 
 # Qualitäts-Checks & Tests
 just check
