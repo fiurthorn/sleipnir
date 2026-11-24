@@ -109,3 +109,22 @@
   --color-warning: var(--color-fiurthorn-copper-light);
   --color-error: var(--color-fiurthorn-copper-dark);
 }
+
+/* Mobile Touch-Ergonomie: Bedienelemente auf kleinen Bildschirmen vergrößern, Schriftgröße beibehalten */
+@media (max-width: 767px) {
+  .btn-xs,
+  .btn-sm {
+    --size: calc(var(--size-field, 0.25rem) * 10);
+    --btn-p: 0.75rem;
+  }
+
+  .select-xs,
+  .select-sm {
+    --sl-size-mul: 10;
+  }
+
+  .input-xs,
+  .input-sm {
+    --in-size-mul: 10;
+  }
+}

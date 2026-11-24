@@ -6,6 +6,7 @@
  */
 
 import { assertEquals, assertRejects } from "@std/assert";
+import { join } from "@std/path";
 import { DEFAULT_KANBAN_COLUMNS, KanbanStorage } from "./kanban.ts";
 
 Deno.test("KanbanStorage - creates default board, adds, moves, filters, and deletes cards", async () => {
@@ -118,6 +119,28 @@ Deno.test("KanbanStorage - dueDate validation and listOverdueCards", async () =>
     assertEquals(cleared.dueDate, undefined);
     const afterClear = await kanban.listOverdueCards({ referenceDate: "2026-11-22" });
     assertEquals(afterClear.items.length, 0);
+  } finally {
+    await Deno.remove(tempDir, { recursive: true });
+  }
+});
+
+Deno.test("KanbanStorage - uses filename as canonical board id when YAML id differs", async () => {
+  const tempDir = await Deno.makeTempDir();
+  try {
+    await Deno.mkdir(join(tempDir, ".kanban"), { recursive: true });
+    await Deno.writeTextFile(
+      join(tempDir, ".kanban", "Einkauf.yaml"),
+      "id: einkauf\ntitle: Einkauf\ncolumns:\n  - Kaufen\ncards: []\n",
+    );
+
+    const kanban = new KanbanStorage({ dataDir: tempDir });
+    const boards = await kanban.listBoards();
+    assertEquals(boards.length, 1);
+    assertEquals(boards[0].id, "Einkauf");
+
+    const loaded = await kanban.getBoard(boards[0].id);
+    assertEquals(loaded.board.id, "Einkauf");
+    assertEquals(loaded.board.title, "Einkauf");
   } finally {
     await Deno.remove(tempDir, { recursive: true });
   }

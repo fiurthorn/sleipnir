@@ -6,6 +6,12 @@
   display: none !important;
 }
 
+@media (min-width: 1024px) {
+  html {
+    font-size: 120%;
+  }
+}
+
 .touch-none {
   touch-action: none;
 }

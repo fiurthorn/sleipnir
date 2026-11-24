@@ -74,6 +74,34 @@ services:
       - sleipnir-net
     restart: unless-stopped
 
+  agentmate:
+    image: docker.io/denoland/deno:alpine
+    container_name: agentmate
+    hostname: agentmate
+    working_dir: /workspace/apps/agentmate
+    volumes:
+      - .:/workspace:Z
+      - deno-cache:/deno-dir
+    environment:
+      - PORT=3005
+      - BASE_PATH=
+      - DENO_DIR=/deno-dir
+      - SCANMATE_MCP_URL=http://scanmate:3004/mcp
+      - NOTEMATE_MCP_URL=http://notemate:3003/mcp
+    command: ["run", "-P=app", "--unstable-cron", "--watch", "main.ts"]
+    env_file:
+      - path: .env
+        required: false
+      - path: apps/chatmate/.env
+        required: false
+      - path: apps/agentmate/.env
+        required: false
+    ports:
+      - "3005:3005"
+    networks:
+      - sleipnir-net
+    restart: unless-stopped
+
 volumes:
   deno-cache:
     name: sleipnir-deno-cache

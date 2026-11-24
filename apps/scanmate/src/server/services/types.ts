@@ -26,6 +26,7 @@ export const documentMetadataSchema = z.object({
   fileNamePdf: z.string(), // z.B. 2026-09-30_Finanzamt_Bescheid.pdf
   fileNameYaml: z.string().optional(), // z.B. 2026-09-30_Finanzamt_Bescheid.yaml
   fileNameJson: z.string().optional(), // Legacy-Sidecar .json (Abwärtskompatibilität)
+  reviewed: z.boolean().optional(), // false = vom Agent archiviert, noch zu prüfen
 });
 
 export type DocumentMetadata = z.infer<typeof documentMetadataSchema>;
@@ -48,5 +49,6 @@ export interface SaveDocumentPayload {
   summary?: string;
   ocrText?: string;
   targetPath?: string; // Optionaler Zielordner
+  reviewed?: boolean; // Optional: false für Agent-Ablage ("Zu prüfen")
   pages: string[]; // Base64 Data URLs (PNG oder JPEG)
 }

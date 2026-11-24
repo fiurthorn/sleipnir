@@ -6,6 +6,16 @@
   display: none !important;
 }
 
+@media (min-width: 1024px) {
+  html {
+    font-size: 110%;
+  }
+
+  html:has([data-app-mode="kanban"]) {
+    font-size: 120%;
+  }
+}
+
 /* Markdown Preview Styling */
 .markdown-body h1 {
   font-size: 1.875rem;

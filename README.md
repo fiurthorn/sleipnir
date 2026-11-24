@@ -1,4 +1,4 @@
-# Cookmate / Sleipnir Stack 🐎
+# Sleipnir Stack 🐎
 
 Ein modulares Monorepo für lokale, dateibasierte Produktivitäts- und KI-Tools auf Basis von **Deno 2**, **Hono** (Server-Side JSX), **Alpine.js (CSP)**, **DaisyUI / Tailwind CSS** und **Model Context Protocol (MCP)**.
 

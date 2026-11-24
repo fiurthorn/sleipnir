@@ -127,31 +127,32 @@ if (user.isAuthenticated) {
 ## 🗂 3. Workspace-Topologie
 
 ```text
-cookmate/
+sleipnir/
 ├── deno.json                       # Workspace-Root ("workspace": ["./packages/*", "./apps/*"])
-├── Justfile                        # Zentrale Lifecycle-Orchestrierung (Module: cookmate, chatmate, notemate)
+├── Justfile                        # Zentrale Lifecycle-Orchestrierung (Module: chatmate, notemate, scanmate, theme)
 ├── packages/
-│   └── sleipnir/                   # @sleipnir/core
-│       ├── mod.ts                  # Öffentliche Schnittstelle des Core-Frameworks
-│       └── src/                    # Sleipnir (Hono-Wrapper), Sessions, KV, JSONPath, Assets
+│   ├── sleipnir/                   # @sleipnir/core
+│   │   ├── mod.ts                  # Öffentliche Schnittstelle des Core-Frameworks
+│   │   └── src/                    # Sleipnir (Hono-Wrapper), Sessions, KV, JSONPath, Assets
+│   └── sleipnir-theme/             # Corvus & Fiurthorn Theme-Paket
 └── apps/
-    ├── cookmate/                   # Kochbuch (Port 3001)
-    │   ├── Justfile                # App-Justfile (serve, check, build-css, watch-css)
-    │   ├── main.ts                 # App-Einstieg
-    │   ├── src/                    # Pages, Components, Recipe-Search Worker
-    │   └── static/                 # Styles, Vendor-Scripts
-    │
-    ├── chatmate/                   # NextChat-Klon & Bildgenerator (Port 3002)
+    ├── chatmate/                   # Chat- & Bildgenerator-App (Port 3002)
     │   ├── Justfile                # App-Justfile (serve, check, build-css, watch-css)
     │   ├── main.ts                 # App-Einstieg
     │   ├── src/                    # Chat-UI, SSE / Prompt-Handling, Image-Gen
     │   └── static/                 # Styles, Vendor-Scripts
     │
-    └── notemate/                   # Hierarchische Markdown-Notizen (Port 3003)
+    ├── notemate/                   # Hierarchische Markdown-Notizen, Rezepte & Kanban (Port 3003)
+    │   ├── Justfile                # App-Justfile (serve, check, build-css, watch-css)
+    │   ├── main.ts                 # App-Einstieg
+    │   ├── src/                    # Notes-UI, Kanban, Storage-Service, Attachments
+    │   └── static/                 # Styles, Client-Script
+    │
+    └── scanmate/                   # Dokumenten-Scanner & Archiv-App (Port 3004)
         ├── Justfile                # App-Justfile (serve, check, build-css, watch-css)
         ├── main.ts                 # App-Einstieg
-        ├── src/                    # Notes-UI, Storage-Service, Attachments
-        └── static/                 # Styles, Client-Script
+        ├── src/                    # Scan-UI, PDF- & KI-Triage-Services
+        └── static/                 # Styles, Vendor-Scripts
 ```
 
 ### Abhängigkeits-Richtung (Clean Architecture):
@@ -167,17 +168,17 @@ cookmate/
 
 Alle Operationen werden über das [`Justfile`](file:///Justfile) gesteuert. Durch Just-Submodule können Apps entweder direkt aus dem Root oder im App-Ordner gesteuert werden:
 
-| Task                     | Befehl (Root)          | Befehl (App-Verzeichnis) | Zweck                                                     |
-| ------------------------ | ---------------------- | ------------------------ | --------------------------------------------------------- |
-| **Cookmate starten**     | `just cookmate serve`  | `just serve`             | Startet Cookmate auf `http://localhost:3001` (Watch-Mode) |
-| **Chatmate starten**     | `just chatmate serve`  | `just serve`             | Startet Chatmate auf `http://localhost:3002` (Watch-Mode) |
-| **Notemate starten**     | `just notemate serve`  | `just serve`             | Startet Notemate auf `http://localhost:3003` (Watch-Mode) |
-| **CSS kompilieren**      | `just build-css`       | `just build-css`         | Baut Tailwind v4 + DaisyUI für alle Apps                  |
-| **Type Check**           | `just check`           | `just check`             | Führt `deno check` über das gesamte Monorepo aus          |
-| **Tests ausführen**      | `just test`            | -                        | Führt die Unit-Testsuite aus (`deno test`)                |
-| **Linting**              | `just lint`            | -                        | Prüft alle Workspace-Dateien auf Code-Smells              |
-| **Formatierung**         | `just fmt`             | -                        | Formatiert das Monorepo nach Deno-Standard                |
-| **Git-Hooks einrichten** | `just install-hooks`   | -                        | Aktiviert den Pre-Commit Hook via Symlink                 |
+| Task                     | Befehl (Root)         | Befehl (App-Verzeichnis) | Zweck                                                     |
+| ------------------------ | --------------------- | ------------------------ | --------------------------------------------------------- |
+| **Chatmate starten**     | `just chatmate serve` | `just serve`             | Startet Chatmate auf `http://localhost:3002` (Watch-Mode) |
+| **Notemate starten**     | `just notemate serve` | `just serve`             | Startet Notemate auf `http://localhost:3003` (Watch-Mode) |
+| **Scanmate starten**     | `just scanmate serve` | `just serve`             | Startet Scanmate auf `http://localhost:3004` (Watch-Mode) |
+| **CSS kompilieren**      | `just build-css`      | `just build-css`         | Baut Tailwind v4 + DaisyUI für alle Apps                  |
+| **Type Check**           | `just check`          | `just check`             | Führt `deno check` über das gesamte Monorepo aus          |
+| **Tests ausführen**      | `just test`           | -                        | Führt die Unit-Testsuite aus (`deno test`)                |
+| **Linting**              | `just lint`           | -                        | Prüft alle Workspace-Dateien auf Code-Smells              |
+| **Formatierung**         | `just fmt`            | -                        | Formatiert das Monorepo nach Deno-Standard                |
+| **Git-Hooks einrichten** | `just install-hooks`  | -                        | Aktiviert den Pre-Commit Hook via Symlink                 |
 
 ---
 

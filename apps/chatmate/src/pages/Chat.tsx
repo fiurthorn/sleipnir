@@ -21,7 +21,7 @@ export const ChatPage = () => {
 
       {/* Sidebar: Dialog-Liste & Lokale Datenhoheit */}
       <aside
-        class="w-80 bg-base-200 border-r border-base-content/10 flex flex-col justify-between z-50 md:z-10 md:relative"
+        class="w-full md:w-80 bg-base-200 border-r border-base-content/10 flex flex-col justify-between z-50 md:z-10 md:relative"
         x-bind:class="mobileMenuOpen ? 'fixed inset-y-0 left-0 shadow-2xl flex' : 'hidden md:flex'"
       >
         <div class="p-4 flex flex-col gap-3 flex-1 overflow-hidden">

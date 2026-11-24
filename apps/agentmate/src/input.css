@@ -1,0 +1,13 @@
+@import "tailwindcss";
+@plugin "daisyui";
+@import "../../../packages/sleipnir/src/theme.css";
+
+[x-cloak] {
+  display: none !important;
+}
+
+@media (min-width: 1024px) {
+  html {
+    font-size: 120%;
+  }
+}

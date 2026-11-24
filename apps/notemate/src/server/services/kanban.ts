@@ -258,7 +258,8 @@ export class KanbanStorage {
     }
 
     return {
-      id: typeof parsed.id === "string" && parsed.id.trim() ? parsed.id.trim() : boardId,
+      // Dateiname (ohne .yaml) ist die kanonische Board-ID, da resolveBoardPath darauf abbildet
+      id: boardId,
       title: typeof parsed.title === "string" && parsed.title.trim() ? parsed.title.trim() : boardId,
       columns,
       cards,

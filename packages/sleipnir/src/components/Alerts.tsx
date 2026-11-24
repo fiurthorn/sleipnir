@@ -11,7 +11,7 @@ export const AlertZone = (): HtmlEscapedString | Promise<HtmlEscapedString> => {
   return (
     <div
       id="alert-zone"
-      class="fixed top-4 left-1/2 -translate-x-1/2 w-full max-w-md z-50 pointer-events-none px-4 flex flex-col gap-2"
+      class="fixed top-4 left-1/2 -translate-x-1/2 w-full max-w-md z-[100] pointer-events-none px-4 flex flex-col gap-2"
       x-data="dialogSystem"
     >
       <template x-for="alert in alerts" x-bind:key="alert.id">

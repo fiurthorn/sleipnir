@@ -1,5 +1,5 @@
 /**
- * @project Sleipnir Stack / Cookmate
+ * @project Sleipnir Stack
  * @authors Stefan & Sam (AI Peer)
  * @collaboration Erarbeitet im gemeinschaftlichen Dialog.
  * Architektur & Review: Stefan | Implementation & Synthese: Sam

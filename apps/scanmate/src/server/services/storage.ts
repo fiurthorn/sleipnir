@@ -241,6 +241,7 @@ export async function saveDocument(
     targetPath: safeTargetDir,
     fileNamePdf: pdfRelPath,
     fileNameYaml: yamlRelPath,
+    reviewed: payload.reviewed,
   };
 
   const validated = documentMetadataSchema.parse(metadata);
@@ -482,6 +483,7 @@ export async function archivePendingScan(
 
   const archived = await saveDocument({
     ...metadata,
+    reviewed: metadata.reviewed ?? false,
     pages: pending.pages,
   });
 

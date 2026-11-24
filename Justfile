@@ -2,6 +2,7 @@
 default:
 	@just --list
 
+mod agentmate 'apps/agentmate/Justfile'
 mod chatmate 'apps/chatmate/Justfile'
 mod notemate 'apps/notemate/Justfile'
 mod scanmate 'apps/scanmate/Justfile'
@@ -62,6 +63,7 @@ build-css:
     @just chatmate build-css
     @just notemate build-css
     @just scanmate build-css
+    @just agentmate build-css
 
 [group('lifecycle')]
 generate-version:
@@ -76,6 +78,7 @@ build-client: generate-version update-libs
     @cp packages/sleipnir/static/sleipnir-client.min.js apps/notemate/static/sleipnir-client.min.js
     @cp packages/sleipnir/static/sleipnir-client.min.js apps/chatmate/static/sleipnir-client.min.js
     @cp packages/sleipnir/static/sleipnir-client.min.js apps/scanmate/static/sleipnir-client.min.js
+    @cp packages/sleipnir/static/sleipnir-client.min.js apps/agentmate/static/sleipnir-client.min.js
     @echo "✅ Sleipnir Client gebündelt und verteilt."
 
 [group('lifecycle')]

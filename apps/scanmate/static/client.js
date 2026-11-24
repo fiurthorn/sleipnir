@@ -30,6 +30,7 @@ document.addEventListener("alpine:init", () => {
     isSaving: false,
     expandedFolders: Alpine.$persist([]).as("scanmate_expanded_v1"),
     selectedTag: "",
+    onlyUnreviewed: false,
     previewError: false,
 
     get activeDoc() {
@@ -164,6 +165,10 @@ document.addEventListener("alpine:init", () => {
       const store = Alpine.store("scanmate");
       let list = store.documents;
 
+      if (this.onlyUnreviewed) {
+        list = list.filter((d) => d.reviewed === false);
+      }
+
       if (this.selectedTag) {
         const target = this.selectedTag.toLowerCase();
         list = list.filter((d) =>
@@ -188,6 +193,40 @@ document.addEventListener("alpine:init", () => {
       }
 
       return list;
+    },
+
+    get unreviewedCount() {
+      const store = Alpine.store("scanmate");
+      return (store.documents || []).filter((d) => d.reviewed === false).length;
+    },
+
+    toggleUnreviewedFilter() {
+      this.onlyUnreviewed = !this.onlyUnreviewed;
+    },
+
+    async markDocumentReviewed(doc) {
+      if (!doc?.id) return;
+      try {
+        const res = await fetch(`./api/documents/${encodeURIComponent(doc.id)}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ reviewed: true }),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.ok) {
+          alert(`Fehler: ${data.error || "Status konnte nicht aktualisiert werden"}`);
+          return;
+        }
+        const store = Alpine.store("scanmate");
+        store.documents = store.documents.map((d) =>
+          d.id === doc.id ? data.document : d
+        );
+        if (store.activeDoc?.id === doc.id) {
+          store.activeDoc = data.document;
+        }
+      } catch (err) {
+        alert(`Verbindungsfehler: ${err.message}`);
+      }
     },
 
     get availableTags() {

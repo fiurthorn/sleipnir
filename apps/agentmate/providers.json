@@ -1,0 +1,38 @@
+{
+  "providers": [
+    {
+      "id": "openrouter",
+      "name": "OpenRouter",
+      "baseUrl": "https://openrouter.ai/api/v1",
+      "apiKey": "{{OPENROUTER_API_KEY}}",
+      "models": [
+        {
+          "id": "google/gemma-4-31b-it",
+          "name": "Gemma 4 31B"
+        },
+        {
+          "id": "google/gemini-2.5-flash",
+          "name": "Gemini 2.5 Flash"
+        },
+        {
+          "id": "openai/gpt-4.1-mini",
+          "name": "GPT-4.1 Mini"
+        }
+      ]
+    }
+  ],
+  "mcpServers": [
+    {
+      "id": "scanmate",
+      "name": "ScanMate",
+      "url": "{{SCANMATE_MCP_URL}}",
+      "defaultUrl": "http://localhost:3004/mcp"
+    },
+    {
+      "id": "notemate",
+      "name": "NoteMate",
+      "url": "{{NOTEMATE_MCP_URL}}",
+      "defaultUrl": "http://localhost:3003/mcp"
+    }
+  ]
+}

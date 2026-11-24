@@ -6,6 +6,12 @@
   display: none !important;
 }
 
+@media (min-width: 1024px) {
+  html {
+    font-size: 110%;
+  }
+}
+
 /* Inline-Code in der Assistant-Bubble: sicherer Kontrast in beiden Themes */
 .chat-bubble-primary :is(code:not(pre code)) {
   background-color: color-mix(in oklab, var(--color-primary) 25%,

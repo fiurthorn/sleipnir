@@ -29,7 +29,7 @@ export function ScanPage({ basePath: _basePath }: { basePath: string }) {
       {/* SIDEBAR: NAVIGATION & ARCHIV-DOKUMENTE (DRAWER AUF MOBILE)                 */}
       {/* ========================================================================= */}
       <aside
-        class="w-80 bg-base-200 border-r border-base-content/10 flex flex-col justify-between z-50 md:z-10 md:relative"
+        class="w-full md:w-80 bg-base-200 border-r border-base-content/10 flex flex-col justify-between z-50 md:z-10 md:relative"
         x-bind:class="mobileMenuOpen ? 'fixed inset-y-0 left-0 shadow-2xl flex' : 'hidden md:flex'"
       >
         <div class="p-4 flex flex-col gap-3 flex-1 overflow-hidden">
@@ -77,6 +77,23 @@ export function ScanPage({ basePath: _basePath }: { basePath: string }) {
               class="absolute right-2 top-2 text-xs opacity-50 hover:opacity-100"
             >
               ✕
+            </button>
+          </div>
+
+          {/* Filter: Zu prüfen (Agent-Ablage) */}
+          <div
+            x-show="unreviewedCount > 0 || onlyUnreviewed"
+            class="flex items-center justify-between gap-2 pb-1 border-b border-base-content/10"
+            style="display: none;"
+          >
+            <button
+              type="button"
+              x-on:click="toggleUnreviewedFilter()"
+              class="btn btn-xs w-full justify-between"
+              x-bind:class="onlyUnreviewed ? 'btn-warning' : 'btn-ghost border border-warning/40 text-warning'"
+            >
+              <span>🔍 Zu prüfen</span>
+              <span class="badge badge-xs font-mono" x-text="unreviewedCount"></span>
             </button>
           </div>
 
@@ -272,6 +289,13 @@ export function ScanPage({ basePath: _basePath }: { basePath: string }) {
                       x-text="'📁 ' + activeDoc.targetPath"
                     >
                     </span>
+                    <span
+                      x-show="activeDoc.reviewed === false"
+                      class="badge badge-warning badge-sm font-semibold"
+                      style="display: none;"
+                    >
+                      Zu prüfen
+                    </span>
                   </div>
                   <h2
                     class="text-xl sm:text-2xl font-black text-base-content"
@@ -292,6 +316,16 @@ export function ScanPage({ basePath: _basePath }: { basePath: string }) {
                 </div>
 
                 <div class="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    x-show="activeDoc.reviewed === false"
+                    x-on:click="markDocumentReviewed(activeDoc)"
+                    class="btn btn-success btn-xs sm:btn-sm gap-1"
+                    title="Beleg als geprüft markieren"
+                    style="display: none;"
+                  >
+                    <span>✓ Geprüft</span>
+                  </button>
                   <a
                     x-bind:href="getPdfUrl(activeDoc)"
                     target="_blank"

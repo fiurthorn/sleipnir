@@ -228,6 +228,10 @@ export function createScanmateMcpServer(
         .string()
         .optional()
         .describe("Relativer Zielordner im Archiv (z. B. '2026/Rechnungen')"),
+      reviewed: z
+        .boolean()
+        .optional()
+        .describe("Review-Status (Standard: false = noch vom Nutzer zu prüfen)"),
     },
     MCP_ANNOTATIONS.write,
     async ({ pendingId, ...metadata }) => {

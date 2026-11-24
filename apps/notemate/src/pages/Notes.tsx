@@ -9,7 +9,11 @@ import { ThemeToggle } from "@sleipnir/core";
 
 export const NotesPage = () => {
   return (
-    <div x-data="notemate" class="flex h-screen overflow-hidden">
+    <div
+      x-data="notemate"
+      x-bind:data-app-mode="appMode"
+      class="flex h-screen overflow-hidden"
+    >
       {/* Mobile Backdrop */}
       <div
         x-show="mobileMenuOpen"
@@ -21,7 +25,7 @@ export const NotesPage = () => {
 
       {/* Sidebar: Hierarchischer Verzeichnisbaum & Suche */}
       <aside
-        class="w-80 bg-base-200 border-r border-base-content/10 flex-col justify-between z-50 md:z-10 md:relative"
+        class="w-full md:w-80 bg-base-200 border-r border-base-content/10 flex-col justify-between z-50 md:z-10 md:relative"
         x-bind:class="appMode === 'kanban' ? 'hidden' : (mobileMenuOpen ? 'fixed inset-y-0 left-0 shadow-2xl flex' : 'hidden md:flex')"
       >
         <div class="p-4 flex flex-col gap-3 flex-1 overflow-hidden">
@@ -691,8 +695,8 @@ export const NotesPage = () => {
             <div class="flex flex-wrap items-center gap-2">
               <select
                 class="select select-bordered select-xs font-medium"
-                x-model="activeKanbanBoardId"
-                x-on:change="loadKanbanBoard(activeKanbanBoardId)"
+                x-bind:value="activeKanbanBoardId"
+                x-on:change="loadKanbanBoard($event.target.value)"
               >
                 <template x-for="b in kanbanBoards" x-bind:key="b.id">
                   <option

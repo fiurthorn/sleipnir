@@ -54,7 +54,9 @@ document.addEventListener("alpine:init", () => {
     ).as("notemate_view_mode_v1"),
     expandedFolders: Alpine.$persist([]).as("notemate_expanded_v1"),
     activePath: Alpine.$persist("Willkommen.md").as("notemate_active_path_v1"),
-    activeKanbanBoardId: Alpine.$persist("projekte").as("notemate_kanban_board_v1"),
+    activeKanbanBoardId: Alpine.$persist("projekte").as(
+      "notemate_kanban_board_v1",
+    ),
 
     tree: [],
     // Note State (Top-level properties to comply with Alpine CSP AST parser)
@@ -84,7 +86,12 @@ document.addEventListener("alpine:init", () => {
     // Kanban State
     kanbanBoards: [],
     kanbanBoardTitle: "",
-    kanbanColumns: ["Eingang", "Zurückgestellt", "In Bearbeitung", "Fertiggestellt"],
+    kanbanColumns: [
+      "Eingang",
+      "Zurückgestellt",
+      "In Bearbeitung",
+      "Fertiggestellt",
+    ],
     kanbanCards: [],
     kanbanHiddenCount: 0,
     kanbanQuery: "",
@@ -99,6 +106,7 @@ document.addEventListener("alpine:init", () => {
     kanbanCardFormDueDate: "",
     kanbanCardFormTags: "",
     kanbanCardFormDescription: "",
+    kanbanCardInitialSnapshot: "",
 
     // Recipe Servings Scaling Module
     recipeBaseServings: null,
@@ -159,6 +167,10 @@ document.addEventListener("alpine:init", () => {
             return;
           }
           if (this.kanbanCardModalOpen) {
+            if (this.isKanbanCardDirty()) {
+              this.showToast("Ungespeicherte Änderungen – bitte speichern oder Abbrechen klicken.");
+              return;
+            }
             this.closeKanbanCardModal();
             return;
           }
@@ -166,9 +178,30 @@ document.addEventListener("alpine:init", () => {
             this.closeNsfwModal();
             return;
           }
+          if (this.showTagPicker) {
+            this.showTagPicker = false;
+            return;
+          }
+          if (
+            this.appMode === "notes" &&
+            (this.viewMode === "edit" || this.viewMode === "split")
+          ) {
+            if (this.isDirty) {
+              this.showToast(
+                "Ungespeicherte Änderungen – bitte erst speichern (Strg+S).",
+              );
+              return;
+            }
+            this.viewMode = "preview";
+            return;
+          }
         }
         // Ctrl+S / Cmd+S: Save Note
-        if ((e.ctrlKey || e.metaKey) && e.key === "s" && this.appMode === "notes") {
+        if (
+          (e.ctrlKey || e.metaKey) &&
+          e.key === "s" &&
+          this.appMode === "notes"
+        ) {
           e.preventDefault();
           this.saveCurrentNote();
         }
@@ -287,13 +320,19 @@ document.addEventListener("alpine:init", () => {
     get activeFilterTags() {
       const selectedLower = this.selectedTag.toLowerCase();
       return (this.allTags || []).filter(
-        (t) => t.count > 0 || (selectedLower && t.tag.toLowerCase() === selectedLower),
+        (t) =>
+          t.count > 0 ||
+          (selectedLower && t.tag.toLowerCase() === selectedLower),
       );
     },
 
     get availableTagsToAdd() {
-      const current = new Set((this.noteTags || []).map((t) => t.toLowerCase()));
-      return (this.allTags || []).filter((t) => !current.has(t.tag.toLowerCase()));
+      const current = new Set(
+        (this.noteTags || []).map((t) => t.toLowerCase()),
+      );
+      return (this.allTags || []).filter(
+        (t) => !current.has(t.tag.toLowerCase()),
+      );
     },
 
     isNsfwTag(tag) {
@@ -337,7 +376,9 @@ document.addEventListener("alpine:init", () => {
     async removeNoteTag(tag) {
       if (!this.notePath || !tag) return;
       const target = tag.toLowerCase();
-      const nextTags = (this.noteTags || []).filter((t) => t.toLowerCase() !== target);
+      const nextTags = (this.noteTags || []).filter(
+        (t) => t.toLowerCase() !== target,
+      );
       await this.updateNoteTags(nextTags);
     },
 
@@ -429,8 +470,10 @@ document.addEventListener("alpine:init", () => {
       const matchesTag = (node) => {
         if (!activeTag) return true;
         if (node.type === "file") {
-          return Array.isArray(node.tags) &&
-            node.tags.some((t) => String(t).toLowerCase() === activeTag);
+          return (
+            Array.isArray(node.tags) &&
+            node.tags.some((t) => String(t).toLowerCase() === activeTag)
+          );
         }
         return Array.isArray(node.children) && node.children.some(matchesTag);
       };
@@ -441,11 +484,7 @@ document.addEventListener("alpine:init", () => {
           if (activeTag && !matchesTag(node)) continue;
           list.push({ ...node, depth });
           const expanded = activeTag ? true : this.isFolderExpanded(node.path);
-          if (
-            node.type === "directory" &&
-            node.children &&
-            expanded
-          ) {
+          if (node.type === "directory" && node.children && expanded) {
             traverse(node.children, depth + 1);
           }
         }
@@ -517,7 +556,9 @@ document.addEventListener("alpine:init", () => {
 
     async copyNoteLink() {
       if (!this.notePath) return;
-      const label = this.noteTitle || this.notePath.split("/").pop()?.replace(/\.md$/i, "") || "Notiz";
+      const label = this.noteTitle ||
+        this.notePath.split("/").pop()?.replace(/\.md$/i, "") ||
+        "Notiz";
       const encodedPath = this.notePath
         .split("/")
         .map((part) => encodeURIComponent(part))
@@ -874,6 +915,9 @@ document.addEventListener("alpine:init", () => {
 
     onSearchKeydown(event) {
       if (event && event.key === "Escape") {
+        if (this.searchQuery) {
+          event.stopPropagation();
+        }
         this.clearSearch();
       }
     },
@@ -1070,13 +1114,16 @@ document.addEventListener("alpine:init", () => {
     enableTaskCheckboxes(html) {
       if (!html) return "";
       let idx = 0;
-      return html.replace(/<input\b([^>]*type=["']checkbox["'][^>]*)>/gi, (_m, attrs) => {
-        const cleaned = String(attrs)
-          .replace(/\s+disabled(?:=["'][^"']*["'])?/gi, "")
-          .trim();
-        const taskIdx = idx++;
-        return `<input ${cleaned} data-task-index="${taskIdx}" class="checkbox checkbox-xs align-middle mr-1.5 cursor-pointer" />`;
-      });
+      return html.replace(
+        /<input\b([^>]*type=["']checkbox["'][^>]*)>/gi,
+        (_m, attrs) => {
+          const cleaned = String(attrs)
+            .replace(/\s+disabled(?:=["'][^"']*["'])?/gi, "")
+            .trim();
+          const taskIdx = idx++;
+          return `<input ${cleaned} data-task-index="${taskIdx}" class="checkbox checkbox-xs align-middle mr-1.5 cursor-pointer" />`;
+        },
+      );
     },
 
     toggleMarkdownTask(markdown, targetIndex) {
@@ -1119,7 +1166,10 @@ document.addEventListener("alpine:init", () => {
     async handlePreviewClick(event) {
       const checkbox = event.target?.closest?.("[data-task-index]");
       if (checkbox) {
-        const idx = parseInt(checkbox.getAttribute("data-task-index") || "", 10);
+        const idx = parseInt(
+          checkbox.getAttribute("data-task-index") || "",
+          10,
+        );
         if (!isNaN(idx) && this.notePath) {
           const nextContent = this.toggleMarkdownTask(this.noteContent, idx);
           if (nextContent !== this.noteContent) {
@@ -1253,7 +1303,9 @@ document.addEventListener("alpine:init", () => {
       try {
         const params = new URLSearchParams();
         if (this.kanbanQuery.trim()) params.set("q", this.kanbanQuery.trim());
-        if (this.kanbanTagFilter.trim()) params.set("tag", this.kanbanTagFilter.trim());
+        if (this.kanbanTagFilter.trim()) {
+          params.set("tag", this.kanbanTagFilter.trim());
+        }
         const qs = params.toString();
         const url = `./api/kanban/boards/${encodeURIComponent(boardId)}${qs ? `?${qs}` : ""}`;
         const res = await fetch(url);
@@ -1319,6 +1371,20 @@ document.addEventListener("alpine:init", () => {
       }
     },
 
+    getKanbanCardSnapshot() {
+      return JSON.stringify([
+        this.kanbanCardFormTitle,
+        this.kanbanCardFormColumn,
+        this.kanbanCardFormDueDate,
+        this.kanbanCardFormTags,
+        this.kanbanCardFormDescription,
+      ]);
+    },
+
+    isKanbanCardDirty() {
+      return this.kanbanCardModalOpen && this.getKanbanCardSnapshot() !== this.kanbanCardInitialSnapshot;
+    },
+
     openKanbanCardModal(card = null, defaultColumn = "") {
       if (card) {
         this.kanbanEditingCardId = card.id;
@@ -1330,17 +1396,22 @@ document.addEventListener("alpine:init", () => {
       } else {
         this.kanbanEditingCardId = "";
         this.kanbanCardFormTitle = "";
-        this.kanbanCardFormColumn = defaultColumn || this.activeKanbanColumn || this.kanbanColumns[0] || "Eingang";
+        this.kanbanCardFormColumn = defaultColumn ||
+          this.activeKanbanColumn ||
+          this.kanbanColumns[0] ||
+          "Eingang";
         this.kanbanCardFormDueDate = "";
         this.kanbanCardFormTags = "";
         this.kanbanCardFormDescription = "";
       }
+      this.kanbanCardInitialSnapshot = this.getKanbanCardSnapshot();
       this.kanbanCardModalOpen = true;
     },
 
     closeKanbanCardModal() {
       this.kanbanCardModalOpen = false;
       this.kanbanEditingCardId = "";
+      this.kanbanCardInitialSnapshot = "";
     },
 
     async saveKanbanCard() {
@@ -1452,12 +1523,18 @@ document.addEventListener("alpine:init", () => {
 
     isKanbanCardOverdue(card) {
       if (!card || !card.dueDate) return false;
-      if (String(card.column || "").trim().toLowerCase() === "fertiggestellt") {
+      if (
+        String(card.column || "")
+          .trim()
+          .toLowerCase() === "fertiggestellt"
+      ) {
         return false;
       }
       const now = new Date();
       const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${
-        String(now.getDate()).padStart(2, "0")
+        String(
+          now.getDate(),
+        ).padStart(2, "0")
       }`;
       return card.dueDate < today;
     },
@@ -1473,14 +1550,19 @@ document.addEventListener("alpine:init", () => {
     async handleKanbanBodyClick(event, card = null) {
       const checkbox = event.target?.closest?.("[data-task-index]");
       if (checkbox && card) {
-        const idx = parseInt(checkbox.getAttribute("data-task-index") || "", 10);
+        const idx = parseInt(
+          checkbox.getAttribute("data-task-index") || "",
+          10,
+        );
         if (!isNaN(idx)) {
           const nextDesc = this.toggleMarkdownTask(card.description || "", idx);
           if (nextDesc !== card.description) {
             card.description = nextDesc;
             try {
               const url = `./api/kanban/boards/${encodeURIComponent(this.activeKanbanBoardId)}/cards/${
-                encodeURIComponent(card.id)
+                encodeURIComponent(
+                  card.id,
+                )
               }`;
               const res = await fetch(url, {
                 method: "PATCH",
@@ -1489,7 +1571,9 @@ document.addEventListener("alpine:init", () => {
               });
               if (!res.ok) throw new Error("HTTP " + res.status);
             } catch (err) {
-              this.showToast("Fehler beim Speichern der Checkbox: " + err.message);
+              this.showToast(
+                "Fehler beim Speichern der Checkbox: " + err.message,
+              );
             }
           }
         }
