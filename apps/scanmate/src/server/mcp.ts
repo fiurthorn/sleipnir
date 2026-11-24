@@ -7,6 +7,7 @@
 
 import { MCP_ANNOTATIONS, mcpError, mcpJson, McpServer, z } from "@sleipnir/core/mcp";
 import QRCode from "qrcode";
+import { VERSION } from "../../../../packages/sleipnir/src/version.g.ts";
 import {
   archivePendingScan,
   createFolder,
@@ -43,18 +44,29 @@ function parseImageDataUrl(input: string): ParsedDataUrl {
 /**
  * Creates a configured ScanMate MCP server for reading, analyzing (pending inbox), and archiving documents.
  */
-export function createScanmateMcpServer(publicBaseUrl = "http://localhost:3002"): McpServer {
+export function createScanmateMcpServer(
+  publicBaseUrl = "http://localhost:3002",
+): McpServer {
   const server = new McpServer({
     name: "scanmate",
-    version: "1.0.0",
+    version: VERSION,
   });
 
   server.tool(
     "scanmate_create_scan_session",
     "Erzeugt einen zeitlich begrenzten Scan-Link (Standard: 10 Min.) plus QR-Code für Desktop & Handy (voller Scan-Client mit Trimming, Perspektiv-Korrektur & Multipage).",
     {
-      label: z.string().optional().describe("Optionales Label für den Scan (z. B. 'Stromrechnung')"),
-      ttlMinutes: z.number().int().min(1).max(60).default(10).describe("Gültigkeitsdauer in Minuten"),
+      label: z
+        .string()
+        .optional()
+        .describe("Optionales Label für den Scan (z. B. 'Stromrechnung')"),
+      ttlMinutes: z
+        .number()
+        .int()
+        .min(1)
+        .max(60)
+        .default(10)
+        .describe("Gültigkeitsdauer in Minuten"),
     },
     MCP_ANNOTATIONS.write,
     async ({ label, ttlMinutes }) => {
@@ -62,7 +74,10 @@ export function createScanmateMcpServer(publicBaseUrl = "http://localhost:3002")
         const session = await createScanSession(label, ttlMinutes);
         const cleanBase = publicBaseUrl.replace(/\/$/, "");
         const scanUrl = `${cleanBase}/scan/${session.token}`;
-        const qrDataUrl = await QRCode.toDataURL(scanUrl, { width: 320, margin: 2 });
+        const qrDataUrl = await QRCode.toDataURL(scanUrl, {
+          width: 320,
+          margin: 2,
+        });
         const parsedQr = parseImageDataUrl(qrDataUrl);
 
         return {
@@ -89,7 +104,9 @@ export function createScanmateMcpServer(publicBaseUrl = "http://localhost:3002")
           ],
         };
       } catch (err) {
-        return mcpError(err instanceof Error ? err.message : "Scan-Session konnte nicht erstellt werden");
+        return mcpError(
+          err instanceof Error ? err.message : "Scan-Session konnte nicht erstellt werden",
+        );
       }
     },
   );
@@ -104,7 +121,9 @@ export function createScanmateMcpServer(publicBaseUrl = "http://localhost:3002")
         const items = await listPendingScans();
         return mcpJson({ count: items.length, items });
       } catch (err) {
-        return mcpError(err instanceof Error ? err.message : "Fehler beim Laden der Inbox");
+        return mcpError(
+          err instanceof Error ? err.message : "Fehler beim Laden der Inbox",
+        );
       }
     },
   );
@@ -114,7 +133,14 @@ export function createScanmateMcpServer(publicBaseUrl = "http://localhost:3002")
     "Lädt die Seitenbilder eines offenen Roh-Scans aus der Inbox als Bild-Content zur Vision-Analyse. Optional per page (1-basiert) einzeln abrufbar bei großen Scans.",
     {
       id: z.string().min(1).describe("ID des Pending-Scans"),
-      page: z.number().int().min(1).optional().describe("Optionale 1-basierte Seitennummer (für große Multi-Page-Scans)"),
+      page: z
+        .number()
+        .int()
+        .min(1)
+        .optional()
+        .describe(
+          "Optionale 1-basierte Seitennummer (für große Multi-Page-Scans)",
+        ),
     },
     MCP_ANNOTATIONS.readOnly,
     async ({ id, page }) => {
@@ -125,7 +151,9 @@ export function createScanmateMcpServer(publicBaseUrl = "http://localhost:3002")
         }
 
         if (page !== undefined && page > scan.pages.length) {
-          return mcpError(`Seite ${page} existiert nicht (Dokument hat ${scan.pages.length} Seite(n))`);
+          return mcpError(
+            `Seite ${page} existiert nicht (Dokument hat ${scan.pages.length} Seite(n))`,
+          );
         }
 
         const selectedPages = page !== undefined ? [scan.pages[page - 1]] : scan.pages;
@@ -154,7 +182,9 @@ export function createScanmateMcpServer(publicBaseUrl = "http://localhost:3002")
           ],
         };
       } catch (err) {
-        return mcpError(err instanceof Error ? err.message : "Fehler beim Laden der Scan-Bilder");
+        return mcpError(
+          err instanceof Error ? err.message : "Fehler beim Laden der Scan-Bilder",
+        );
       }
     },
   );
@@ -163,29 +193,56 @@ export function createScanmateMcpServer(publicBaseUrl = "http://localhost:3002")
     "scanmate_archive_pending",
     "Archiviert einen Pending-Scan mit den vom Agent extrahierten Metadaten (erzeugt PDF + JSON im Archiv und löscht den Pending-Scan).",
     {
-      pendingId: z.string().min(1).describe("ID des zu archivierenden Pending-Scans"),
+      pendingId: z
+        .string()
+        .min(1)
+        .describe("ID des zu archivierenden Pending-Scans"),
       title: z.string().min(1).describe("Dokumenttitel"),
-      category: z.string().default("Sonstiges").describe("Kategorie (z. B. Rechnung, Vertrag, Brief, Beleg, Sonstiges)"),
-      date: z.string().optional().describe("Dokumentdatum im Format YYYY-MM-DD"),
+      category: z
+        .string()
+        .default("Sonstiges")
+        .describe(
+          "Kategorie (z. B. Rechnung, Vertrag, Brief, Beleg, Sonstiges)",
+        ),
+      date: z
+        .string()
+        .optional()
+        .describe("Dokumentdatum im Format YYYY-MM-DD"),
       sender: z.string().optional().describe("Absender / Aussteller"),
       recipient: z.string().optional().describe("Empfänger"),
       totalAmount: z.number().optional().describe("Gesamtbetrag als Zahl"),
-      dueDate: z.string().optional().describe("Fälligkeitsdatum im Format YYYY-MM-DD"),
+      dueDate: z
+        .string()
+        .optional()
+        .describe("Fälligkeitsdatum im Format YYYY-MM-DD"),
       tags: z.array(z.string()).optional().describe("Schlagwörter"),
-      summary: z.string().optional().describe("Kurze Zusammenfassung des Dokuments"),
-      ocrText: z.string().optional().describe("Vollständiger erkannter Text (OCR)"),
-      targetPath: z.string().optional().describe("Relativer Zielordner im Archiv (z. B. '2026/Rechnungen')"),
+      summary: z
+        .string()
+        .optional()
+        .describe("Kurze Zusammenfassung des Dokuments"),
+      ocrText: z
+        .string()
+        .optional()
+        .describe("Vollständiger erkannter Text (OCR)"),
+      targetPath: z
+        .string()
+        .optional()
+        .describe("Relativer Zielordner im Archiv (z. B. '2026/Rechnungen')"),
     },
     MCP_ANNOTATIONS.write,
     async ({ pendingId, ...metadata }) => {
       try {
         const archived = await archivePendingScan(pendingId, metadata);
         if (!archived) {
-          return mcpError(`Pending-Scan '${pendingId}' nicht gefunden oder leer`);
+          return mcpError(
+            `Pending-Scan '${pendingId}' nicht gefunden oder leer`,
+          );
         }
         return mcpJson({ archived: true, document: archived });
       } catch (err) {
-        return mcpError(err instanceof Error ? err.message : "Archivierung fehlgeschlagen");
+        return mcpError(
+          err instanceof Error ? err.message : "Archivierung fehlgeschlagen",
+        );
       }
     },
   );
@@ -205,7 +262,9 @@ export function createScanmateMcpServer(publicBaseUrl = "http://localhost:3002")
         }
         return mcpJson({ deleted: true, id });
       } catch (err) {
-        return mcpError(err instanceof Error ? err.message : "Löschen fehlgeschlagen");
+        return mcpError(
+          err instanceof Error ? err.message : "Löschen fehlgeschlagen",
+        );
       }
     },
   );
@@ -214,18 +273,42 @@ export function createScanmateMcpServer(publicBaseUrl = "http://localhost:3002")
     "scanmate_list_documents",
     "Listet oder durchsucht archivierte Dokumente via MiniSearch (Titel, Absender & Tags geboostet; ohne vollen OCR-Text).",
     {
-      query: z.string().optional().describe("Optionaler Suchbegriff (MiniSearch über Titel, Absender, Tags, Zusammenfassung, OCR-Text)"),
+      query: z
+        .string()
+        .optional()
+        .describe(
+          "Optionaler Suchbegriff (MiniSearch über Titel, Absender, Tags, Zusammenfassung, OCR-Text)",
+        ),
       category: z.string().optional().describe("Filter nach Kategorie"),
-      folder: z.string().optional().describe("Filter nach Zielordner (targetPath)"),
-      limit: z.number().int().min(1).max(200).default(50).describe("Maximale Anzahl Ergebnisse"),
+      folder: z
+        .string()
+        .optional()
+        .describe("Filter nach Zielordner (targetPath)"),
+      limit: z
+        .number()
+        .int()
+        .min(1)
+        .max(200)
+        .default(50)
+        .describe("Maximale Anzahl Ergebnisse"),
     },
     MCP_ANNOTATIONS.readOnly,
     async ({ query, category, folder, limit }) => {
       try {
         if (query && query.trim().length > 0) {
-          const hits = await searchDocuments(query, { category, folder, limit });
-          const documents = hits.map(({ ocrText: _ocr, ...summary }) => summary);
-          return mcpJson({ total: documents.length, returned: documents.length, documents });
+          const hits = await searchDocuments(query, {
+            category,
+            folder,
+            limit,
+          });
+          const documents = hits.map(
+            ({ ocrText: _ocr, ...summary }) => summary,
+          );
+          return mcpJson({
+            total: documents.length,
+            returned: documents.length,
+            documents,
+          });
         }
 
         let docs = await listAllDocuments();
@@ -239,10 +322,18 @@ export function createScanmateMcpServer(publicBaseUrl = "http://localhost:3002")
           docs = docs.filter((d) => (d.targetPath || "") === folder);
         }
 
-        const sliced = docs.slice(0, limit).map(({ ocrText: _ocr, ...summary }) => summary);
-        return mcpJson({ total: docs.length, returned: sliced.length, documents: sliced });
+        const sliced = docs
+          .slice(0, limit)
+          .map(({ ocrText: _ocr, ...summary }) => summary);
+        return mcpJson({
+          total: docs.length,
+          returned: sliced.length,
+          documents: sliced,
+        });
       } catch (err) {
-        return mcpError(err instanceof Error ? err.message : "Fehler beim Auflisten der Dokumente");
+        return mcpError(
+          err instanceof Error ? err.message : "Fehler beim Auflisten der Dokumente",
+        );
       }
     },
   );
@@ -262,7 +353,9 @@ export function createScanmateMcpServer(publicBaseUrl = "http://localhost:3002")
         }
         return mcpJson(doc);
       } catch (err) {
-        return mcpError(err instanceof Error ? err.message : "Fehler beim Laden des Dokuments");
+        return mcpError(
+          err instanceof Error ? err.message : "Fehler beim Laden des Dokuments",
+        );
       }
     },
   );
@@ -279,7 +372,10 @@ export function createScanmateMcpServer(publicBaseUrl = "http://localhost:3002")
       recipient: z.string().optional().describe("Empfänger"),
       totalAmount: z.number().optional().describe("Gesamtbetrag"),
       dueDate: z.string().optional().describe("Fälligkeitsdatum YYYY-MM-DD"),
-      tags: z.array(z.string()).optional().describe("Neue Tag-Liste (ersetzt bisherige Tags)"),
+      tags: z
+        .array(z.string())
+        .optional()
+        .describe("Neue Tag-Liste (ersetzt bisherige Tags)"),
       summary: z.string().optional().describe("Aktualisierte Zusammenfassung"),
       ocrText: z.string().optional().describe("Aktualisierter OCR-Text"),
     },
@@ -295,7 +391,9 @@ export function createScanmateMcpServer(publicBaseUrl = "http://localhost:3002")
         }
         return mcpJson({ updated: true, document: updated });
       } catch (err) {
-        return mcpError(err instanceof Error ? err.message : "Aktualisierung fehlgeschlagen");
+        return mcpError(
+          err instanceof Error ? err.message : "Aktualisierung fehlgeschlagen",
+        );
       }
     },
   );
@@ -310,7 +408,9 @@ export function createScanmateMcpServer(publicBaseUrl = "http://localhost:3002")
         const folders = await listFolderPaths();
         return mcpJson({ folders });
       } catch (err) {
-        return mcpError(err instanceof Error ? err.message : "Fehler beim Laden der Ordner");
+        return mcpError(
+          err instanceof Error ? err.message : "Fehler beim Laden der Ordner",
+        );
       }
     },
   );
@@ -319,7 +419,10 @@ export function createScanmateMcpServer(publicBaseUrl = "http://localhost:3002")
     "scanmate_create_folder",
     "Legt einen neuen Zielordner im ScanMate-Archiv an.",
     {
-      path: z.string().min(1).describe("Relativer Ordnerpfad (z. B. '2026/Steuer')"),
+      path: z
+        .string()
+        .min(1)
+        .describe("Relativer Ordnerpfad (z. B. '2026/Steuer')"),
     },
     MCP_ANNOTATIONS.writeIdempotent,
     async ({ path }) => {
@@ -330,7 +433,9 @@ export function createScanmateMcpServer(publicBaseUrl = "http://localhost:3002")
         }
         return mcpJson({ created: true, path: created });
       } catch (err) {
-        return mcpError(err instanceof Error ? err.message : "Ordner konnte nicht erstellt werden");
+        return mcpError(
+          err instanceof Error ? err.message : "Ordner konnte nicht erstellt werden",
+        );
       }
     },
   );

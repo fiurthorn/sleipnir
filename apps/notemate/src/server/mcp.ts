@@ -5,6 +5,7 @@
  * Architektur & Review: Stefan | Implementation & Synthese: Sam
  */
 
+import { VERSION } from "../../../../packages/sleipnir/src/version.g.ts";
 import type { KanbanStorage } from "./services/kanban.ts";
 import type { NoteStorage } from "./services/storage.ts";
 
@@ -19,7 +20,7 @@ export function createNotemateMcpServer(
 ): McpServer {
   const server = new McpServer({
     name: "notemate",
-    version: "1.0.0",
+    version: VERSION,
   });
 
   server.tool(
@@ -32,7 +33,9 @@ export function createNotemateMcpServer(
         const tree = await storage.getTree();
         return mcpJson({ tree });
       } catch (err) {
-        return mcpError(err instanceof Error ? err.message : "Fehler beim Laden des Baums");
+        return mcpError(
+          err instanceof Error ? err.message : "Fehler beim Laden des Baums",
+        );
       }
     },
   );
@@ -41,7 +44,10 @@ export function createNotemateMcpServer(
     "notemate_read_note",
     "Liest den vollständigen Markdown-Inhalt einer Notiz anhand ihres relativen Pfads.",
     {
-      path: z.string().min(1).describe("Relativer Pfad zur Notiz (z. B. 'Rezepte/Pasta.md')"),
+      path: z
+        .string()
+        .min(1)
+        .describe("Relativer Pfad zur Notiz (z. B. 'Rezepte/Pasta.md')"),
     },
     MCP_ANNOTATIONS.readOnly,
     async ({ path }) => {
@@ -49,7 +55,9 @@ export function createNotemateMcpServer(
         const note = await storage.getNote(path);
         return mcpJson(note);
       } catch (err) {
-        return mcpError(err instanceof Error ? err.message : "Notiz nicht gefunden");
+        return mcpError(
+          err instanceof Error ? err.message : "Notiz nicht gefunden",
+        );
       }
     },
   );
@@ -58,7 +66,10 @@ export function createNotemateMcpServer(
     "notemate_write_note",
     "Erstellt oder aktualisiert eine Markdown-Notiz unter dem angegebenen Pfad.",
     {
-      path: z.string().min(1).describe("Relativer Pfad zur Notiz (z. B. 'Ideen/Architektur.md')"),
+      path: z
+        .string()
+        .min(1)
+        .describe("Relativer Pfad zur Notiz (z. B. 'Ideen/Architektur.md')"),
       content: z.string().describe("Vollständiger Markdown-Inhalt der Notiz"),
     },
     MCP_ANNOTATIONS.writeIdempotent,
@@ -67,7 +78,9 @@ export function createNotemateMcpServer(
         const note = await storage.saveNote(path, content);
         return mcpJson({ saved: true, note });
       } catch (err) {
-        return mcpError(err instanceof Error ? err.message : "Fehler beim Speichern");
+        return mcpError(
+          err instanceof Error ? err.message : "Fehler beim Speichern",
+        );
       }
     },
   );
@@ -77,7 +90,13 @@ export function createNotemateMcpServer(
     "Gerankte MiniSearch-Volltextsuche über alle Notizen (Titel und Tags werden höher gewichtet).",
     {
       query: z.string().min(1).describe("Suchbegriff(e)"),
-      limit: z.number().int().min(1).max(100).default(20).describe("Maximale Anzahl Ergebnisse"),
+      limit: z
+        .number()
+        .int()
+        .min(1)
+        .max(100)
+        .default(20)
+        .describe("Maximale Anzahl Ergebnisse"),
     },
     MCP_ANNOTATIONS.readOnly,
     async ({ query, limit }) => {
@@ -102,7 +121,9 @@ export function createNotemateMcpServer(
         await storage.createFolder(path);
         return mcpJson({ created: true, path });
       } catch (err) {
-        return mcpError(err instanceof Error ? err.message : "Ordner konnte nicht erstellt werden");
+        return mcpError(
+          err instanceof Error ? err.message : "Ordner konnte nicht erstellt werden",
+        );
       }
     },
   );
@@ -120,7 +141,9 @@ export function createNotemateMcpServer(
         await storage.renameItem(oldPath, newPath);
         return mcpJson({ renamed: true, oldPath, newPath });
       } catch (err) {
-        return mcpError(err instanceof Error ? err.message : "Umbenennen fehlgeschlagen");
+        return mcpError(
+          err instanceof Error ? err.message : "Umbenennen fehlgeschlagen",
+        );
       }
     },
   );
@@ -129,15 +152,25 @@ export function createNotemateMcpServer(
     "notemate_move_item",
     "Verschiebt eine einzelne Notiz (.md) inklusive zugehöriger Attachments in einen anderen Zielordner.",
     {
-      sourcePath: z.string().min(1).describe("Aktueller relativer Pfad der Notiz (z. B. 'NotesEncryption.md')"),
-      targetFolder: z.string().default("").describe("Zielordner (z. B. 'Konzepte' oder '' für Stammverzeichnis)"),
+      sourcePath: z
+        .string()
+        .min(1)
+        .describe(
+          "Aktueller relativer Pfad der Notiz (z. B. 'NotesEncryption.md')",
+        ),
+      targetFolder: z
+        .string()
+        .default("")
+        .describe("Zielordner (z. B. 'Konzepte' oder '' für Stammverzeichnis)"),
     },
     MCP_ANNOTATIONS.write,
     async ({ sourcePath, targetFolder }) => {
       try {
         const cleanSource = sourcePath.trim().replace(/^\/+|\/+$/g, "");
         if (!cleanSource.endsWith(".md")) {
-          return mcpError("Es können nur einzelne Notizen (.md) verschoben werden.");
+          return mcpError(
+            "Es können nur einzelne Notizen (.md) verschoben werden.",
+          );
         }
         const cleanFolder = targetFolder.trim().replace(/^\/+|\/+$/g, "");
         const fileName = cleanSource.split("/").pop() || cleanSource;
@@ -148,7 +181,9 @@ export function createNotemateMcpServer(
         await storage.renameItem(cleanSource, newPath);
         return mcpJson({ moved: true, oldPath: cleanSource, newPath });
       } catch (err) {
-        return mcpError(err instanceof Error ? err.message : "Verschieben fehlgeschlagen");
+        return mcpError(
+          err instanceof Error ? err.message : "Verschieben fehlgeschlagen",
+        );
       }
     },
   );
@@ -157,7 +192,10 @@ export function createNotemateMcpServer(
     "notemate_delete_item",
     "Löscht eine Notiz oder einen Ordner rekursiv.",
     {
-      path: z.string().min(1).describe("Relativer Pfad des zu löschenden Elements"),
+      path: z
+        .string()
+        .min(1)
+        .describe("Relativer Pfad des zu löschenden Elements"),
     },
     MCP_ANNOTATIONS.destructive,
     async ({ path }) => {
@@ -165,7 +203,9 @@ export function createNotemateMcpServer(
         await storage.deleteItem(path);
         return mcpJson({ deleted: true, path });
       } catch (err) {
-        return mcpError(err instanceof Error ? err.message : "Löschen fehlgeschlagen");
+        return mcpError(
+          err instanceof Error ? err.message : "Löschen fehlgeschlagen",
+        );
       }
     },
   );
@@ -174,7 +214,10 @@ export function createNotemateMcpServer(
     "notemate_list_untagged",
     "Listet alle Notizen/Rezepte ohne YAML-Frontmatter-Tags auf (optional auf einen Ordner wie 'Rezepte' eingegrenzt).",
     {
-      folder: z.string().optional().describe("Optionaler Unterordner (z. B. 'Rezepte')"),
+      folder: z
+        .string()
+        .optional()
+        .describe("Optionaler Unterordner (z. B. 'Rezepte')"),
     },
     MCP_ANNOTATIONS.readOnly,
     async ({ folder }) => {
@@ -182,7 +225,9 @@ export function createNotemateMcpServer(
         const notes = await storage.listUntaggedNotes(folder);
         return mcpJson({ count: notes.length, notes });
       } catch (err) {
-        return mcpError(err instanceof Error ? err.message : "Fehler beim Laden ungetaggter Notizen");
+        return mcpError(
+          err instanceof Error ? err.message : "Fehler beim Laden ungetaggter Notizen",
+        );
       }
     },
   );
@@ -191,7 +236,10 @@ export function createNotemateMcpServer(
     "notemate_list_tags",
     "Listet alle vordefinierten, erlaubten Tags (inkl. Kategorie & aktueller Nutzungsanzahl) auf.",
     {
-      folder: z.string().optional().describe("Optionaler Unterordner für die Zählung (z. B. 'Rezepte')"),
+      folder: z
+        .string()
+        .optional()
+        .describe("Optionaler Unterordner für die Zählung (z. B. 'Rezepte')"),
     },
     MCP_ANNOTATIONS.readOnly,
     async ({ folder }) => {
@@ -199,7 +247,9 @@ export function createNotemateMcpServer(
         const tags = await storage.listAllTags(folder);
         return mcpJson({ count: tags.length, tags });
       } catch (err) {
-        return mcpError(err instanceof Error ? err.message : "Fehler beim Laden der Tags");
+        return mcpError(
+          err instanceof Error ? err.message : "Fehler beim Laden der Tags",
+        );
       }
     },
   );
@@ -208,8 +258,14 @@ export function createNotemateMcpServer(
     "notemate_add_tags",
     "Fügt einer Notiz/einem Rezept erlaubte Tags aus notemate_list_tags im YAML-Frontmatter hinzu.",
     {
-      path: z.string().min(1).describe("Relativer Pfad zur Notiz (z. B. 'Rezepte/Pasta.md')"),
-      tags: z.array(z.string().min(1)).min(1).describe("Erlaubte Tags aus notemate_list_tags"),
+      path: z
+        .string()
+        .min(1)
+        .describe("Relativer Pfad zur Notiz (z. B. 'Rezepte/Pasta.md')"),
+      tags: z
+        .array(z.string().min(1))
+        .min(1)
+        .describe("Erlaubte Tags aus notemate_list_tags"),
     },
     MCP_ANNOTATIONS.writeIdempotent,
     async ({ path, tags }) => {
@@ -217,7 +273,9 @@ export function createNotemateMcpServer(
         const result = await storage.addNoteTags(path, tags);
         return mcpJson({ updated: true, ...result });
       } catch (err) {
-        return mcpError(err instanceof Error ? err.message : "Tags konnten nicht hinzugefügt werden");
+        return mcpError(
+          err instanceof Error ? err.message : "Tags konnten nicht hinzugefügt werden",
+        );
       }
     },
   );
@@ -233,7 +291,9 @@ export function createNotemateMcpServer(
           const boards = await kanban.listBoards();
           return mcpJson({ boards });
         } catch (err) {
-          return mcpError(err instanceof Error ? err.message : "Boards konnten nicht geladen werden");
+          return mcpError(
+            err instanceof Error ? err.message : "Boards konnten nicht geladen werden",
+          );
         }
       },
     );
@@ -243,8 +303,16 @@ export function createNotemateMcpServer(
       "Legt ein neues Kanban-Board als YAML-Datei an (Standard-Spalten: Eingang, Zurückgestellt, In Bearbeitung, Fertiggestellt).",
       {
         title: z.string().min(1).describe("Titel des Boards"),
-        id: z.string().optional().describe("Optionale URL-/Dateiname-ID (wird sonst aus Titel erzeugt)"),
-        columns: z.array(z.string().min(1)).optional().describe("Optionale benutzerdefinierte Spaltenliste"),
+        id: z
+          .string()
+          .optional()
+          .describe(
+            "Optionale URL-/Dateiname-ID (wird sonst aus Titel erzeugt)",
+          ),
+        columns: z
+          .array(z.string().min(1))
+          .optional()
+          .describe("Optionale benutzerdefinierte Spaltenliste"),
       },
       MCP_ANNOTATIONS.write,
       async ({ title, id, columns }) => {
@@ -252,7 +320,9 @@ export function createNotemateMcpServer(
           const board = await kanban.createBoard(title, id, columns);
           return mcpJson({ created: true, board });
         } catch (err) {
-          return mcpError(err instanceof Error ? err.message : "Board konnte nicht erstellt werden");
+          return mcpError(
+            err instanceof Error ? err.message : "Board konnte nicht erstellt werden",
+          );
         }
       },
     );
@@ -262,16 +332,27 @@ export function createNotemateMcpServer(
       "Lädt ein Kanban-Board inklusive Karten, optional gefiltert nach Suchbegriff oder Tag.",
       {
         boardId: z.string().min(1).describe("Board-ID (z. B. 'projekte')"),
-        query: z.string().optional().describe("Optionaler Suchbegriff in Titel, Beschreibung, Tags oder ID"),
+        query: z
+          .string()
+          .optional()
+          .describe(
+            "Optionaler Suchbegriff in Titel, Beschreibung, Tags oder ID",
+          ),
         tag: z.string().optional().describe("Optionaler Tag-Filter"),
       },
       MCP_ANNOTATIONS.readOnly,
       async ({ boardId, query, tag }) => {
         try {
-          const result = await kanban.getBoard(boardId, { includeNsfw: true, query, tag });
+          const result = await kanban.getBoard(boardId, {
+            includeNsfw: true,
+            query,
+            tag,
+          });
           return mcpJson(result.board);
         } catch (err) {
-          return mcpError(err instanceof Error ? err.message : "Board nicht gefunden");
+          return mcpError(
+            err instanceof Error ? err.message : "Board nicht gefunden",
+          );
         }
       },
     );
@@ -282,18 +363,40 @@ export function createNotemateMcpServer(
       {
         boardId: z.string().min(1).describe("Board-ID"),
         title: z.string().min(1).describe("Kurzer Kartentitel"),
-        column: z.string().optional().describe("Zielspalte (Default: erste Spalte, z. B. 'Eingang')"),
-        tags: z.array(z.string().min(1)).optional().describe("Optionale Tags zur Eingrenzung"),
-        description: z.string().optional().describe("Optionale Markdown-Beschreibung (inkl. Links wie [Notiz](?note=Pfad.md))"),
-        dueDate: z.string().optional().describe("Optionales Fälligkeitsdatum im Format YYYY-MM-DD"),
+        column: z
+          .string()
+          .optional()
+          .describe("Zielspalte (Default: erste Spalte, z. B. 'Eingang')"),
+        tags: z
+          .array(z.string().min(1))
+          .optional()
+          .describe("Optionale Tags zur Eingrenzung"),
+        description: z
+          .string()
+          .optional()
+          .describe(
+            "Optionale Markdown-Beschreibung (inkl. Links wie [Notiz](?note=Pfad.md))",
+          ),
+        dueDate: z
+          .string()
+          .optional()
+          .describe("Optionales Fälligkeitsdatum im Format YYYY-MM-DD"),
       },
       MCP_ANNOTATIONS.write,
       async ({ boardId, title, column, tags, description, dueDate }) => {
         try {
-          const card = await kanban.addCard(boardId, { title, column, tags, description, dueDate });
+          const card = await kanban.addCard(boardId, {
+            title,
+            column,
+            tags,
+            description,
+            dueDate,
+          });
           return mcpJson({ created: true, card });
         } catch (err) {
-          return mcpError(err instanceof Error ? err.message : "Karte konnte nicht erstellt werden");
+          return mcpError(
+            err instanceof Error ? err.message : "Karte konnte nicht erstellt werden",
+          );
         }
       },
     );
@@ -304,16 +407,31 @@ export function createNotemateMcpServer(
       {
         boardId: z.string().min(1).describe("Board-ID"),
         cardId: z.string().min(1).describe("Karten-ID (z. B. 'k_a1b2c3')"),
-        targetColumn: z.string().min(1).describe("Zielspalte (z. B. 'In Bearbeitung')"),
-        order: z.number().int().min(0).optional().describe("Optionale Zielposition (0-basiert)"),
+        targetColumn: z
+          .string()
+          .min(1)
+          .describe("Zielspalte (z. B. 'In Bearbeitung')"),
+        order: z
+          .number()
+          .int()
+          .min(0)
+          .optional()
+          .describe("Optionale Zielposition (0-basiert)"),
       },
       MCP_ANNOTATIONS.writeIdempotent,
       async ({ boardId, cardId, targetColumn, order }) => {
         try {
-          const card = await kanban.moveCard(boardId, cardId, targetColumn, order);
+          const card = await kanban.moveCard(
+            boardId,
+            cardId,
+            targetColumn,
+            order,
+          );
           return mcpJson({ moved: true, card });
         } catch (err) {
-          return mcpError(err instanceof Error ? err.message : "Karte konnte nicht verschoben werden");
+          return mcpError(
+            err instanceof Error ? err.message : "Karte konnte nicht verschoben werden",
+          );
         }
       },
     );
@@ -326,17 +444,45 @@ export function createNotemateMcpServer(
         cardId: z.string().min(1).describe("Karten-ID"),
         title: z.string().min(1).optional().describe("Neuer Titel"),
         column: z.string().min(1).optional().describe("Neue Spalte"),
-        tags: z.array(z.string().min(1)).optional().describe("Neue Tag-Liste (ersetzt bestehende Tags)"),
-        description: z.string().optional().describe("Neue Markdown-Beschreibung"),
-        dueDate: z.string().nullable().optional().describe("Fälligkeitsdatum YYYY-MM-DD (oder null / '' zum Entfernen)"),
+        tags: z
+          .array(z.string().min(1))
+          .optional()
+          .describe("Neue Tag-Liste (ersetzt bestehende Tags)"),
+        description: z
+          .string()
+          .optional()
+          .describe("Neue Markdown-Beschreibung"),
+        dueDate: z
+          .string()
+          .nullable()
+          .optional()
+          .describe(
+            "Fälligkeitsdatum YYYY-MM-DD (oder null / '' zum Entfernen)",
+          ),
       },
       MCP_ANNOTATIONS.writeIdempotent,
-      async ({ boardId, cardId, title, column, tags, description, dueDate }) => {
+      async ({
+        boardId,
+        cardId,
+        title,
+        column,
+        tags,
+        description,
+        dueDate,
+      }) => {
         try {
-          const card = await kanban.updateCard(boardId, cardId, { title, column, tags, description, dueDate });
+          const card = await kanban.updateCard(boardId, cardId, {
+            title,
+            column,
+            tags,
+            description,
+            dueDate,
+          });
           return mcpJson({ updated: true, card });
         } catch (err) {
-          return mcpError(err instanceof Error ? err.message : "Karte konnte nicht aktualisiert werden");
+          return mcpError(
+            err instanceof Error ? err.message : "Karte konnte nicht aktualisiert werden",
+          );
         }
       },
     );
@@ -345,7 +491,12 @@ export function createNotemateMcpServer(
       "kanban_list_overdue",
       "Listet alle überfälligen Kanban-Aufgaben auf (Fälligkeitsdatum vor heute, noch nicht in 'Fertiggestellt').",
       {
-        boardId: z.string().optional().describe("Optional auf eine Board-ID eingrenzen (sonst über alle Boards)"),
+        boardId: z
+          .string()
+          .optional()
+          .describe(
+            "Optional auf eine Board-ID eingrenzen (sonst über alle Boards)",
+          ),
       },
       MCP_ANNOTATIONS.readOnly,
       async ({ boardId }) => {
@@ -361,7 +512,9 @@ export function createNotemateMcpServer(
             })),
           });
         } catch (err) {
-          return mcpError(err instanceof Error ? err.message : "Überfällige Aufgaben konnten nicht geladen werden");
+          return mcpError(
+            err instanceof Error ? err.message : "Überfällige Aufgaben konnten nicht geladen werden",
+          );
         }
       },
     );
@@ -379,7 +532,9 @@ export function createNotemateMcpServer(
           await kanban.deleteCard(boardId, cardId);
           return mcpJson({ deleted: true, cardId });
         } catch (err) {
-          return mcpError(err instanceof Error ? err.message : "Karte konnte nicht gelöscht werden");
+          return mcpError(
+            err instanceof Error ? err.message : "Karte konnte nicht gelöscht werden",
+          );
         }
       },
     );

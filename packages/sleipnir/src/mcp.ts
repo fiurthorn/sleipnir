@@ -12,6 +12,7 @@ import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/
 import { z } from "zod";
 import { LOGO, LOGO_WORDMARK, LOGO_WORDMARK_LIGHT } from "./assets/icon.ts";
 import { proxyRedirect, themeInit } from "./utils.ts";
+import { VERSION } from "./version.g.ts";
 
 export { McpServer, z };
 
@@ -121,7 +122,9 @@ function formatParamType(meta: SchemaPropertyMeta): string {
   }
   const union = meta.anyOf ?? meta.oneOf;
   if (Array.isArray(union) && union.length > 0) {
-    const types = union.map((entry) => entry.type).filter((t): t is string => Boolean(t));
+    const types = union
+      .map((entry) => entry.type)
+      .filter((t): t is string => Boolean(t));
     if (types.length > 0) return types.join(" | ");
   }
   return "any";
@@ -134,18 +137,28 @@ function renderAnnotationBadges(ann?: ListedTool["annotations"]): string {
 
   const badges: string[] = [];
   if (ann.readOnlyHint) {
-    badges.push(`<span class="badge badge-xs badge-success uppercase font-mono">readOnly</span>`);
+    badges.push(
+      `<span class="badge badge-xs badge-success uppercase font-mono">readOnly</span>`,
+    );
   } else if (ann.destructiveHint) {
-    badges.push(`<span class="badge badge-xs badge-error uppercase font-mono">destructive</span>`);
+    badges.push(
+      `<span class="badge badge-xs badge-error uppercase font-mono">destructive</span>`,
+    );
   } else {
-    badges.push(`<span class="badge badge-xs badge-warning uppercase font-mono">write</span>`);
+    badges.push(
+      `<span class="badge badge-xs badge-warning uppercase font-mono">write</span>`,
+    );
   }
 
   if (ann.idempotentHint) {
-    badges.push(`<span class="badge badge-xs badge-outline uppercase font-mono opacity-75">idempotent</span>`);
+    badges.push(
+      `<span class="badge badge-xs badge-outline uppercase font-mono opacity-75">idempotent</span>`,
+    );
   }
   if (ann.openWorldHint) {
-    badges.push(`<span class="badge badge-xs badge-outline uppercase font-mono opacity-75">openWorld</span>`);
+    badges.push(
+      `<span class="badge badge-xs badge-outline uppercase font-mono opacity-75">openWorld</span>`,
+    );
   }
   return badges.join("");
 }
@@ -187,7 +200,8 @@ function renderMcpOverviewHtml(
 ): string {
   const title = escapeHtml(docs?.title || `${serverName} MCP`);
   const description = escapeHtml(
-    docs?.description || "Streamable-HTTP Model Context Protocol Endpoint für Agent-Integrationen.",
+    docs?.description ||
+      "Streamable-HTTP Model Context Protocol Endpoint für Agent-Integrationen.",
   );
   const clientKey = serverName.toLowerCase().replace(/[^a-z0-9_-]/g, "") || "mcp-server";
   const configSnippet = JSON.stringify(
@@ -215,7 +229,9 @@ function renderMcpOverviewHtml(
     `
     : "";
 
-  const toolsHtml = tools.map((tool) => `
+  const toolsHtml = tools
+    .map(
+      (tool) => `
     <article class="card bg-base-100 border border-base-content/10 shadow-sm">
       <div class="card-body p-5 gap-3">
         <div class="flex flex-wrap justify-between items-center gap-2">
@@ -226,7 +242,9 @@ function renderMcpOverviewHtml(
         ${renderToolParams(tool.inputSchema)}
       </div>
     </article>
-  `).join("");
+  `,
+    )
+    .join("");
 
   return `<!DOCTYPE html>
 <html data-theme="corvus" lang="de">
@@ -263,7 +281,9 @@ function renderMcpOverviewHtml(
         <p class="text-sm opacity-75">${description}</p>
         <div class="mt-1">
           <code class="inline-block bg-base-100 border border-base-content/15 rounded-md px-2.5 py-1 text-xs font-mono text-primary">${
-    escapeHtml(endpointUrl)
+    escapeHtml(
+      endpointUrl,
+    )
   }</code>
         </div>
       </div>
@@ -291,7 +311,9 @@ function renderMcpOverviewHtml(
         <h2 class="card-title text-base">Client-Anbindung (Claude / Cursor / Antigravity / OpenCode)</h2>
         <p class="text-xs opacity-70">Füge diesen Block in deine MCP-Client-Konfiguration ein (Transport: HTTP):</p>
         <pre class="bg-base-300/70 border border-base-content/10 rounded-lg p-3.5 overflow-x-auto text-xs font-mono"><code>${
-    escapeHtml(configSnippet)
+    escapeHtml(
+      configSnippet,
+    )
   }</code></pre>
       </div>
     </section>
@@ -365,26 +387,36 @@ export function mountMcp(
 
       if (isBrowserGet) {
         const [listJson, initJson] = await Promise.all([
-          queryMcpOnce<{ result?: { tools?: ListedTool[] } }>(createServer, c, "tools/list", {}),
-          queryMcpOnce<{ result?: { serverInfo?: { name?: string; version?: string } } }>(
+          queryMcpOnce<{ result?: { tools?: ListedTool[] } }>(
             createServer,
             c,
-            "initialize",
-            {
-              protocolVersion: "2025-03-26",
-              capabilities: {},
-              clientInfo: { name: "mcp-browser-docs", version: "1.0.0" },
-            },
+            "tools/list",
+            {},
           ),
+          queryMcpOnce<{
+            result?: { serverInfo?: { name?: string; version?: string } };
+          }>(createServer, c, "initialize", {
+            protocolVersion: "2025-03-26",
+            capabilities: {},
+            clientInfo: { name: "mcp-browser-docs", version: VERSION },
+          }),
         ]);
 
         const reqUrl = new URL(c.req.url);
         const endpointUrl = docs?.publicUrl || `${reqUrl.origin}${reqUrl.pathname}`;
         const serverName = initJson.result?.serverInfo?.name || "mcp";
-        const serverVersion = initJson.result?.serverInfo?.version || "1.0.0";
+        const serverVersion = initJson.result?.serverInfo?.version || "dev";
         const tools = listJson.result?.tools ?? [];
 
-        return c.html(renderMcpOverviewHtml(endpointUrl, serverName, serverVersion, tools, docs));
+        return c.html(
+          renderMcpOverviewHtml(
+            endpointUrl,
+            serverName,
+            serverVersion,
+            tools,
+            docs,
+          ),
+        );
       }
 
       const transport = new WebStandardStreamableHTTPServerTransport({
