@@ -4,6 +4,8 @@ Ein modulares Monorepo für lokale, dateibasierte Produktivitäts- und KI-Tools 
 
 Das Projekt folgt konsequent dem **Filesystem-as-Single-Source-of-Truth**-Prinzip: keine schwere Datenbank, alle Assets lokal gebündelt (kein Laufzeit-CDN) und alle Dienste bereit für Reverse-Proxies (`BASE_PATH`) sowie `podman compose` mit `--watch`.
 
+Ein zweites Kernprinzip ist die **tief eingewobene MCP-Integration**: `notemate` und `scanmate` sind nicht nur Web-Apps, sondern stellen ihre gesamte Domänenlogik nativ über **Streamable-HTTP-MCP (`/mcp`)** bereit. Sowohl externe KI-Clients als auch der eigene `agentmate`-Service greifen darüber direkt auf denselben Werkzeugkasten zu – ohne doppelte Business-Logik.
+
 > [!IMPORTANT]
 > **Sicherheitshinweis für den Betrieb (Self-Hosting):**
 > Alle Dienste in diesem Stack sind für den Betrieb in einem **privaten Netzwerk (z. B. via Tailscale)** oder hinter einem **Reverse-Proxy mit vorgelagerter Authentifizierung** ausgelegt. Die Apps bringen bewusst **keine eigene Benutzer-Authentifizierung** mit (abgesehen vom optionalen 1h-NSFW-Pin-Gate in `notemate`) und sollten **nicht ungeschützt direkt aus dem öffentlichen Internet erreichbar** gemacht werden. API-Keys und Zugangsdaten gehören ausschließlich in lokale `.env`-Dateien (durch `.gitignore` ausgeschlossen).
@@ -23,6 +25,7 @@ flowchart TB
         CM["chatmate :3002\nMulti-Provider Chat & Image API"]
         NM["notemate :3003\nMarkdown-Notizen, Tags & /mcp"]
         SM["scanmate :3004\nScanner, PDF-Sidecars & /mcp"]
+        AM["agentmate :3005\nOpenRouter-Agent, Cron-Triage & MCP-Chat"]
     end
 
     subgraph Core["packages/sleipnir (@sleipnir/core)"]
@@ -37,16 +40,17 @@ flowchart TB
         Docs["./data/documents\n(.pdf, .json-Sidecars, Pending-Queue)"]
     end
 
-    UI --> CM & NM & SM
+    UI --> CM & NM & SM & AM
     Agent -->|MCP Streamable HTTP| NM & SM
-    CM & NM & SM --> Core
+    AM -->|MCP Client / HTTP| NM & SM
+    CM & NM & SM & AM --> Core
     NM --> Notes
     SM --> Docs
 ```
 
 ---
 
-## 🧩 Die drei Komponenten
+## 🧩 Die vier Komponenten
 
 ### 1. `chatmate` (`apps/chatmate`, Port `3002`)
 
@@ -83,6 +87,16 @@ Mobile-First Dokumenten-, Beleg- und Rezept-Scanner mit PDF-Bündelung und JSON-
 - **Backend & MCP (`src/server/`):**
   - `services/storage.ts`: Verwaltet Pending-Scans, Ordner und archivierte Paare aus `[YYYY-MM-DD]_[Titel].pdf` + `[YYYY-MM-DD]_[Titel].json` inkl. `MiniSearch`-Index.
   - `mcp.ts` (`/mcp`): 10 MCP-Tools (`scanmate_create_scan_session`, `scanmate_list_pending`, `scanmate_get_pending_images`, `scanmate_archive_pending`, `scanmate_delete_pending`, `scanmate_list_documents`, `scanmate_get_document`, `scanmate_update_document`, `scanmate_list_folders`, `scanmate_create_folder`).
+
+### 4. `agentmate` (`apps/agentmate`, Port `3005`)
+
+Serverseitiger KI-Agent und Cron-Worker auf Basis von **Vercel AI SDK (`ai`)**, **`@ai-sdk/mcp`** und **OpenRouter** (`google/gemma-4-31b-it` als Default).
+
+- **Automatische Beleg-Triage (`Deno.cron`):**
+  - Läuft täglich um `03:00` Uhr (`TRIAGE_CRON="0 3 * * *"`) sowie manuell per UI-Trigger.
+  - Holt offene Scans per MCP von `scanmate`, analysiert die Bilder per Vision und legt sie direkt als PDF + Metadaten im Archiv ab (`reviewed: false` → in `scanmate` unter _„Zu prüfen“_ abhakbar).
+- **Aufgabenoffener Assistent (MCP-Chat):**
+  - Verbindet sich per HTTP-MCP-Client mit `scanmate` und `notemate` und führt Tool-Loops über Dokumente, Notizen und Kanban-Boards aus (`chatmate` bleibt davon bewusst getrennt).
 
 ---
 
