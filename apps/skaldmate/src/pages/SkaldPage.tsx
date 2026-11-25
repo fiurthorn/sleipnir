@@ -401,13 +401,13 @@ export const SkaldPage = () => {
                     <textarea
                       rows={2}
                       placeholder="Englischer oder deutscher Bild-Prompt für die Porträt-Generierung..."
-                      class="textarea textarea-sm textarea-bordered font-mono text-xs"
+                      class="textarea textarea-sm textarea-bordered font-mono text-xs w-full"
                       x-model="charForm.portraitPrompt"
                     />
                   </label>
                   <label class="flex flex-col gap-1 w-full">
                     <span class="label-text text-xs mb-1">Eigenes Modell (optional)</span>
-                    <select class="select select-sm select-bordered font-mono text-xs" x-model="charForm.modelId">
+                    <select class="select select-sm select-bordered font-mono text-xs w-full" x-model="charForm.modelId">
                       <option value="">(Szenen-Standardmodell verwenden)</option>
                       <template x-for="m in textModels" x-bind:key="m.id">
                         <option x-bind:value="m.id" x-text="m.name + ' · ' + m.providerName" />
@@ -614,7 +614,7 @@ export const SkaldPage = () => {
                     <textarea
                       rows={2}
                       placeholder="Wird sonst automatisch aus Beschreibung & Atmosphäre erzeugt..."
-                      class="textarea textarea-sm textarea-bordered font-mono text-xs"
+                      class="textarea textarea-sm textarea-bordered font-mono text-xs w-full"
                       x-model="locationForm.imagePrompt"
                     />
                   </label>
@@ -756,7 +756,7 @@ export const SkaldPage = () => {
 
                 <label class="flex flex-col gap-1 w-full">
                   <span class="label-text text-xs mb-1">Text-Modell</span>
-                  <select class="select select-sm select-bordered font-mono text-xs" x-model="newSessionForm.modelId">
+                  <select class="select select-sm select-bordered font-mono text-xs w-full" x-model="newSessionForm.modelId">
                     <template x-for="m in textModels" x-bind:key="m.id">
                       <option x-bind:value="m.id" x-text="m.name" />
                     </template>
@@ -765,7 +765,7 @@ export const SkaldPage = () => {
 
                 <label class="flex flex-col gap-1 w-full">
                   <span class="label-text text-xs mb-1">Bild-Modell</span>
-                  <select class="select select-sm select-bordered font-mono text-xs" x-model="newSessionForm.imageModelId">
+                  <select class="select select-sm select-bordered font-mono text-xs w-full" x-model="newSessionForm.imageModelId">
                     <template x-for="m in imageModels" x-bind:key="m.id">
                       <option x-bind:value="m.id" x-text="m.name" />
                     </template>
@@ -860,7 +860,7 @@ export const SkaldPage = () => {
                       </div>
                     </div>
                     <div class="chat-header text-xs opacity-60 mb-1" x-text="msg.speakerName" />
-                    <div class="chat-bubble chat-bubble-primary text-sm whitespace-pre-wrap leading-relaxed" x-text="msg.content" />
+                    <div class="chat-bubble chat-bubble-primary text-sm leading-relaxed" x-html="formatChatText(msg.content)" />
                   </div>
                 </template>
 
@@ -868,7 +868,7 @@ export const SkaldPage = () => {
                 <template x-if="msg.kind === 'narrator'">
                   <div class="my-2 px-4 py-2.5 rounded-xl bg-base-200/80 border border-base-content/10 text-xs sm:text-sm italic text-base-content/85">
                     <span class="font-semibold not-italic text-primary mr-1.5" x-text="msg.speakerName + ':'" />
-                    <span class="whitespace-pre-wrap" x-text="msg.content" />
+                    <span x-html="formatChatText(msg.content)" />
                   </div>
                 </template>
 
@@ -881,7 +881,7 @@ export const SkaldPage = () => {
                       </div>
                     </div>
                     <div class="chat-header text-xs opacity-60 mb-1" x-text="msg.speakerName" />
-                    <div class="chat-bubble text-sm whitespace-pre-wrap leading-relaxed" x-text="msg.content" />
+                    <div class="chat-bubble text-sm leading-relaxed" x-html="formatChatText(msg.content)" />
                   </div>
                 </template>
 
@@ -950,9 +950,9 @@ export const SkaldPage = () => {
             <div class="chat" x-bind:class="wm.role === 'user' ? 'chat-end' : 'chat-start'">
               <div class="chat-header text-[11px] opacity-60 mb-0.5" x-text="wm.role === 'user' ? 'Du' : 'Werkstatt'" />
               <div
-                class="chat-bubble text-xs sm:text-sm whitespace-pre-wrap leading-relaxed"
+                class="chat-bubble text-xs sm:text-sm leading-relaxed"
                 x-bind:class="wm.role === 'user' ? 'chat-bubble-primary' : ''"
-                x-text="wm.content"
+                x-html="formatChatText(wm.content)"
               />
             </div>
           </template>

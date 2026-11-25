@@ -322,6 +322,20 @@ document.addEventListener("alpine:init", () => {
       this.showNotesPanel = !this.showNotesPanel;
     },
 
+    formatChatText(raw) {
+      const text = String(raw || "");
+      const escaped = text
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+      return escaped
+        .replace(/\*\*([^*\n]+)\*\*/g, "<strong>$1</strong>")
+        .replace(/\*([^*\n]+)\*/g, '<em class="opacity-85">$1</em>')
+        .replace(/\n/g, "<br>");
+    },
+
     openHelpModal() {
       this.showHelpModal = true;
     },
