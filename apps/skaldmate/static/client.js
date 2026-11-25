@@ -318,6 +318,14 @@ document.addEventListener("alpine:init", () => {
       }
     },
 
+    notify(message, level = "success", timeout = 3000) {
+      globalThis.dispatchEvent(
+        new CustomEvent("showSystemAlert", {
+          detail: { message, level, timeout },
+        }),
+      );
+    },
+
     toggleNotesPanel() {
       this.showNotesPanel = !this.showNotesPanel;
     },
@@ -397,6 +405,7 @@ document.addEventListener("alpine:init", () => {
         const data = await res.json();
         this.activeSession = data.item;
         this.sessions = this.sessions.map((s) => s.id === data.item.id ? data.item : s);
+        this.notify("Szenenzustand gespeichert.");
       }
     },
 
@@ -412,6 +421,7 @@ document.addEventListener("alpine:init", () => {
         const data = await res.json();
         this.activeSession = data.item;
         this.sessions = this.sessions.map((s) => s.id === data.item.id ? data.item : s);
+        this.notify("Ort der Szene gewechselt.", "info");
       }
     },
 
@@ -478,6 +488,7 @@ document.addEventListener("alpine:init", () => {
         portraitFile: data.item.portraitFile || "",
       };
       await this.loadAll();
+      this.notify(`Charakter "${data.item.name}" gespeichert.`);
     },
     async deleteCharacterForm() {
       if (!this.charForm.id) return;
@@ -544,6 +555,7 @@ document.addEventListener("alpine:init", () => {
         const data = await res.json();
         this.personaForm = { ...data.item, portraitFile: data.item.portraitFile || "", isDefault: Boolean(data.item.isDefault) };
         await this.loadAll();
+        this.notify(`Persona "${data.item.name}" gespeichert.`);
       }
     },
     async generatePersonaPortrait() {
@@ -647,6 +659,7 @@ document.addEventListener("alpine:init", () => {
           imageFile: data.item.imageFile || "",
         };
         await this.loadAll();
+        this.notify(`Ort "${data.item.name}" gespeichert.`);
       }
     },
     async generateLocationImage() {
@@ -707,7 +720,9 @@ document.addEventListener("alpine:init", () => {
         body: JSON.stringify({ ...this.gmForm, modelId: this.gmForm.modelId || undefined }),
       });
       if (res.ok) {
+        const data = await res.json();
         await this.loadAll();
+        this.notify(`Spielleiter "${data.item?.name || this.gmForm.name}" gespeichert.`);
         this.closeEditor();
       }
     },
