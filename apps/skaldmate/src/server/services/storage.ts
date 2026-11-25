@@ -233,7 +233,8 @@ export async function getCharacter(id: string): Promise<Character | null> {
 }
 
 export async function saveCharacter(
-  input: Omit<Character, "updatedAt" | "exampleDialogue" | "relationships" | "portraitPrompt"> & {
+  input: Omit<Character, "updatedAt" | "greeting" | "exampleDialogue" | "relationships" | "portraitPrompt"> & {
+    greeting?: string;
     exampleDialogue?: string;
     relationships?: string;
     portraitPrompt?: string;
@@ -322,17 +323,31 @@ export async function deleteGameMaster(id: string): Promise<boolean> {
   return safe ? deleteFileIfExists(join(GAMEMASTERS_DIR, `${safe}.yaml`)) : false;
 }
 
-// Sessions
+// Sessions (stored as YAML, with legacy .json read compatibility)
+function parseSessionContent(fileName: string, raw: string): StorySession | null {
+  try {
+    const parsedRaw = fileName.endsWith(".yaml") ? parseYaml(raw) : JSON.parse(raw);
+    const parsed = sessionSchema.safeParse(parsedRaw);
+    return parsed.success ? parsed.data : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function listSessions(): Promise<StorySession[]> {
   await initSkaldStorage();
-  const items: StorySession[] = [];
+  const byId = new Map<string, StorySession>();
   try {
     for await (const entry of Deno.readDir(SESSIONS_DIR)) {
-      if (!entry.isFile || !entry.name.endsWith(".json")) continue;
+      if (!entry.isFile || (!entry.name.endsWith(".yaml") && !entry.name.endsWith(".json"))) continue;
       try {
         const raw = await Deno.readTextFile(join(SESSIONS_DIR, entry.name));
-        const parsed = sessionSchema.safeParse(JSON.parse(raw));
-        if (parsed.success) items.push(parsed.data);
+        const session = parseSessionContent(entry.name, raw);
+        if (!session) continue;
+        // Prefer .yaml over legacy .json if both exist
+        if (entry.name.endsWith(".yaml") || !byId.has(session.id)) {
+          byId.set(session.id, session);
+        }
       } catch {
         // Ignore broken session file
       }
@@ -340,23 +355,32 @@ export async function listSessions(): Promise<StorySession[]> {
   } catch {
     // Ignore
   }
-  return items.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  return Array.from(byId.values()).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 }
 
 export async function getSession(id: string): Promise<StorySession | null> {
   await initSkaldStorage();
   const safe = sanitizeId(id);
   if (!safe) return null;
-  try {
-    const raw = await Deno.readTextFile(join(SESSIONS_DIR, `${safe}.json`));
-    const parsed = sessionSchema.safeParse(JSON.parse(raw));
-    return parsed.success ? parsed.data : null;
-  } catch {
-    return null;
+  for (const ext of ["yaml", "json"] as const) {
+    try {
+      const raw = await Deno.readTextFile(join(SESSIONS_DIR, `${safe}.${ext}`));
+      const session = parseSessionContent(`${safe}.${ext}`, raw);
+      if (session) return session;
+    } catch {
+      // Try next extension
+    }
   }
+  return null;
 }
 
-export async function saveSession(session: StorySession): Promise<StorySession> {
+export async function saveSession(
+  session: Omit<StorySession, "compressedSummary" | "compressedUntilIndex" | "resolvedContext"> & {
+    resolvedContext?: string;
+    compressedSummary?: string;
+    compressedUntilIndex?: number;
+  },
+): Promise<StorySession> {
   await initSkaldStorage();
   const safe = sanitizeId(session.id) || crypto.randomUUID();
   const validated = sessionSchema.parse({
@@ -364,14 +388,17 @@ export async function saveSession(session: StorySession): Promise<StorySession> 
     id: safe,
     updatedAt: new Date().toISOString(),
   });
-  await Deno.writeTextFile(join(SESSIONS_DIR, `${safe}.json`), JSON.stringify(validated, null, 2));
+  await writeYamlEntity(SESSIONS_DIR, validated);
   return validated;
 }
 
 export async function deleteSession(id: string): Promise<boolean> {
   await initSkaldStorage();
   const safe = sanitizeId(id);
-  return safe ? deleteFileIfExists(join(SESSIONS_DIR, `${safe}.json`)) : false;
+  if (!safe) return false;
+  const deletedYaml = await deleteFileIfExists(join(SESSIONS_DIR, `${safe}.yaml`));
+  const deletedJson = await deleteFileIfExists(join(SESSIONS_DIR, `${safe}.json`));
+  return deletedYaml || deletedJson;
 }
 
 // Assets (generated portraits & scene images)

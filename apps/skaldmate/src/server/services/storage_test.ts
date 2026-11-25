@@ -6,7 +6,7 @@
  */
 
 import { assertEquals } from "@std/assert";
-import { getCharacter, listGameMasters, listLocations, saveCharacter, slugifyName } from "./storage.ts";
+import { getCharacter, getSession, listGameMasters, listLocations, saveCharacter, saveSession, slugifyName } from "./storage.ts";
 
 Deno.test("slugifyName - normalizes umlauts and special characters", () => {
   assertEquals(slugifyName("Alte Bäckerei & Café"), "alte-baeckerei-cafe");
@@ -34,6 +34,22 @@ Deno.test("storage - seeds default chronist and locations and saves character", 
 
     const loaded = await getCharacter("lena");
     assertEquals(loaded?.name, "Lena");
+
+    const now = new Date().toISOString();
+    await saveSession({
+      id: "szene-1",
+      title: "Testszene",
+      locationId: "wohnung",
+      characterIds: ["lena"],
+      gameMasterId: "chronist",
+      sceneState: "Ruhiger Abend",
+      messages: [],
+      createdAt: now,
+      updatedAt: now,
+    });
+    const loadedSession = await getSession("szene-1");
+    assertEquals(loadedSession?.title, "Testszene");
+    assertEquals(loadedSession?.compressedUntilIndex, 0);
   } finally {
     await Deno.remove(tempDir, { recursive: true }).catch(() => {});
   }

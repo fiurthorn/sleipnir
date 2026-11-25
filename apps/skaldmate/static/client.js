@@ -23,7 +23,13 @@ document.addEventListener("alpine:init", () => {
 
     showNotesPanel: false,
     showHelpModal: false,
+    showWorkshop: false,
+    workshopMessages: [],
+    workshopInput: "",
+    workshopLoading: false,
     sceneStateDraft: "",
+    compressedSummaryDraft: "",
+    creatingSession: false,
     chatInput: "",
     turnLoading: false,
     imageLoading: false,
@@ -49,6 +55,7 @@ document.addEventListener("alpine:init", () => {
       personality: "",
       goals: "",
       speechStyle: "",
+      greeting: "",
       exampleDialogue: "",
       relationships: "",
       portraitPrompt: "",
@@ -194,18 +201,26 @@ document.addEventListener("alpine:init", () => {
 
     async createSession(event) {
       event?.preventDefault?.();
-      const res = await fetch("./api/sessions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(this.newSessionForm),
-      });
-      if (!res.ok) return;
-      const data = await res.json();
-      this.sessions = [data.item, ...this.sessions];
-      this.activeSession = data.item;
-      this.sceneStateDraft = data.item.sceneState || "";
-      this.newSessionForm.title = "";
-      this.viewMode = "chat";
+      if (this.creatingSession) return;
+      this.creatingSession = true;
+      try {
+        const res = await fetch("./api/sessions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(this.newSessionForm),
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        this.sessions = [data.item, ...this.sessions];
+        this.activeSession = data.item;
+        this.sceneStateDraft = data.item.sceneState || "";
+        this.compressedSummaryDraft = data.item.compressedSummary || "";
+        this.newSessionForm.title = "";
+        this.viewMode = "chat";
+        this.scrollToBottom();
+      } finally {
+        this.creatingSession = false;
+      }
     },
 
     selectSession(event) {
@@ -214,6 +229,7 @@ document.addEventListener("alpine:init", () => {
       if (!found) return;
       this.activeSession = found;
       this.sceneStateDraft = found.sceneState || "";
+      this.compressedSummaryDraft = found.compressedSummary || "";
       this.viewMode = "chat";
       this.mobileMenuOpen = false;
       this.scrollToBottom();
@@ -272,6 +288,7 @@ document.addEventListener("alpine:init", () => {
         }
         this.activeSession = data.session;
         this.sceneStateDraft = data.session.sceneState || "";
+        this.compressedSummaryDraft = data.session.compressedSummary || "";
         this.sessions = this.sessions.map((s) => s.id === data.session.id ? data.session : s);
         this.scrollToBottom();
       } finally {
@@ -313,12 +330,54 @@ document.addEventListener("alpine:init", () => {
       this.showHelpModal = false;
     },
 
+    toggleWorkshop() {
+      this.showWorkshop = !this.showWorkshop;
+    },
+
+    clearWorkshop() {
+      this.workshopMessages = [];
+    },
+
+    async sendWorkshop(event) {
+      event?.preventDefault?.();
+      const text = this.workshopInput.trim();
+      if (!text || this.workshopLoading) return;
+      this.workshopMessages = [...this.workshopMessages, { role: "user", content: text }];
+      this.workshopInput = "";
+      this.workshopLoading = true;
+      try {
+        const res = await fetch("./api/workshop", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            modelId: this.activeSession?.modelId || this.newSessionForm.modelId || undefined,
+            messages: this.workshopMessages,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          this.workshopMessages = [...this.workshopMessages, { role: "assistant", content: "Fehler: " + (data.error || "Unbekannt") }];
+          return;
+        }
+        this.workshopMessages = [...this.workshopMessages, { role: "assistant", content: data.reply }];
+        this.$nextTick(() => {
+          const el = document.getElementById("skald-workshop-thread");
+          if (el) el.scrollTop = el.scrollHeight;
+        });
+      } finally {
+        this.workshopLoading = false;
+      }
+    },
+
     async saveSceneState() {
       if (!this.activeSession) return;
       const res = await fetch(`./api/sessions/${encodeURIComponent(this.activeSession.id)}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sceneState: this.sceneStateDraft }),
+        body: JSON.stringify({
+          sceneState: this.sceneStateDraft,
+          compressedSummary: this.compressedSummaryDraft,
+        }),
       });
       if (res.ok) {
         const data = await res.json();
@@ -356,6 +415,7 @@ document.addEventListener("alpine:init", () => {
         personality: "",
         goals: "",
         speechStyle: "",
+        greeting: "",
         exampleDialogue: "",
         relationships: "",
         portraitPrompt: "",

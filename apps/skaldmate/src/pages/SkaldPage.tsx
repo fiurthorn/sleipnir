@@ -222,7 +222,7 @@ export const SkaldPage = () => {
       {/* MAIN AREA */}
       <main class="flex-1 flex flex-col overflow-hidden bg-base-100">
         {/* Top Bar */}
-        <header class="navbar bg-base-100 border-b border-base-content/10 px-4 py-2 min-h-12 flex justify-between gap-2">
+        <header class="navbar bg-base-100 border-b border-base-content/10 px-3 sm:px-4 py-2 min-h-12 flex flex-wrap justify-between gap-2">
           <div class="flex items-center gap-2 min-w-0">
             <button
               type="button"
@@ -271,14 +271,25 @@ export const SkaldPage = () => {
               📝 Zustand
             </button>
           </div>
-          <button
-            type="button"
-            class="btn btn-xs btn-ghost font-mono"
-            x-on:click="openHelpModal"
-            title="Kurzanleitung & Makrosyntax"
-          >
-            ? Hilfe
-          </button>
+          <div class="flex items-center gap-1.5">
+            <button
+              type="button"
+              class="btn btn-xs btn-outline"
+              x-bind:class="showWorkshop ? 'btn-primary' : ''"
+              x-on:click="toggleWorkshop"
+              title="Neutraler Werkstatt-Chat zum Entwickeln von Charakteren & Szenen"
+            >
+              🧠 Werkstatt
+            </button>
+            <button
+              type="button"
+              class="btn btn-xs btn-ghost font-mono"
+              x-on:click="openHelpModal"
+              title="Kurzanleitung & Makrosyntax"
+            >
+              ? Hilfe
+            </button>
+          </div>
         </header>
 
         {/* VIEW A: ENTITY EDITOR */}
@@ -356,6 +367,15 @@ export const SkaldPage = () => {
                       placeholder="z. B. direkt, sarkastisch, ruhig, bildhaft"
                       class="input input-sm input-bordered"
                       x-model="charForm.speechStyle"
+                    />
+                  </label>
+                  <label class="form-control">
+                    <span class="label-text text-xs mb-1">Erster Auftritt / Begrüßung (optional)</span>
+                    <textarea
+                      rows={2}
+                      placeholder="Was sagt oder tut der Charakter bei der Szenen-Initialisierung?"
+                      class="textarea textarea-sm textarea-bordered"
+                      x-model="charForm.greeting"
                     />
                   </label>
                   <label class="form-control">
@@ -794,13 +814,17 @@ export const SkaldPage = () => {
             </template>
           </div>
 
-          {/* Optional Scene State Drawer */}
+          {/* Optional Scene State & Compressed Summary Drawer */}
           <div x-show="showNotesPanel" class="px-4 py-3 bg-base-200 border-b border-base-content/10 flex flex-col gap-2" style="display: none;">
             <div class="flex justify-between items-center text-xs">
               <span class="font-semibold">Aktueller Szenenzustand (Spielleiter-Notiz)</span>
               <button type="button" class="btn btn-xs btn-primary" x-on:click="saveSceneState">Speichern</button>
             </div>
             <textarea rows={2} class="textarea textarea-xs textarea-bordered w-full" x-model="sceneStateDraft" />
+            <div x-show="compressedSummaryDraft" class="flex flex-col gap-1 pt-1" style="display: none;">
+              <span class="text-[11px] font-semibold opacity-70">Komprimierte Vorgeschichte (automatisch verdichtet)</span>
+              <textarea rows={2} class="textarea textarea-xs textarea-bordered w-full opacity-80" x-model="compressedSummaryDraft" />
+            </div>
           </div>
 
           {/* Messages */}
@@ -880,6 +904,55 @@ export const SkaldPage = () => {
           </form>
         </section>
       </main>
+
+      {/* RIGHT DRAWER: NEUTRALER WERKSTATT-CHAT */}
+      <aside
+        x-show="showWorkshop"
+        class="fixed inset-0 md:static w-full md:w-96 bg-base-200 border-l border-base-content/10 flex flex-col z-50 md:z-30"
+        style="display: none;"
+      >
+        <div class="px-4 py-3 border-b border-base-content/10 flex items-center justify-between gap-2">
+          <div>
+            <h3 class="font-bold text-sm">🧠 Werkstatt-Chat</h3>
+            <p class="text-[11px] opacity-60">Neutraler Assistent für Charaktere, Orte &amp; Ideen</p>
+          </div>
+          <div class="flex items-center gap-1">
+            <button type="button" class="btn btn-ghost btn-xs" x-on:click="clearWorkshop" title="Chat leeren">🗑</button>
+            <button type="button" class="btn btn-ghost btn-xs" x-on:click="toggleWorkshop">✕</button>
+          </div>
+        </div>
+
+        <div id="skald-workshop-thread" class="flex-1 overflow-y-auto p-3 space-y-3">
+          <div x-show="workshopMessages.length === 0" class="text-xs opacity-60 text-center py-8 px-2">
+            Entwirf hier gemeinsam mit der KI neue Charaktere, Charakterzüge, Orte oder Szenen-Ideen – links bleibt alles offen.
+          </div>
+          <template x-for="(wm, widx) in workshopMessages" x-bind:key="widx">
+            <div class="chat" x-bind:class="wm.role === 'user' ? 'chat-end' : 'chat-start'">
+              <div class="chat-header text-[11px] opacity-60 mb-0.5" x-text="wm.role === 'user' ? 'Du' : 'Werkstatt'" />
+              <div
+                class="chat-bubble text-xs sm:text-sm whitespace-pre-wrap leading-relaxed"
+                x-bind:class="wm.role === 'user' ? 'chat-bubble-primary' : ''"
+                x-text="wm.content"
+              />
+            </div>
+          </template>
+          <div x-show="workshopLoading" class="flex items-center gap-2 text-xs opacity-60" style="display: none;">
+            <span class="loading loading-dots loading-xs" />
+            <span>Schreibt...</span>
+          </div>
+        </div>
+
+        <form x-on:submit="sendWorkshop" class="p-3 border-t border-base-content/10 flex gap-2">
+          <input
+            type="text"
+            class="input input-bordered input-sm flex-1"
+            placeholder="Idee, Charakterzug, Ort..."
+            x-model="workshopInput"
+            x-bind:disabled="workshopLoading"
+          />
+          <button type="submit" class="btn btn-primary btn-sm" x-bind:disabled="workshopLoading">Senden</button>
+        </form>
+      </aside>
 
       {/* HELP MODAL: SCHREIBKONVENTIONEN & MAKROSYNTAX */}
       <div

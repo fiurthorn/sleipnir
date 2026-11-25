@@ -47,7 +47,7 @@ const directorPlanSchema = z.object({
     .describe("Optionaler aktualisierter kompakter Szenenzustand (1-2 Sätze), nur wenn sich etwas Wesentliches geändert hat"),
 });
 
-function resolveTextModel(requestedModelId?: string) {
+export function resolveTextModel(requestedModelId?: string) {
   const providers = loadProviderConfig();
   const textModels = getAvailableModels().filter((m) => m.type === "text");
   if (textModels.length === 0) {
@@ -77,15 +77,72 @@ function resolveTextModel(requestedModelId?: string) {
   return client.chatModel(rawModelId);
 }
 
-function formatHistoryForPrompt(messages: SessionMessage[], limit = 18): string {
-  const slice = messages.slice(-limit);
-  if (slice.length === 0) return "(Noch keine Nachrichten in dieser Szene.)";
-  return slice
+function formatMessagesList(messages: SessionMessage[]): string {
+  return messages
     .map((m) => {
       if (m.kind === "image") return `[Szene-Bild: ${m.imagePrompt ?? ""}]`;
       return `${m.speakerName}: ${m.content}`;
     })
     .join("\n");
+}
+
+function formatHistoryForPrompt(session: StorySession, keepRecent = 12): string {
+  const startIdx = Math.max(session.compressedUntilIndex, Math.max(0, session.messages.length - keepRecent));
+  const recent = session.messages.slice(startIdx);
+  const blocks: string[] = [];
+
+  if (session.compressedSummary.trim()) {
+    blocks.push(`KOMPRIMIERTE VORGESCHICHTE:\n${session.compressedSummary.trim()}`);
+  }
+
+  if (recent.length > 0) {
+    blocks.push(`AKTUELLER VERLAUF:\n${formatMessagesList(recent)}`);
+  } else if (blocks.length === 0) {
+    blocks.push("(Noch keine Nachrichten in dieser Szene.)");
+  }
+
+  return blocks.join("\n\n");
+}
+
+async function compressSessionHistoryIfNeeded(
+  session: StorySession,
+  modelId?: string,
+): Promise<void> {
+  const keepRecent = 10;
+  const triggerThreshold = 16;
+  const uncompressedCount = session.messages.length - session.compressedUntilIndex;
+
+  if (uncompressedCount <= triggerThreshold) return;
+
+  const compressEnd = session.messages.length - keepRecent;
+  if (compressEnd <= session.compressedUntilIndex) return;
+
+  const chunk = session.messages.slice(session.compressedUntilIndex, compressEnd);
+  if (chunk.length === 0) return;
+
+  try {
+    const model = resolveTextModel(modelId);
+    const prompt = [
+      session.compressedSummary ? `Bisherige Zusammenfassung:\n${session.compressedSummary}` : "",
+      `Neue Abschnitte, die integriert werden sollen:\n${formatMessagesList(chunk)}`,
+      "Fasse die gesamte Vorgeschichte kompakt, faktentreu und chronologisch in maximal 6 Sätzen zusammen (wichtige Handlungen, Entscheidungen, Stimmungen, neue Fakten). Keine Meta-Kommentare.",
+    ]
+      .filter(Boolean)
+      .join("\n\n");
+
+    const result = await generateText({
+      model,
+      system: "Du bist ein präziser Chronist. Verdichte Rollenspiel-Verläufe verlustarm zu einer kompakten Vorgeschichte.",
+      prompt,
+    });
+
+    if (result.text.trim()) {
+      session.compressedSummary = result.text.trim();
+      session.compressedUntilIndex = compressEnd;
+    }
+  } catch {
+    // Compression failure must never block the active story turn
+  }
 }
 
 function resolveLocationChain(locationId: string, allLocations: Location[]): Location[] {
@@ -200,15 +257,19 @@ async function runGameMasterDirector(
   }
 
   const model = resolveTextModel(gm?.modelId || session.modelId);
-  const contextBlock = buildContextHeader(
-    locationChain,
-    allLocations,
-    persona,
-    partyCharacters,
-    residentCharacters,
-    session.sceneState,
-  );
-  const historyBlock = formatHistoryForPrompt(session.messages);
+  const contextBlock = session.resolvedContext ||
+    expandMacros(
+      buildContextHeader(
+        locationChain,
+        allLocations,
+        persona,
+        partyCharacters,
+        residentCharacters,
+        session.sceneState,
+      ),
+      { userName: persona?.name },
+    );
+  const historyBlock = formatHistoryForPrompt(session);
 
   const systemPrompt = [
     gm?.systemPrompt ||
@@ -226,7 +287,7 @@ async function runGameMasterDirector(
   const prompt = expandMacros(
     [
       contextBlock,
-      `BISHERIGER VERLAUF:\n${historyBlock}`,
+      historyBlock,
       userText ? `NEUE AKTION DES SPIELERS: ${userText}` : "Der Spieler lässt die Szene ohne eigene Aktion weiterlaufen.",
     ].join("\n\n"),
     { userName: persona?.name },
@@ -281,7 +342,7 @@ async function generateCharacterReply(
     residentCharacters,
     session.sceneState,
   );
-  const historyBlock = formatHistoryForPrompt(session.messages);
+  const historyBlock = formatHistoryForPrompt(session);
 
   const systemPrompt = [
     `Du spielst ausschließlich die Rolle von "${char.name}".`,
@@ -301,7 +362,7 @@ async function generateCharacterReply(
   const prompt = expandMacros(
     [
       contextBlock,
-      `BISHERIGER VERLAUF:\n${historyBlock}`,
+      historyBlock,
       `Wie reagiert ${char.name} jetzt?`,
     ].join("\n\n"),
     { userName: persona?.name, charName: char.name },
@@ -421,6 +482,17 @@ export async function runStoryTurn(options: {
     currentLocation = locationChain[locationChain.length - 1] ?? null;
     residentCharacters = getResidentsFor(currentLocation);
     allPresent = [...partyCharacters, ...residentCharacters];
+    session.resolvedContext = expandMacros(
+      buildContextHeader(
+        locationChain,
+        allLocations,
+        persona,
+        partyCharacters,
+        residentCharacters,
+        session.sceneState,
+      ),
+      { userName: persona?.name },
+    );
   }
 
   if (plan.narrationBefore?.trim()) {
@@ -491,6 +563,109 @@ export async function runStoryTurn(options: {
     session.sceneState = plan.sceneStateUpdate.trim();
   }
 
+  await compressSessionHistoryIfNeeded(session, gm?.modelId || session.modelId);
+
   const saved = await saveSession(session);
   return { session: saved, addedMessages };
+}
+
+/**
+ * Generates an atmospheric opening narration (plus optional character greetings)
+ * when a new story session starts.
+ */
+export async function initializeSceneSession(sessionInput: StorySession): Promise<StorySession> {
+  const session: StorySession = {
+    ...sessionInput,
+    messages: [...sessionInput.messages],
+  };
+
+  if (session.messages.length > 0) return session;
+
+  const [allLocations, persona, gm, allCharacters] = await Promise.all([
+    listLocations(),
+    session.personaId ? getPersona(session.personaId) : Promise.resolve(null),
+    getGameMaster(session.gameMasterId),
+    listCharacters(),
+  ]);
+
+  const locationChain = resolveLocationChain(session.locationId, allLocations);
+  const currentLocation = locationChain[locationChain.length - 1] ?? null;
+  const partyCharacters = allCharacters.filter((c) => session.characterIds.includes(c.id));
+  const partySet = new Set(session.characterIds);
+  const residentCharacters = currentLocation && Array.isArray(currentLocation.residentIds)
+    ? allCharacters.filter((c) => currentLocation.residentIds.includes(c.id) && !partySet.has(c.id))
+    : [];
+
+  const allPresent = [...partyCharacters, ...residentCharacters];
+  const now = () => new Date().toISOString();
+
+  try {
+    const model = resolveTextModel(gm?.modelId || session.modelId);
+    if (session.sceneState) {
+      session.sceneState = expandMacros(session.sceneState, { userName: persona?.name });
+    }
+    const contextBlock = session.resolvedContext ||
+      expandMacros(
+        buildContextHeader(
+          locationChain,
+          allLocations,
+          persona,
+          partyCharacters,
+          residentCharacters,
+          session.sceneState,
+        ),
+        { userName: persona?.name },
+      );
+    session.resolvedContext = contextBlock;
+
+    const prompt = [
+      contextBlock,
+      "Eröffne diese neue Szene als Spielleiter in 3-5 stimmungsvollen Sätzen auf Deutsch: Beschreibe kurz den Ort, die Atmosphäre und wer gerade anwesend ist oder eintrifft. Lass dem Spieler Raum für seinen ersten Zug.",
+    ].join("\n\n");
+
+    const result = await generateText({
+      model,
+      system: gm?.systemPrompt || "Du bist ein atmosphärischer, neutraler Spielleiter.",
+      prompt,
+    });
+
+    if (result.text.trim()) {
+      session.messages.push({
+        id: crypto.randomUUID(),
+        kind: "narrator",
+        speakerId: gm?.id,
+        speakerName: gm?.name || "Spielleiter",
+        content: result.text.trim(),
+        createdAt: now(),
+      });
+    }
+  } catch {
+    // Fallback static opening if model/API key is not ready
+    if (currentLocation) {
+      session.messages.push({
+        id: crypto.randomUUID(),
+        kind: "narrator",
+        speakerId: gm?.id,
+        speakerName: gm?.name || "Spielleiter",
+        content: `${currentLocation.name}: ${currentLocation.description || "Die Szene beginnt."}`,
+        createdAt: now(),
+      });
+    }
+  }
+
+  // Optional initial character greetings if defined on the character sheet
+  for (const char of allPresent) {
+    if (!char.greeting?.trim()) continue;
+    session.messages.push({
+      id: crypto.randomUUID(),
+      kind: "character",
+      speakerId: char.id,
+      speakerName: char.name,
+      portraitFile: char.portraitFile,
+      content: expandMacros(char.greeting.trim(), { userName: persona?.name, charName: char.name }),
+      createdAt: now(),
+    });
+  }
+
+  return saveSession(session);
 }

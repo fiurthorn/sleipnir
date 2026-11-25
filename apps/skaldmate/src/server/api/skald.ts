@@ -5,10 +5,11 @@
  * Architektur & Review: Stefan | Implementation & Synthese: Sam
  */
 
+import { generateText } from "ai";
 import { Hono } from "hono";
 import { z } from "zod";
 import { getAvailableModels } from "../services/config.ts";
-import { runStoryTurn } from "../services/director.ts";
+import { initializeSceneSession, resolveTextModel, runStoryTurn } from "../services/director.ts";
 import {
   buildCharacterPortraitPrompt,
   buildLocationImagePrompt,
@@ -102,6 +103,7 @@ const characterBody = z.object({
   personality: z.string().default(""),
   goals: z.string().default(""),
   speechStyle: z.string().default(""),
+  greeting: z.string().default(""),
   exampleDialogue: z.string().default(""),
   relationships: z.string().default(""),
   portraitPrompt: z.string().default(""),
@@ -248,7 +250,7 @@ skaldApi.post("/sessions", async (c) => {
   if (!parsed.success) return c.json({ error: parsed.error.message }, 400);
   const loc = await getLocation(parsed.data.locationId);
   const now = new Date().toISOString();
-  const item = await saveSession({
+  const created = await saveSession({
     ...parsed.data,
     sceneState: parsed.data.sceneState || loc?.defaultSceneState || "",
     id: crypto.randomUUID().slice(0, 12),
@@ -256,7 +258,8 @@ skaldApi.post("/sessions", async (c) => {
     createdAt: now,
     updatedAt: now,
   });
-  return c.json({ item }, 201);
+  const initialized = await initializeSceneSession(created);
+  return c.json({ item: initialized }, 201);
 });
 
 skaldApi.patch("/sessions/:id", async (c) => {
@@ -273,6 +276,7 @@ skaldApi.patch("/sessions/:id", async (c) => {
     modelId: typeof body.modelId === "string" ? body.modelId || undefined : existing.modelId,
     imageModelId: typeof body.imageModelId === "string" ? body.imageModelId || undefined : existing.imageModelId,
     sceneState: typeof body.sceneState === "string" ? body.sceneState : existing.sceneState,
+    compressedSummary: typeof body.compressedSummary === "string" ? body.compressedSummary : existing.compressedSummary,
   });
   return c.json({ item: updated });
 });
@@ -340,6 +344,35 @@ skaldApi.post("/sessions/:id/scene-image", async (c) => {
     return c.json({ session: updated, message: imgMsg });
   } catch (err) {
     return c.json({ error: err instanceof Error ? err.message : "Bildgenerierung fehlgeschlagen" }, 500);
+  }
+});
+
+// Neutral Workshop Chat (right-side drawer for developing characters, locations, scenes)
+const workshopBody = z.object({
+  modelId: z.string().optional(),
+  messages: z.array(
+    z.object({
+      role: z.enum(["user", "assistant"]),
+      content: z.string().min(1),
+    }),
+  ).min(1),
+});
+
+skaldApi.post("/workshop", async (c) => {
+  const parsed = workshopBody.safeParse(await c.req.json().catch(() => undefined));
+  if (!parsed.success) return c.json({ error: parsed.error.message }, 400);
+
+  try {
+    const model = resolveTextModel(parsed.data.modelId);
+    const result = await generateText({
+      model,
+      system:
+        "Du bist ein kreativer, neutraler Schreib- und Rollenspiel-Assistent in Skaldmate. Hilf dem Nutzer beim Ausarbeiten von Charakteren (Rolle, Aussehen, Charakterzüge, Beispielsätze, Begrüßungen), Orten/Locations, Szenen-Ideen und Makros ({{random:...}}, {{roll:2d20}}, {{rand:1-10}}, {{time}}). Antworte präzise und inspirierend auf Deutsch.",
+      messages: parsed.data.messages,
+    });
+    return c.json({ reply: result.text.trim() });
+  } catch (err) {
+    return c.json({ error: err instanceof Error ? err.message : "Werkstatt-Fehler" }, 500);
   }
 });
 
