@@ -121,6 +121,8 @@ export async function streamChatCompletion(
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     "Authorization": `Bearer ${provider.apiKey}`,
+    "HTTP-Referer": "https://sleipnir.local",
+    "X-Title": "Sleipnir Chatmate",
   };
 
   try {

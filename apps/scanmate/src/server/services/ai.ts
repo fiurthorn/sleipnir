@@ -123,6 +123,8 @@ Gib keinen Markdown-Codeblock und keine Einleitung oder Erklärung aus, nur das 
     headers: {
       "Content-Type": "application/json",
       "Authorization": `Bearer ${targetProvider.apiKey}`,
+      "HTTP-Referer": "https://sleipnir.local",
+      "X-Title": "Sleipnir Scanmate",
     },
     body: JSON.stringify({
       model: targetModel,
