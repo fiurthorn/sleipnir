@@ -860,7 +860,7 @@ export const SkaldPage = () => {
               <div class="flex justify-between items-center text-xs gap-2">
                 <span class="font-semibold">Aktueller Szenenzustand (Spielleiter-Notiz)</span>
                 <div class="flex items-center gap-2">
-                  <button type="button" class="btn btn-xs btn-outline" x-on:click="cloneActiveSession">📋 Klonen</button>
+                  <button type="button" class="btn btn-xs btn-outline" x-on:click="openCloneModal">📋 Klonen</button>
                   <button type="button" class="btn btn-xs btn-error btn-outline" x-on:click="deleteActiveSession">🗑 Szene löschen</button>
                   <button type="button" class="btn btn-xs btn-primary" x-on:click="saveSceneState">Speichern</button>
                 </div>
@@ -1074,6 +1074,50 @@ export const SkaldPage = () => {
               </div>
             </div>
           </div>
+        </div>
+
+        {/* CLONE SESSION MODAL */}
+        <div
+          x-show="showCloneModal"
+          class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
+          style="display: none;"
+        >
+          <form
+            x-on:submit="submitCloneSession"
+            class="card bg-base-200 border border-base-content/15 max-w-md w-full shadow-2xl"
+          >
+            <div class="card-body gap-4">
+              <div class="flex justify-between items-center border-b border-base-content/10 pb-2">
+                <h3 class="font-bold text-base">Szene klonen</h3>
+                <button type="button" class="btn btn-xs btn-ghost" x-on:click="closeCloneModal">✕</button>
+              </div>
+
+              <label class="flex flex-col gap-1 w-full">
+                <span class="label-text text-xs mb-1">Neuer Szenen-Name</span>
+                <input
+                  type="text"
+                  class="input input-sm input-bordered w-full"
+                  x-model="cloneForm.title"
+                  required
+                />
+              </label>
+
+              <label class="label cursor-pointer justify-start gap-2.5">
+                <input type="checkbox" class="checkbox checkbox-xs checkbox-primary" x-model="cloneForm.includeHistory" />
+                <span class="label-text text-xs">
+                  Chat-Verlauf mitkopieren <span class="opacity-60">(aus = nur Startbedingungen, frisch starten)</span>
+                </span>
+              </label>
+
+              <div class="card-actions justify-end gap-2 pt-1">
+                <button type="button" class="btn btn-xs btn-ghost" x-on:click="closeCloneModal">Abbrechen</button>
+                <button type="submit" class="btn btn-xs btn-primary" x-bind:disabled="cloneLoading">
+                  <span x-show="cloneLoading" class="loading loading-spinner loading-xs" style="display: none;" />
+                  <span>Klonen</span>
+                </button>
+              </div>
+            </div>
+          </form>
         </div>
       </div>
     </div>

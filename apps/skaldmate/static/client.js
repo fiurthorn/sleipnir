@@ -23,6 +23,9 @@ document.addEventListener("alpine:init", () => {
 
     showNotesPanel: false,
     showHelpModal: false,
+    showCloneModal: false,
+    cloneLoading: false,
+    cloneForm: { title: "", includeHistory: true },
     showWorkshop: false,
     workshopMessages: [],
     workshopInput: "",
@@ -242,20 +245,45 @@ document.addEventListener("alpine:init", () => {
       this.scrollToBottom();
     },
 
-    async cloneActiveSession() {
+    openCloneModal() {
       if (!this.activeSession?.id) return;
-      const res = await fetch(`./api/sessions/${encodeURIComponent(this.activeSession.id)}/clone`, {
-        method: "POST",
-      });
-      if (!res.ok) return;
-      const data = await res.json();
-      this.sessions = [data.item, ...this.sessions];
-      this.activeSession = data.item;
-      this.sceneStateDraft = data.item.sceneState || "";
-      this.compressedSummaryDraft = data.item.compressedSummary || "";
-      this.showNotesPanel = false;
-      this.notify(`Szene als "${data.item.title}" geklont.`);
-      this.scrollToBottom();
+      this.cloneForm = {
+        title: `${this.activeSession.title} (Kopie)`,
+        includeHistory: true,
+      };
+      this.showCloneModal = true;
+    },
+
+    closeCloneModal() {
+      this.showCloneModal = false;
+    },
+
+    async submitCloneSession(event) {
+      event?.preventDefault?.();
+      if (!this.activeSession?.id || this.cloneLoading) return;
+      this.cloneLoading = true;
+      try {
+        const res = await fetch(`./api/sessions/${encodeURIComponent(this.activeSession.id)}/clone`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: this.cloneForm.title.trim() || `${this.activeSession.title} (Kopie)`,
+            includeHistory: Boolean(this.cloneForm.includeHistory),
+          }),
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        this.sessions = [data.item, ...this.sessions];
+        this.activeSession = data.item;
+        this.sceneStateDraft = data.item.sceneState || "";
+        this.compressedSummaryDraft = data.item.compressedSummary || "";
+        this.showCloneModal = false;
+        this.showNotesPanel = false;
+        this.notify(`Szene als "${data.item.title}" geklont.`);
+        this.scrollToBottom();
+      } finally {
+        this.cloneLoading = false;
+      }
     },
 
     async deleteActiveSession() {

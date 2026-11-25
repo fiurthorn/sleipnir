@@ -266,18 +266,47 @@ skaldApi.post("/sessions", async (c) => {
   return c.json({ item: initialized }, 201);
 });
 
+const cloneSessionBody = z.object({
+  title: z.string().min(1).optional(),
+  includeHistory: z.boolean().optional().default(true),
+});
+
 skaldApi.post("/sessions/:id/clone", async (c) => {
   const existing = await getSession(c.req.param("id"));
   if (!existing) return c.json({ error: "Szene nicht gefunden" }, 404);
+  const raw = await c.req.json().catch(() => ({}));
+  const parsed = cloneSessionBody.safeParse(raw);
+  if (!parsed.success) return c.json({ error: parsed.error.message }, 400);
+
   const now = new Date().toISOString();
-  const cloned = await saveSession({
+  const newTitle = parsed.data.title?.trim() || `${existing.title} (Kopie)`;
+
+  if (parsed.data.includeHistory) {
+    const cloned = await saveSession({
+      ...existing,
+      id: crypto.randomUUID().slice(0, 12),
+      title: newTitle,
+      createdAt: now,
+      updatedAt: now,
+    });
+    return c.json({ item: cloned }, 201);
+  }
+
+  const loc = await getLocation(existing.locationId);
+  const freshBase = await saveSession({
     ...existing,
     id: crypto.randomUUID().slice(0, 12),
-    title: `${existing.title} (Kopie)`,
+    title: newTitle,
+    sceneState: loc?.defaultSceneState || existing.sceneState,
+    resolvedContext: "",
+    compressedSummary: "",
+    compressedUntilIndex: 0,
+    messages: [],
     createdAt: now,
     updatedAt: now,
   });
-  return c.json({ item: cloned }, 201);
+  const initialized = await initializeSceneSession(freshBase);
+  return c.json({ item: initialized }, 201);
 });
 
 skaldApi.patch("/sessions/:id", async (c) => {
