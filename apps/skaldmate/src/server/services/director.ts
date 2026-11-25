@@ -9,6 +9,7 @@ import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { generateText, Output } from "ai";
 import { z } from "zod";
 import { getAvailableModels, loadProviderConfig } from "./config.ts";
+import { expandMacros } from "./macros.ts";
 import { getGameMaster, getLocation, getPersona, listCharacters, saveSession } from "./storage.ts";
 import type { Character, GameMaster, Location, Persona, SessionMessage, StorySession } from "./types.ts";
 
@@ -140,15 +141,19 @@ async function runGameMasterDirector(
     "Deine Aufgabe als Regisseur:",
     "1. Entscheide autark, welche anwesenden Charaktere auf die aktuelle Situation wirklich reagieren (0, 1 oder 2 – NICHT stumpf alle der Reihe nach!).",
     "2. Wenn ein Charakter direkt angesprochen/erwähnt wird, gehört seine ID in `speakers`.",
-    "3. Füge `narrationBefore` oder `narrationAfter` nur hinzu, wenn die Umgebung, ein Ereignis oder eine Konsequenz beschrieben werden muss (knapp, 1-3 Sätze).",
-    "4. Nutze in `speakers` ausschließlich exakte IDs aus `ANWESENDE CHARAKTERE`.",
+    "3. Text in eckigen Klammern [...] sind direkte OOC-Regieanweisungen des Spielers an dich (z. B. Zeitsprung, Ereignis, Stimmungswechsel). Setze sie in `narrationBefore` / `sceneStateUpdate` um.",
+    "4. Füge `narrationBefore` oder `narrationAfter` nur hinzu, wenn die Umgebung, ein Ereignis oder eine Konsequenz beschrieben werden muss (knapp, 1-3 Sätze).",
+    "5. Nutze in `speakers` ausschließlich exakte IDs aus `ANWESENDE CHARAKTERE`.",
   ].join("\n");
 
-  const prompt = [
-    contextBlock,
-    `BISHERIGER VERLAUF:\n${historyBlock}`,
-    userText ? `NEUE AKTION DES SPIELERS: ${userText}` : "Der Spieler lässt die Szene ohne eigene Aktion weiterlaufen.",
-  ].join("\n\n");
+  const prompt = expandMacros(
+    [
+      contextBlock,
+      `BISHERIGER VERLAUF:\n${historyBlock}`,
+      userText ? `NEUE AKTION DES SPIELERS: ${userText}` : "Der Spieler lässt die Szene ohne eigene Aktion weiterlaufen.",
+    ].join("\n\n"),
+    { userName: persona?.name },
+  );
 
   try {
     const result = await generateText({
@@ -202,11 +207,14 @@ async function generateCharacterReply(
     .filter(Boolean)
     .join("\n");
 
-  const prompt = [
-    contextBlock,
-    `BISHERIGER VERLAUF:\n${historyBlock}`,
-    `Wie reagiert ${char.name} jetzt?`,
-  ].join("\n\n");
+  const prompt = expandMacros(
+    [
+      contextBlock,
+      `BISHERIGER VERLAUF:\n${historyBlock}`,
+      `Wie reagiert ${char.name} jetzt?`,
+    ].join("\n\n"),
+    { userName: persona?.name, charName: char.name },
+  );
 
   const result = await generateText({
     model,
@@ -242,7 +250,8 @@ export async function runStoryTurn(options: {
   const addedMessages: SessionMessage[] = [];
   const now = () => new Date().toISOString();
 
-  const cleanUserText = (options.userMessage ?? "").trim();
+  const rawUserText = (options.userMessage ?? "").trim();
+  const cleanUserText = rawUserText ? expandMacros(rawUserText, { userName: persona?.name }) : "";
   if (cleanUserText) {
     const userMsg: SessionMessage = {
       id: crypto.randomUUID(),

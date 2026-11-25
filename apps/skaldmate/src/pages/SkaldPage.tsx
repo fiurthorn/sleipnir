@@ -264,6 +264,14 @@ export const SkaldPage = () => {
               📝 Zustand
             </button>
           </div>
+          <button
+            type="button"
+            class="btn btn-xs btn-ghost font-mono"
+            x-on:click="openHelpModal"
+            title="Kurzanleitung & Makrosyntax"
+          >
+            ? Hilfe
+          </button>
         </header>
 
         {/* VIEW A: ENTITY EDITOR */}
@@ -801,6 +809,71 @@ export const SkaldPage = () => {
           </form>
         </section>
       </main>
+
+      {/* HELP MODAL: SCHREIBKONVENTIONEN & MAKROSYNTAX */}
+      <div
+        x-show="showHelpModal"
+        class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
+        style="display: none;"
+      >
+        <div class="card bg-base-200 border border-base-content/15 max-w-xl w-full shadow-2xl">
+          <div class="card-body gap-4">
+            <div class="flex justify-between items-center border-b border-base-content/10 pb-2">
+              <h3 class="font-bold text-base">Kurzanleitung &amp; Makrosyntax</h3>
+              <button type="button" class="btn btn-xs btn-ghost" x-on:click="closeHelpModal">✕</button>
+            </div>
+
+            <div class="space-y-3 text-xs sm:text-sm">
+              <div>
+                <h4 class="font-semibold text-primary mb-1">Schreibkonventionen im Gruppenchat</h4>
+                <ul class="space-y-1 text-base-content/85 list-disc list-inside">
+                  <li>
+                    <code class="font-mono bg-base-300 px-1 rounded">*Handlung oder Geste*</code> – beschreibt Körpersprache oder Aktionen (z. B.{" "}
+                    <span class="italic">*stellt die Tasse ab*</span>)
+                  </li>
+                  <li>
+                    <code class="font-mono bg-base-300 px-1 rounded">&quot;Wörtliche Rede&quot;</code> – direkte Dialoge
+                  </li>
+                  <li>
+                    <code class="font-mono bg-base-300 px-1 rounded">[Regieanweisung]</code> – OOC-Hinweis direkt an den Spielleiter (z. B.{" "}
+                    <span class="font-mono">[Zeitsprung zum nächsten Morgen]</span> oder <span class="font-mono">[Es klopft an der Tür]</span>)
+                  </li>
+                  <li>
+                    <code class="font-mono bg-base-300 px-1 rounded">@Name</code>{" "}
+                    – spricht gezielt einen anwesenden Charakter an (oder Charakter-Badge oben anklicken)
+                  </li>
+                </ul>
+              </div>
+
+              <div>
+                <h4 class="font-semibold text-primary mb-1">Makrosyntax (in Nachrichten, Orten &amp; Charakteren)</h4>
+                <ul class="space-y-1 text-base-content/85 list-disc list-inside font-mono text-xs">
+                  <li>
+                    <span class="bg-base-300 px-1 rounded">{"{{random:Kaffee, Tee, Wasser}}"}</span> /{" "}
+                    <span class="bg-base-300 px-1 rounded">{"{{random_of:A|B|C}}"}</span> – wählt zufällig einen Eintrag
+                  </li>
+                  <li>
+                    <span class="bg-base-300 px-1 rounded">{"{{roll:1d10}}"}</span>, <span class="bg-base-300 px-1 rounded">{"{{roll:2d20}}"}</span>,
+                    {" "}
+                    <span class="bg-base-300 px-1 rounded">{"{{roll:2d6+3}}"}</span> – würfelt RPG-Würfel
+                  </li>
+                  <li>
+                    <span class="bg-base-300 px-1 rounded">{"{{rand:1-100}}"}</span> – Zufallszahl von–bis
+                  </li>
+                  <li>
+                    <span class="bg-base-300 px-1 rounded">{"{{time}}"}</span>, <span class="bg-base-300 px-1 rounded">{"{{date}}"}</span>,{" "}
+                    <span class="bg-base-300 px-1 rounded">{"{{timestamp}}"}</span> – Uhrzeit / Datum / Zeitstempel
+                  </li>
+                </ul>
+              </div>
+            </div>
+
+            <div class="card-actions justify-end pt-1">
+              <button type="button" class="btn btn-xs btn-primary" x-on:click="closeHelpModal">Verstanden</button>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };

@@ -22,6 +22,7 @@ document.addEventListener("alpine:init", () => {
     activeSession: null,
 
     showNotesPanel: false,
+    showHelpModal: false,
     sceneStateDraft: "",
     chatInput: "",
     turnLoading: false,
@@ -261,6 +262,14 @@ document.addEventListener("alpine:init", () => {
 
     toggleNotesPanel() {
       this.showNotesPanel = !this.showNotesPanel;
+    },
+
+    openHelpModal() {
+      this.showHelpModal = true;
+    },
+
+    closeHelpModal() {
+      this.showHelpModal = false;
     },
 
     async saveSceneState() {
