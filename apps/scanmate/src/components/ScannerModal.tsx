@@ -262,7 +262,7 @@ export function ScannerModal() {
         </div>
 
         {/* Modal Footer */}
-        <div class="px-6 py-4 border-t border-base-300 bg-base-200/50 flex justify-between items-center shrink-0">
+        <div class="px-4 sm:px-6 py-4 border-t border-base-300 bg-base-200/50 flex justify-between items-center gap-2 shrink-0">
           <button
             type="button"
             x-on:click="close()"
@@ -271,14 +271,22 @@ export function ScannerModal() {
             Abbrechen
           </button>
 
-          <button
-            type="button"
-            x-show="mode === 'crop'"
-            x-on:click="acceptReceipt()"
-            class="btn btn-success btn-sm rounded-xl font-black text-white shadow-md flex items-center gap-1.5"
-          >
-            <span>✓ Seite übernehmen</span>
-          </button>
+          <div x-show="mode === 'crop'" class="flex items-center gap-2">
+            <button
+              type="button"
+              x-on:click="acceptAndNextPage()"
+              class="btn btn-primary btn-sm rounded-xl font-bold shadow-md flex items-center gap-1.5"
+            >
+              <span>+ Weitere Seite</span>
+            </button>
+            <button
+              type="button"
+              x-on:click="acceptReceipt()"
+              class="btn btn-success btn-sm rounded-xl font-black text-white shadow-md flex items-center gap-1.5"
+            >
+              <span>✓ Fertig</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>

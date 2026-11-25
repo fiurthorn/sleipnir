@@ -210,8 +210,8 @@ export const ChatPage = () => {
               {/* User Message */}
               <template x-if="msg.role === 'user'">
                 <div class="chat chat-end animate-fadeIn">
-                  <div class="chat-header text-xs opacity-50 mb-1">Du</div>
-                  <div class="chat-bubble chat-bubble-secondary text-sm whitespace-pre-wrap leading-relaxed shadow-sm flex flex-col gap-2">
+                  <div class="chat-header text-xs opacity-60 mb-1">Du</div>
+                  <div class="chat-bubble chat-bubble-primary text-sm whitespace-pre-wrap leading-relaxed flex flex-col gap-2">
                     <template x-if="msg.imageUrl">
                       <div class="rounded-lg overflow-hidden max-w-xs max-h-60 bg-base-300">
                         <img
@@ -229,15 +229,10 @@ export const ChatPage = () => {
               {/* Assistant Message: Text */}
               <template x-if="msg.role === 'assistant' && msg.type === 'text'">
                 <div class="chat chat-start animate-fadeIn">
-                  <div class="chat-image avatar placeholder">
-                    <div class="bg-primary text-primary-content rounded-full w-9">
-                      <span class="text-xs font-bold">AI</span>
-                    </div>
-                  </div>
-                  <div class="chat-header text-xs opacity-50 mb-1">
+                  <div class="chat-header text-xs opacity-60 mb-1">
                     Chatmate
                   </div>
-                  <div class="chat-bubble chat-bubble-primary text-sm leading-relaxed prose prose-sm max-w-none text-primary-content shadow-sm overflow-x-auto">
+                  <div class="chat-bubble text-sm leading-relaxed prose prose-sm max-w-none overflow-x-auto">
                     <template x-if="msg.content && msg.content.length > 0">
                       <div x-html="renderMarkdown(msg.content)"></div>
                     </template>
@@ -251,15 +246,10 @@ export const ChatPage = () => {
               {/* Assistant Message: Image */}
               <template x-if="msg.role === 'assistant' && msg.type === 'image'">
                 <div class="chat chat-start animate-fadeIn">
-                  <div class="chat-image avatar placeholder">
-                    <div class="bg-accent text-accent-content rounded-full w-9">
-                      <span class="text-xs font-bold">IMG</span>
-                    </div>
-                  </div>
-                  <div class="chat-header text-xs opacity-50 mb-1">
+                  <div class="chat-header text-xs opacity-60 mb-1">
                     Bildgenerator
                   </div>
-                  <div class="chat-bubble bg-base-200 border border-base-content/10 p-4 space-y-3 max-w-md shadow-sm">
+                  <div class="chat-bubble p-4 space-y-3 max-w-md">
                     <p
                       class="text-xs opacity-75 font-mono"
                       x-text="'Prompt: ' + msg.content"

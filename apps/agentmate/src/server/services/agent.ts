@@ -58,6 +58,22 @@ export interface AssistantChatResult {
   toolsUsed: string[];
 }
 
+const optionalString = z
+  .string()
+  .nullish()
+  .transform((v) => (v && v.trim().length > 0 ? v.trim() : undefined));
+
+const optionalAmount = z.preprocess((val) => {
+  if (val === null || val === undefined || val === "") return undefined;
+  if (typeof val === "number") return Number.isFinite(val) ? val : undefined;
+  if (typeof val === "string") {
+    const normalized = val.replace(/[^\d.,-]/g, "").replace(",", ".");
+    const parsed = Number(normalized);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  }
+  return undefined;
+}, z.number().optional());
+
 const triageSchema = z.object({
   title: z.string().min(1).describe("Prägnanter Dokumenttitel"),
   category: z.string().min(1).describe("Kategorie (z. B. Rechnung, Vertrag, Brief, Beleg, Versicherung, Steuern, Gesundheit, Sonstiges)"),
@@ -65,14 +81,18 @@ const triageSchema = z.object({
     .string()
     .min(1)
     .describe("Relativer Zielordner nach dem Schema Kategorie/Absender/Jahr (z. B. 'Rechnung/EON/2026')"),
-  sender: z.string().optional().describe("Absender / Aussteller"),
-  recipient: z.string().optional().describe("Empfänger"),
-  date: z.string().optional().describe("Dokumentdatum im Format YYYY-MM-DD"),
-  dueDate: z.string().optional().describe("Fälligkeitsdatum im Format YYYY-MM-DD falls vorhanden"),
-  totalAmount: z.number().optional().describe("Gesamtbetrag als Dezimalzahl falls vorhanden"),
-  tags: z.array(z.string()).default([]).describe("3-5 kurze Schlagwörter"),
+  sender: optionalString.describe("Absender / Aussteller"),
+  recipient: optionalString.describe("Empfänger"),
+  date: optionalString.describe("Dokumentdatum im Format YYYY-MM-DD"),
+  dueDate: optionalString.describe("Fälligkeitsdatum im Format YYYY-MM-DD falls vorhanden"),
+  totalAmount: optionalAmount.describe("Gesamtbetrag als Dezimalzahl falls vorhanden"),
+  tags: z
+    .array(z.string())
+    .nullish()
+    .transform((v) => v ?? [])
+    .describe("3-5 kurze Schlagwörter"),
   summary: z.string().min(1).describe("Kurze 1-2-Satz-Zusammenfassung"),
-  ocrText: z.string().optional().describe("Wichtigster erkannter Text / Kennzahlen"),
+  ocrText: optionalString.describe("Wichtigster erkannter Text / Kennzahlen"),
 });
 
 let lastTriageRun: TriageRunReport | null = null;
@@ -113,6 +133,7 @@ function resolveModel(requestedModelId?: string) {
     name: provider.id,
     baseURL: provider.baseUrl,
     apiKey: provider.apiKey,
+    supportsStructuredOutputs: true,
     headers: {
       "HTTP-Referer": "https://sleipnir.local",
       "X-Title": "Sleipnir Agentmate",
@@ -223,30 +244,70 @@ async function archiveAllPendingScans(modelId?: string): Promise<TriageItemResul
           existingFolders.length > 0
             ? `Bestehende Archiv-Ordner (bevorzuge konsistente Schreibweisen): ${existingFolders.join(", ")}`
             : "Es existieren noch keine Unterordner.",
-          "Nutze für `targetPath` möglichst das Schema `Kategorie/Absender/Jahr` (z. B. `Rechnung/EON/2026`).",
+          "Wichtige Extraktionsregeln:",
+          "- `sender`: Extrahiere den vollständigen Absender/Aussteller aus dem Briefkopf oder Text.",
+          "- `recipient`: Extrahiere den Empfänger falls angegeben.",
+          "- `date`: Dokument- oder Bescheiddatum im Format YYYY-MM-DD.",
+          "- `dueDate`: Fälligkeitsdatum oder nächster Zahlungstermin im Format YYYY-MM-DD, falls im Dokument genannt.",
+          "- `totalAmount`: Gesamtbetrag als Dezimalzahl (z. B. 3191.97), falls genannt.",
+          "- `tags`: Vergib IMMER 3 bis 5 prägnante deutsche Schlagwörter (niemals leeres Array).",
+          "- `targetPath`: Möglichst das Schema `Kategorie/Absender/Jahr` (z. B. `Rechnung/EON/2026` oder `Bescheid/Stadt_Betzenstein/2026`).",
         ]
           .filter(Boolean)
           .join("\n");
 
-        const result = await generateText({
-          model,
-          system:
-            "Du bist ein präziser deutscher Dokumenten-Archivar. Extrahiere alle relevanten Metadaten sauber aus den Belegbildern. Antworte strikt im geforderten JSON-Schema.",
-          output: Output.object({
-            schema: triageSchema,
-          }),
-          messages: [
-            {
-              role: "user",
-              content: [
-                { type: "text", text: promptText },
-                ...imageParts,
-              ],
-            },
-          ],
-        });
+        let extracted: z.infer<typeof triageSchema>;
+        try {
+          const result = await generateText({
+            model,
+            system:
+              "Du bist ein präziser deutscher Dokumenten-Archivar. Extrahiere alle relevanten Metadaten vollständig aus den Belegbildern (insbesondere Absender, Empfänger, Datum, Fälligkeit/Zahlungstermin, Betrag und 3-5 deutsche Tags). Antworte strikt im geforderten JSON-Schema.",
+            output: Output.object({
+              schema: triageSchema,
+            }),
+            messages: [
+              {
+                role: "user",
+                content: [
+                  { type: "text", text: promptText },
+                  ...imageParts,
+                ],
+              },
+            ],
+          });
+          extracted = result.output;
+        } catch (structuredErr) {
+          console.warn(
+            "[Agentmate] Structured output failed, retrying with plain JSON extraction:",
+            structuredErr instanceof Error ? structuredErr.message : structuredErr,
+          );
+          const jsonFallbackPrompt = [
+            promptText,
+            "",
+            "Antworte AUSSCHLIESSLICH mit einem validen JSON-Objekt (ohne Markdown-Codeblock) mit diesen Feldern:",
+            '{ "title": string, "category": string, "targetPath": string, "sender"?: string, "recipient"?: string, "date"?: "YYYY-MM-DD", "dueDate"?: "YYYY-MM-DD", "totalAmount"?: number, "tags": string[], "summary": string, "ocrText"?: string }',
+          ].join("\n");
 
-        const extracted = result.output;
+          const fallbackRes = await generateText({
+            model,
+            system: "Du bist ein präziser deutscher Dokumenten-Archivar. Antworte ausschließlich mit einem validen JSON-Objekt.",
+            messages: [
+              {
+                role: "user",
+                content: [
+                  { type: "text", text: jsonFallbackPrompt },
+                  ...imageParts,
+                ],
+              },
+            ],
+          });
+
+          const match = fallbackRes.text.match(/\{[\s\S]*\}/);
+          if (!match) {
+            throw structuredErr;
+          }
+          extracted = triageSchema.parse(JSON.parse(match[0]));
+        }
 
         await invokeMcpTool(pool.tools, "scanmate_archive_pending", {
           pendingId: item.id,

@@ -28,10 +28,11 @@ document.addEventListener("alpine:init", () => {
     pages: [], // Array von { id, dataUrl, rotation }
     isAnalyzing: false,
     isSaving: false,
-    expandedFolders: Alpine.$persist([]).as("scanmate_expanded_v1"),
+    expandedFolders: [],
     selectedTag: "",
     onlyUnreviewed: false,
     previewError: false,
+    deeplinkCopied: false,
 
     get activeDoc() {
       return Alpine.store("scanmate").activeDoc;
@@ -56,6 +57,14 @@ document.addEventListener("alpine:init", () => {
     formatDocDate(doc) {
       if (!doc) return "";
       return doc.date || (doc.createdAt ? doc.createdAt.split("T")[0] : "");
+    },
+
+    formatShortPath(path, maxLen = 44) {
+      const str = String(path || "");
+      if (str.length <= maxLen) return str;
+      const keepEnd = Math.min(17, Math.floor(maxLen * 0.4));
+      const keepStart = maxLen - keepEnd - 1;
+      return `${str.slice(0, keepStart)}…${str.slice(-keepEnd)}`;
     },
 
     getPdfUrl(doc) {
@@ -91,7 +100,22 @@ document.addEventListener("alpine:init", () => {
       recipient: "",
       totalAmount: null,
       dueDate: "",
-      tags: [],
+      tags: [
+        "Estate",
+        "Insurance",
+        "Private",
+        "Behörden",
+        "Finanzen",
+        "Gesundheit",
+        "Sonstiges",
+        "Rechnung",
+        "Vertrag",
+        "Bescheid",
+        "Quittung",
+        "Mahnung",
+        "Steuer",
+        "Strom",
+      ],
       tagInput: "",
       summary: "",
       ocrText: "",
@@ -99,6 +123,21 @@ document.addEventListener("alpine:init", () => {
     },
     queueLabel: "",
     pendingScans: [],
+    editModalOpen: false,
+    editSaving: false,
+    editForm: {
+      id: "",
+      title: "",
+      category: "",
+      date: "",
+      sender: "",
+      recipient: "",
+      totalAmount: "",
+      dueDate: "",
+      tagsText: "",
+      summary: "",
+      ocrText: "",
+    },
 
     async init() {
       await this.loadModels();
@@ -149,8 +188,21 @@ document.addEventListener("alpine:init", () => {
           const data = await res.json();
           if (data.ok && Array.isArray(data.documents)) {
             Alpine.store("scanmate").documents = data.documents;
-            if (!Alpine.store("scanmate").activeDoc && data.documents.length > 0) {
-              Alpine.store("scanmate").activeDoc = data.documents[0];
+            const deepDocId = new URLSearchParams(globalThis.location.search).get("doc");
+            if (deepDocId) {
+              const deepDoc = data.documents.find((d) => d.id === deepDocId);
+              if (deepDoc) {
+                this.activeTab = "archive";
+                this.previewError = false;
+                Alpine.store("scanmate").activeDoc = deepDoc;
+                this.expandPathParents(deepDoc.targetPath);
+                return;
+              }
+            }
+            const currentActive = Alpine.store("scanmate").activeDoc;
+            if (currentActive) {
+              Alpine.store("scanmate").activeDoc =
+                data.documents.find((d) => d.id === currentActive.id) || null;
             }
           }
         }
@@ -171,9 +223,10 @@ document.addEventListener("alpine:init", () => {
 
       if (this.selectedTag) {
         const target = this.selectedTag.toLowerCase();
-        list = list.filter((d) =>
-          Array.isArray(d.tags) &&
-          d.tags.some((t) => String(t).toLowerCase() === target)
+        list = list.filter(
+          (d) =>
+            Array.isArray(d.tags) &&
+            d.tags.some((t) => String(t).toLowerCase() === target),
         );
       }
 
@@ -207,20 +260,23 @@ document.addEventListener("alpine:init", () => {
     async markDocumentReviewed(doc) {
       if (!doc?.id) return;
       try {
-        const res = await fetch(`./api/documents/${encodeURIComponent(doc.id)}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ reviewed: true }),
-        });
+        const res = await fetch(
+          `./api/documents/${encodeURIComponent(doc.id)}`,
+          {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ reviewed: true }),
+          },
+        );
         const data = await res.json();
         if (!res.ok || !data.ok) {
-          alert(`Fehler: ${data.error || "Status konnte nicht aktualisiert werden"}`);
+          alert(
+            `Fehler: ${data.error || "Status konnte nicht aktualisiert werden"}`,
+          );
           return;
         }
         const store = Alpine.store("scanmate");
-        store.documents = store.documents.map((d) =>
-          d.id === doc.id ? data.document : d
-        );
+        store.documents = store.documents.map((d) => d.id === doc.id ? data.document : d);
         if (store.activeDoc?.id === doc.id) {
           store.activeDoc = data.document;
         }
@@ -245,8 +301,10 @@ document.addEventListener("alpine:init", () => {
           }
         }
       }
-      return [...counts.values()].sort((a, b) =>
-        b.count - a.count || a.tag.localeCompare(b.tag, "de", { sensitivity: "base" })
+      return [...counts.values()].sort(
+        (a, b) =>
+          b.count - a.count ||
+          a.tag.localeCompare(b.tag, "de", { sensitivity: "base" }),
       );
     },
 
@@ -260,14 +318,76 @@ document.addEventListener("alpine:init", () => {
     },
 
     isFolderExpanded(folderPath) {
-      return Array.isArray(this.expandedFolders) && this.expandedFolders.includes(folderPath);
+      return (
+        Array.isArray(this.expandedFolders) &&
+        this.expandedFolders.includes(folderPath)
+      );
     },
 
     toggleFolder(folderPath) {
       if (this.isFolderExpanded(folderPath)) {
-        this.expandedFolders = this.expandedFolders.filter((p) => p !== folderPath);
+        this.expandedFolders = this.expandedFolders.filter(
+          (p) => p !== folderPath,
+        );
       } else {
         this.expandedFolders = [...(this.expandedFolders || []), folderPath];
+      }
+    },
+
+    collapseAllFolders() {
+      this.expandedFolders = [];
+    },
+
+    expandPathParents(folderPath) {
+      if (!folderPath) return;
+      const parts = String(folderPath).split("/").filter(Boolean);
+      const next = new Set(this.expandedFolders || []);
+      let acc = "";
+      for (const part of parts) {
+        acc = acc ? `${acc}/${part}` : part;
+        next.add(acc);
+      }
+      this.expandedFolders = [...next];
+    },
+
+    get hasTreeFilter() {
+      const store = Alpine.store("scanmate");
+      return Boolean(
+        (store.searchQuery && store.searchQuery.trim()) ||
+          this.selectedTag ||
+          this.onlyUnreviewed,
+      );
+    },
+
+    isTreeDirExpanded(folderPath) {
+      return this.hasTreeFilter || this.isFolderExpanded(folderPath);
+    },
+
+    getDocDeeplinkUrl(doc) {
+      const url = new URL(globalThis.location.href);
+      if (doc?.id) {
+        url.searchParams.set("doc", doc.id);
+      } else {
+        url.searchParams.delete("doc");
+      }
+      return url.toString();
+    },
+
+    syncDocUrl(doc) {
+      if (!globalThis.history?.replaceState) return;
+      globalThis.history.replaceState(null, "", this.getDocDeeplinkUrl(doc));
+    },
+
+    async copyDocDeeplink(doc) {
+      if (!doc?.id) return;
+      try {
+        await navigator.clipboard.writeText(this.getDocDeeplinkUrl(doc));
+        this.deeplinkCopied = true;
+        setTimeout(() => {
+          this.deeplinkCopied = false;
+        }, 2000);
+      } catch (err) {
+        console.error("Deeplink konnte nicht kopiert werden:", err);
       }
     },
 
@@ -283,6 +403,7 @@ document.addEventListener("alpine:init", () => {
         this.activeTab = "archive";
         this.previewError = false;
         store.activeDoc = doc;
+        this.syncDocUrl(doc);
         this.mobileMenuOpen = false;
       }
     },
@@ -308,11 +429,13 @@ document.addEventListener("alpine:init", () => {
     get visibleTreeItems() {
       const store = Alpine.store("scanmate");
       const docs = this.filteredDocuments();
-      const hasFilter = Boolean((store.searchQuery && store.searchQuery.trim()) || this.selectedTag);
+      const hasFilter = this.hasTreeFilter;
 
       const root = { children: new Map(), docs: [] };
       const ensureDir = (folderPath) => {
-        const parts = String(folderPath || "").split("/").filter(Boolean);
+        const parts = String(folderPath || "")
+          .split("/")
+          .filter(Boolean);
         let curr = root;
         let acc = "";
         for (const part of parts) {
@@ -343,9 +466,7 @@ document.addEventListener("alpine:init", () => {
 
       const list = [];
       const traverse = (node, depth = 0) => {
-        const dirs = [...node.children.values()].sort((a, b) =>
-          a.name.localeCompare(b.name, "de", { sensitivity: "base" })
-        );
+        const dirs = [...node.children.values()].sort((a, b) => a.name.localeCompare(b.name, "de", { sensitivity: "base" }));
         for (const dir of dirs) {
           list.push({
             treeKey: `dir:${dir.path}`,
@@ -359,7 +480,9 @@ document.addEventListener("alpine:init", () => {
           }
         }
         const sortedDocs = [...node.docs].sort((a, b) =>
-          (b.date || b.createdAt || "").localeCompare(a.date || a.createdAt || "")
+          (b.date || b.createdAt || "").localeCompare(
+            a.date || a.createdAt || "",
+          )
         );
         for (const doc of sortedDocs) {
           list.push({
@@ -609,6 +732,120 @@ document.addEventListener("alpine:init", () => {
       }
     },
 
+    openEditModal(doc) {
+      if (!doc?.id) return;
+      this.editForm = {
+        id: doc.id,
+        title: doc.title ?? "",
+        category: doc.category ?? "",
+        date: doc.date ?? "",
+        sender: doc.sender ?? "",
+        recipient: doc.recipient ?? "",
+        totalAmount: doc.totalAmount !== undefined && doc.totalAmount !== null ? String(doc.totalAmount) : "",
+        dueDate: doc.dueDate ?? "",
+        tagsText: Array.isArray(doc.tags) ? doc.tags.join(", ") : "",
+        summary: doc.summary ?? "",
+        ocrText: doc.ocrText ?? "",
+      };
+      this.editModalOpen = true;
+    },
+
+    closeEditModal() {
+      this.editModalOpen = false;
+    },
+
+    getEditTagsList() {
+      return String(this.editForm.tagsText || "")
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean);
+    },
+
+    isEditTagActive(tag) {
+      const needle = String(tag || "")
+        .trim()
+        .toLowerCase();
+      return this.getEditTagsList().some((t) => t.toLowerCase() === needle);
+    },
+
+    toggleEditTag(tag) {
+      const clean = String(tag || "").trim();
+      if (!clean) return;
+      const needle = clean.toLowerCase();
+      const current = this.getEditTagsList();
+      const next = current.some((t) => t.toLowerCase() === needle) ? current.filter((t) => t.toLowerCase() !== needle) : [...current, clean];
+      this.editForm.tagsText = next.join(", ");
+    },
+
+    async saveEditedDoc() {
+      if (!this.editForm.id || this.editSaving) return;
+      const title = this.editForm.title.trim();
+      if (!title) {
+        alert("Bitte einen Dokumenttitel angeben.");
+        return;
+      }
+
+      const rawAmount = String(this.editForm.totalAmount || "")
+        .trim()
+        .replace(",", ".");
+      let parsedAmount;
+      if (rawAmount !== "") {
+        const num = Number(rawAmount);
+        if (!Number.isFinite(num)) {
+          alert("Bitte einen gültigen Betrag eingeben.");
+          return;
+        }
+        parsedAmount = num;
+      }
+
+      const tags = String(this.editForm.tagsText || "")
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean);
+
+      const payload = {
+        title,
+        category: this.editForm.category.trim() || "Sonstiges",
+        date: this.editForm.date.trim() || undefined,
+        sender: this.editForm.sender.trim() || undefined,
+        recipient: this.editForm.recipient.trim() || undefined,
+        totalAmount: parsedAmount,
+        dueDate: this.editForm.dueDate.trim() || undefined,
+        tags,
+        summary: this.editForm.summary.trim() || undefined,
+        ocrText: this.editForm.ocrText.trim() || undefined,
+      };
+
+      this.editSaving = true;
+      try {
+        const res = await fetch(
+          `./api/documents/${encodeURIComponent(this.editForm.id)}`,
+          {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          },
+        );
+        const data = await res.json();
+        if (!res.ok || !data.ok) {
+          alert(
+            `Fehler: ${data.error || "Dokument konnte nicht gespeichert werden"}`,
+          );
+          return;
+        }
+        const store = Alpine.store("scanmate");
+        store.documents = store.documents.map((d) => d.id === data.document.id ? data.document : d);
+        if (store.activeDoc?.id === data.document.id) {
+          store.activeDoc = data.document;
+        }
+        this.editModalOpen = false;
+      } catch (err) {
+        alert(`Verbindungsfehler: ${err.message}`);
+      } finally {
+        this.editSaving = false;
+      }
+    },
+
     async deleteDoc(doc) {
       if (!confirm(`Dokument "${doc.title}" wirklich löschen?`)) return;
 
@@ -619,6 +856,7 @@ document.addEventListener("alpine:init", () => {
         if (res.ok) {
           if (Alpine.store("scanmate").activeDoc?.id === doc.id) {
             Alpine.store("scanmate").activeDoc = null;
+            this.syncDocUrl(null);
           }
           await this.loadDocuments();
         }
@@ -883,9 +1121,35 @@ document.addEventListener("alpine:init", () => {
       const w = sourceCanvas.width;
       const h = sourceCanvas.height;
 
-      let corners = null;
+      const maxDim = 480;
+      const scale = Math.min(1, maxDim / Math.max(w, h));
+      const workCanvas = document.createElement("canvas");
+      workCanvas.width = Math.max(1, Math.round(w * scale));
+      workCanvas.height = Math.max(1, Math.round(h * scale));
+      const workCtx = workCanvas.getContext("2d", { willReadFrequently: true });
+      workCtx.drawImage(
+        sourceCanvas,
+        0,
+        0,
+        workCanvas.width,
+        workCanvas.height,
+      );
 
-      // Fallback auf 5% Rand
+      let corners = null;
+      if (typeof cv !== "undefined" && cv.Mat) {
+        corners = this.detectCornersWithOpenCV(workCanvas, scale, w, h);
+      }
+      if (!corners) {
+        corners = this.detectCornersFallback(workCanvas, scale, w, h);
+      }
+
+      // Sicherstellen, dass alle 4 Griff-Dots erreichbar im sichtbaren Bereich liegen
+      // und nicht übereinander oder am äußersten Bildrand kleben
+      if (corners) {
+        corners = this.sanitizeAutoCorners(corners, w, h);
+      }
+
+      // Fallback auf 5% Rand, falls kein gültiges Dokument erkannt wurde
       if (!corners) {
         corners = {
           topLeft: { x: Math.round(w * 0.05), y: Math.round(h * 0.05) },
@@ -902,17 +1166,258 @@ document.addEventListener("alpine:init", () => {
       }
     },
 
+    sanitizeAutoCorners(corners, w, h) {
+      const padX = Math.max(16, Math.round(w * 0.025));
+      const padY = Math.max(16, Math.round(h * 0.025));
+      const clamp = (pt) => ({
+        x: Math.max(padX, Math.min(w - padX, Math.round(pt.x))),
+        y: Math.max(padY, Math.min(h - padY, Math.round(pt.y))),
+      });
+
+      const sanitized = {
+        topLeft: clamp(corners.topLeft),
+        topRight: clamp(corners.topRight),
+        bottomRight: clamp(corners.bottomRight),
+        bottomLeft: clamp(corners.bottomLeft),
+      };
+
+      const pts = [
+        sanitized.topLeft,
+        sanitized.topRight,
+        sanitized.bottomRight,
+        sanitized.bottomLeft,
+      ];
+      const minCornerDist = Math.min(w, h) * 0.12;
+      for (let i = 0; i < pts.length; i++) {
+        for (let j = i + 1; j < pts.length; j++) {
+          if (
+            Math.hypot(pts[i].x - pts[j].x, pts[i].y - pts[j].y) < minCornerDist
+          ) {
+            return null;
+          }
+        }
+      }
+
+      return sanitized;
+    },
+
+    findQuadInBinaryMat(binaryMat, scale, origW, origH) {
+      const contours = new cv.MatVector();
+      const hierarchy = new cv.Mat();
+      try {
+        cv.findContours(
+          binaryMat,
+          contours,
+          hierarchy,
+          cv.RETR_EXTERNAL,
+          cv.CHAIN_APPROX_SIMPLE,
+        );
+        const totalArea = binaryMat.rows * binaryMat.cols;
+        const minArea = totalArea * 0.15;
+        const maxArea = totalArea * 0.98;
+
+        const candidates = [];
+        for (let i = 0; i < contours.size(); i++) {
+          const cnt = contours.get(i);
+          const area = cv.contourArea(cnt, false);
+          if (area >= minArea && area <= maxArea) {
+            candidates.push({ cnt, area });
+          } else {
+            cnt.delete();
+          }
+        }
+        candidates.sort((a, b) => b.area - a.area);
+
+        const clampPts = (pts) =>
+          pts.map((p) => ({
+            x: Math.max(0, Math.min(origW, Math.round(p.x / scale))),
+            y: Math.max(0, Math.min(origH, Math.round(p.y / scale))),
+          }));
+
+        let bestQuad = null;
+        for (let i = 0; i < Math.min(candidates.length, 6) && !bestQuad; i++) {
+          const cnt = candidates[i].cnt;
+          const peri = cv.arcLength(cnt, true);
+          for (const epsFactor of [0.02, 0.03, 0.04, 0.05]) {
+            const approx = new cv.Mat();
+            cv.approxPolyDP(cnt, approx, epsFactor * peri, true);
+            if (approx.rows === 4 && cv.isContourConvex(approx)) {
+              const pts = [];
+              for (let j = 0; j < 4; j++) {
+                pts.push({
+                  x: approx.data32S[j * 2],
+                  y: approx.data32S[j * 2 + 1],
+                });
+              }
+              approx.delete();
+              bestQuad = this.sortCornerPoints(clampPts(pts));
+              break;
+            }
+            approx.delete();
+          }
+        }
+
+        // Wenn keine exakte 4-Eck-Approximation klappt, umschließendes Rechteck der größten Kontur nutzen
+        if (!bestQuad && candidates.length > 0 && cv.RotatedRect?.points) {
+          const rect = cv.minAreaRect(candidates[0].cnt);
+          const vertices = cv.RotatedRect.points(rect);
+          if (vertices && vertices.length === 4) {
+            bestQuad = this.sortCornerPoints(clampPts(vertices));
+          }
+        }
+
+        candidates.forEach((c) => c.cnt.delete());
+        return bestQuad;
+      } finally {
+        contours.delete();
+        hierarchy.delete();
+      }
+    },
+
+    detectCornersWithOpenCV(workCanvas, scale, origW, origH) {
+      let src = null,
+        gray = null,
+        blurred = null,
+        thresh = null,
+        edges = null,
+        closeKernel = null,
+        dilateKernel = null;
+      try {
+        src = cv.imread(workCanvas);
+        gray = new cv.Mat();
+        blurred = new cv.Mat();
+        cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+        cv.GaussianBlur(gray, blurred, new cv.Size(5, 5), 0);
+
+        // Pass 1: Otsu-Threshold (ideal für helles Dokument auf dunklem Hintergrund)
+        thresh = new cv.Mat();
+        cv.threshold(
+          blurred,
+          thresh,
+          0,
+          255,
+          cv.THRESH_BINARY + cv.THRESH_OTSU,
+        );
+        closeKernel = cv.Mat.ones(5, 5, cv.CV_8U);
+        cv.morphologyEx(thresh, thresh, cv.MORPH_CLOSE, closeKernel);
+
+        const fromOtsu = this.findQuadInBinaryMat(thresh, scale, origW, origH);
+        if (fromOtsu) return fromOtsu;
+
+        // Pass 2: Canny-Kantenerkennung (für gemusterten oder helleren Hintergrund)
+        edges = new cv.Mat();
+        cv.Canny(blurred, edges, 50, 150);
+        dilateKernel = cv.Mat.ones(3, 3, cv.CV_8U);
+        cv.dilate(edges, edges, dilateKernel);
+
+        return this.findQuadInBinaryMat(edges, scale, origW, origH);
+      } catch (err) {
+        console.warn("OpenCV corner detection failed:", err);
+        return null;
+      } finally {
+        if (src) src.delete();
+        if (gray) gray.delete();
+        if (blurred) blurred.delete();
+        if (thresh) thresh.delete();
+        if (edges) edges.delete();
+        if (closeKernel) closeKernel.delete();
+        if (dilateKernel) dilateKernel.delete();
+      }
+    },
+
+    detectCornersFallback(workCanvas, scale, origW, origH) {
+      const w = workCanvas.width;
+      const h = workCanvas.height;
+      const ctx = workCanvas.getContext("2d", { willReadFrequently: true });
+      const { data } = ctx.getImageData(0, 0, w, h);
+
+      const lumaAt = (x, y) => {
+        const idx = (y * w + x) * 4;
+        return (
+          0.299 * data[idx] + 0.587 * data[idx + 1] + 0.114 * data[idx + 2]
+        );
+      };
+
+      // Rand-Helligkeit vs. Zentrum prüfen (funktioniert besonders gut auf dunklem Hintergrund)
+      let borderSum = 0,
+        borderCount = 0;
+      const step = Math.max(1, Math.floor(Math.min(w, h) / 60));
+      for (let x = 0; x < w; x += step) {
+        borderSum += lumaAt(x, 2) + lumaAt(x, Math.max(0, h - 3));
+        borderCount += 2;
+      }
+      for (let y = 0; y < h; y += step) {
+        borderSum += lumaAt(2, y) + lumaAt(Math.max(0, w - 3), y);
+        borderCount += 2;
+      }
+      const bgLuma = borderSum / Math.max(1, borderCount);
+
+      let centerSum = 0,
+        centerCount = 0;
+      const x0 = Math.floor(w * 0.3),
+        x1 = Math.ceil(w * 0.7);
+      const y0 = Math.floor(h * 0.3),
+        y1 = Math.ceil(h * 0.7);
+      for (let y = y0; y < y1; y += step) {
+        for (let x = x0; x < x1; x += step) {
+          centerSum += lumaAt(x, y);
+          centerCount++;
+        }
+      }
+      const centerLuma = centerSum / Math.max(1, centerCount);
+      if (centerLuma - bgLuma < 22) return null;
+
+      const threshold = bgLuma + (centerLuma - bgLuma) * 0.45;
+      let tl = null,
+        tr = null,
+        br = null,
+        bl = null;
+      let minSum = Infinity,
+        maxSum = -Infinity,
+        minDiff = Infinity,
+        maxDiff = -Infinity;
+      let fgCount = 0;
+
+      for (let y = 0; y < h; y += 2) {
+        for (let x = 0; x < w; x += 2) {
+          if (lumaAt(x, y) < threshold) continue;
+          fgCount++;
+          const sum = x + y;
+          const diff = x - y;
+          if (sum < minSum) {
+            minSum = sum;
+            tl = { x, y };
+          }
+          if (sum > maxSum) {
+            maxSum = sum;
+            br = { x, y };
+          }
+          if (diff > maxDiff) {
+            maxDiff = diff;
+            tr = { x, y };
+          }
+          if (diff < minDiff) {
+            minDiff = diff;
+            bl = { x, y };
+          }
+        }
+      }
+
+      const sampledTotal = Math.ceil(w / 2) * Math.ceil(h / 2);
+      const ratio = fgCount / Math.max(1, sampledTotal);
+      if (!tl || !tr || !br || !bl || ratio < 0.12 || ratio > 0.97) return null;
+
+      return this.sortCornerPoints(
+        [tl, tr, br, bl].map((p) => ({
+          x: Math.max(0, Math.min(origW, Math.round(p.x / scale))),
+          y: Math.max(0, Math.min(origH, Math.round(p.y / scale))),
+        })),
+      );
+    },
+
     autoCrop() {
       if (!this.sourceCanvas) return;
-      const w = this.sourceCanvas.width;
-      const h = this.sourceCanvas.height;
-      this.corners = {
-        topLeft: { x: Math.round(w * 0.03), y: Math.round(h * 0.03) },
-        topRight: { x: Math.round(w * 0.97), y: Math.round(h * 0.03) },
-        bottomRight: { x: Math.round(w * 0.97), y: Math.round(h * 0.97) },
-        bottomLeft: { x: Math.round(w * 0.03), y: Math.round(h * 0.97) },
-      };
-      this.redrawCropCanvas();
+      this.detectCorners(this.sourceCanvas);
     },
 
     redrawCropCanvas() {
@@ -985,42 +1490,69 @@ document.addEventListener("alpine:init", () => {
       });
 
       if (this.activeCorner && this.corners[this.activeCorner]) {
-        this.drawCornerLoupe(ctx, canvas, this.corners[this.activeCorner], scaleX, scaleY);
+        this.drawCornerLoupe(
+          ctx,
+          canvas,
+          this.corners[this.activeCorner],
+          scaleX,
+          scaleY,
+        );
       }
     },
 
     drawCornerLoupe(ctx, canvas, srcPoint, scaleX, scaleY) {
-      const dispX = srcPoint.x * scaleX;
-      const dispY = srcPoint.y * scaleY;
-      const radius = Math.min(58, Math.max(40, Math.round(canvas.width * 0.08)));
+      const activeScreenPt = {
+        x: srcPoint.x * scaleX,
+        y: srcPoint.y * scaleY,
+      };
+      const loupeRadius = Math.round(
+        Math.min(canvas.width, canvas.height) * 0.16,
+      );
       const zoom = 2.4;
-      const offset = radius + 34;
+      const margin = 16;
 
-      const lx = Math.max(radius + 8, Math.min(canvas.width - radius - 8, dispX));
-      const ly = dispY > offset + radius + 8 ? dispY - offset : Math.min(canvas.height - radius - 8, dispY + offset);
+      // Diagonal gegenüberliegende Quadranten-Positionierung
+      const lx = activeScreenPt.x < canvas.width * 0.5 ? canvas.width - loupeRadius - margin : loupeRadius + margin;
+      const ly = activeScreenPt.y < canvas.height * 0.5 ? canvas.height - loupeRadius - margin : loupeRadius + margin;
 
-      const sampleRadius = (radius / scaleX) / zoom;
+      const sampleRadius = loupeRadius / scaleX / zoom;
       const sx = srcPoint.x - sampleRadius;
       const sy = srcPoint.y - sampleRadius;
       const sSize = sampleRadius * 2;
 
+      // Schatten für klaren Kontrast zum Beleg
+      ctx.save();
+      ctx.shadowColor = "rgba(0, 0, 0, 0.65)";
+      ctx.shadowBlur = 12;
+      ctx.beginPath();
+      ctx.arc(lx, ly, loupeRadius, 0, Math.PI * 2);
+      ctx.fillStyle = "#000000";
+      ctx.fill();
+      ctx.restore();
+
+      // Scharfes Sampling direkt aus this.sourceCanvas in runden Clip-Bereich
       ctx.save();
       ctx.beginPath();
-      ctx.arc(lx, ly, radius, 0, Math.PI * 2);
+      ctx.arc(lx, ly, loupeRadius, 0, Math.PI * 2);
       ctx.clip();
 
-      ctx.fillStyle = "#111827";
-      ctx.fillRect(lx - radius, ly - radius, radius * 2, radius * 2);
+      ctx.fillStyle = "#000000";
+      ctx.fillRect(
+        lx - loupeRadius,
+        ly - loupeRadius,
+        loupeRadius * 2,
+        loupeRadius * 2,
+      );
       ctx.drawImage(
         this.sourceCanvas,
         sx,
         sy,
         sSize,
         sSize,
-        lx - radius,
-        ly - radius,
-        radius * 2,
-        radius * 2,
+        lx - loupeRadius,
+        ly - loupeRadius,
+        loupeRadius * 2,
+        loupeRadius * 2,
       );
 
       // Fadenkreuz
@@ -1034,9 +1566,10 @@ document.addEventListener("alpine:init", () => {
       ctx.stroke();
       ctx.restore();
 
+      // 3px-Fokusring
       ctx.save();
       ctx.beginPath();
-      ctx.arc(lx, ly, radius, 0, Math.PI * 2);
+      ctx.arc(lx, ly, loupeRadius, 0, Math.PI * 2);
       ctx.lineWidth = 3;
       ctx.strokeStyle = "#3b82f6";
       ctx.stroke();
@@ -1389,8 +1922,8 @@ document.addEventListener("alpine:init", () => {
       return out;
     },
 
-    acceptReceipt() {
-      if (!this.sourceCanvas || !this.corners) return;
+    commitCurrentPage() {
+      if (!this.sourceCanvas || !this.corners) return false;
 
       const { topLeft, topRight, bottomLeft, bottomRight } = this.corners;
       const topWidth = Math.hypot(
@@ -1441,6 +1974,23 @@ document.addEventListener("alpine:init", () => {
         });
       }
 
+      return true;
+    },
+
+    acceptAndNextPage() {
+      if (!this.commitCurrentPage()) return;
+      this.pageIndex = -1;
+      this.cropSubMode = "crop";
+      this.capturedImageSrc = null;
+      this.sourceCanvas = null;
+      this.corners = null;
+      this.activeCorner = null;
+      this.mode = "camera";
+      this.$nextTick(() => this.startCamera());
+    },
+
+    acceptReceipt() {
+      if (!this.commitCurrentPage()) return;
       this.close();
     },
   }));

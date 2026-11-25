@@ -130,6 +130,21 @@ export function ScanPage({ basePath: _basePath }: { basePath: string }) {
           </div>
 
           {/* Hierarchischer Archiv-Baum (wie NoteMate) */}
+          <div
+            x-show="expandedFolders.length > 0"
+            class="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider opacity-60 px-0.5"
+            style="display: none;"
+          >
+            <span>📁 Ordner</span>
+            <button
+              type="button"
+              x-on:click="collapseAllFolders()"
+              class="text-primary hover:underline font-mono normal-case"
+              title="Alle Ordner einklappen"
+            >
+              Alle einklappen
+            </button>
+          </div>
           <div class="flex-1 overflow-y-auto space-y-0.5 pr-1 select-none text-sm md:text-xs">
             <template x-if="isLoading">
               <div class="text-center py-6 text-xs opacity-60">
@@ -159,7 +174,7 @@ export function ScanPage({ basePath: _basePath }: { basePath: string }) {
                   <template x-if="item.type === 'directory'">
                     <span
                       class="text-[10px] opacity-60 w-3 text-center"
-                      x-text="isFolderExpanded(item.path) ? '▼' : '▶'"
+                      x-text="isTreeDirExpanded(item.path) ? '▼' : '▶'"
                     >
                     </span>
                   </template>
@@ -169,7 +184,7 @@ export function ScanPage({ basePath: _basePath }: { basePath: string }) {
 
                   <span
                     class="text-xs shrink-0"
-                    x-text="item.type === 'directory' ? (isFolderExpanded(item.path) ? '📂' : '📁') : '📄'"
+                    x-text="item.type === 'directory' ? (isTreeDirExpanded(item.path) ? '📂' : '📁') : '📄'"
                   >
                   </span>
 
@@ -285,8 +300,9 @@ export function ScanPage({ basePath: _basePath }: { basePath: string }) {
                     </span>
                     <span
                       x-show="activeDoc.targetPath"
-                      class="badge badge-outline text-xs font-mono"
-                      x-text="'📁 ' + activeDoc.targetPath"
+                      class="badge badge-outline text-xs font-mono whitespace-nowrap max-w-full"
+                      x-bind:title="activeDoc.targetPath"
+                      x-text="'📁 ' + formatShortPath(activeDoc.targetPath)"
                     >
                     </span>
                     <span
@@ -315,7 +331,7 @@ export function ScanPage({ basePath: _basePath }: { basePath: string }) {
                   </p>
                 </div>
 
-                <div class="flex items-center gap-2 shrink-0">
+                <div class="flex items-center gap-2 shrink-0 flex-wrap justify-end">
                   <button
                     type="button"
                     x-show="activeDoc.reviewed === false"
@@ -325,6 +341,22 @@ export function ScanPage({ basePath: _basePath }: { basePath: string }) {
                     style="display: none;"
                   >
                     <span>✓ Geprüft</span>
+                  </button>
+                  <button
+                    type="button"
+                    x-on:click="openEditModal(activeDoc)"
+                    class="btn btn-outline btn-xs sm:btn-sm gap-1"
+                    title="Metadaten bearbeiten"
+                  >
+                    <span>✎ Bearbeiten</span>
+                  </button>
+                  <button
+                    type="button"
+                    x-on:click="copyDocDeeplink(activeDoc)"
+                    class="btn btn-outline btn-xs sm:btn-sm gap-1"
+                    title="Deeplink zu diesem Dokument kopieren"
+                  >
+                    <span x-text="deeplinkCopied ? '✓ Kopiert' : '🔗 Link'"></span>
                   </button>
                   <a
                     x-bind:href="getPdfUrl(activeDoc)"
@@ -721,6 +753,131 @@ export function ScanPage({ basePath: _basePath }: { basePath: string }) {
 
       {/* Kamera & Scanner Modal */}
       <ScannerModal />
+
+      {/* Metadaten Bearbeiten Modal */}
+      <div
+        x-show="editModalOpen"
+        x-cloak
+        class="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-neutral/80 backdrop-blur-sm overflow-y-auto"
+        style="display: none;"
+      >
+        <div
+          class="bg-base-100 w-full max-w-2xl rounded-2xl shadow-2xl border border-base-300 overflow-hidden flex flex-col max-h-[92vh]"
+          {...{ "x-on:click.outside": "closeEditModal()" }}
+        >
+          <div class="px-5 py-4 border-b border-base-300 bg-base-200/50 flex items-center justify-between shrink-0">
+            <h3 class="font-black text-base sm:text-lg">Dokumentdaten bearbeiten</h3>
+            <button
+              type="button"
+              x-on:click="closeEditModal()"
+              class="btn btn-ghost btn-circle btn-sm"
+              title="Schließen"
+            >
+              ✕
+            </button>
+          </div>
+
+          <form {...{ "x-on:submit.prevent": "saveEditedDoc()" }} class="p-5 overflow-y-auto flex flex-col gap-3">
+            <label class="form-control w-full">
+              <div class="label py-1">
+                <span class="label-text text-xs font-bold">Titel *</span>
+              </div>
+              <input type="text" x-model="editForm.title" required class="input input-bordered input-sm w-full" />
+            </label>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <label class="form-control w-full">
+                <div class="label py-1">
+                  <span class="label-text text-xs font-bold">Kategorie</span>
+                </div>
+                <input type="text" x-model="editForm.category" class="input input-bordered input-sm w-full" />
+              </label>
+              <label class="form-control w-full">
+                <div class="label py-1">
+                  <span class="label-text text-xs font-bold">Datum (YYYY-MM-DD)</span>
+                </div>
+                <input type="text" x-model="editForm.date" placeholder="YYYY-MM-DD" class="input input-bordered input-sm w-full" />
+              </label>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <label class="form-control w-full">
+                <div class="label py-1">
+                  <span class="label-text text-xs font-bold">Absender</span>
+                </div>
+                <input type="text" x-model="editForm.sender" class="input input-bordered input-sm w-full" />
+              </label>
+              <label class="form-control w-full">
+                <div class="label py-1">
+                  <span class="label-text text-xs font-bold">Empfänger</span>
+                </div>
+                <input type="text" x-model="editForm.recipient" class="input input-bordered input-sm w-full" />
+              </label>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <label class="form-control w-full">
+                <div class="label py-1">
+                  <span class="label-text text-xs font-bold">Betrag (EUR)</span>
+                </div>
+                <input type="text" x-model="editForm.totalAmount" placeholder="z. B. 3191.97" class="input input-bordered input-sm w-full" />
+              </label>
+              <label class="form-control w-full">
+                <div class="label py-1">
+                  <span class="label-text text-xs font-bold">Fälligkeit (YYYY-MM-DD)</span>
+                </div>
+                <input type="text" x-model="editForm.dueDate" placeholder="YYYY-MM-DD" class="input input-bordered input-sm w-full" />
+              </label>
+            </div>
+
+            <label class="form-control w-full">
+              <div class="label py-1">
+                <span class="label-text text-xs font-bold">Tags (kommagetrennt)</span>
+              </div>
+              <input type="text" x-model="editForm.tagsText" placeholder="Rechnung, Steuer, ..." class="input input-bordered input-sm w-full" />
+              <div x-show="availableTags.length > 0" class="flex flex-wrap gap-1.5 mt-2">
+                <template x-for="tagItem in availableTags" {...{ ":key": "tagItem.tag" }}>
+                  <button
+                    type="button"
+                    x-on:click="toggleEditTag(tagItem.tag)"
+                    x-bind:class="isEditTagActive(tagItem.tag) ? 'badge-primary' : 'badge-ghost border-base-content/20 hover:border-primary/50'"
+                    class="badge badge-sm cursor-pointer transition-colors"
+                    x-text="(isEditTagActive(tagItem.tag) ? '✓ ' : '+ ') + tagItem.tag"
+                  />
+                </template>
+              </div>
+            </label>
+
+            <label class="form-control w-full">
+              <div class="label py-1">
+                <span class="label-text text-xs font-bold">Zusammenfassung</span>
+              </div>
+              <textarea x-model="editForm.summary" rows={2} class="textarea textarea-bordered textarea-sm w-full"></textarea>
+            </label>
+
+            <label class="form-control w-full">
+              <div class="label py-1">
+                <span class="label-text text-xs font-bold">Erkannter Text (OCR)</span>
+              </div>
+              <textarea x-model="editForm.ocrText" rows={4} class="textarea textarea-bordered textarea-sm font-mono text-xs w-full"></textarea>
+            </label>
+
+            <div class="pt-3 border-t border-base-300 flex justify-end gap-2">
+              <button type="button" x-on:click="closeEditModal()" class="btn btn-ghost btn-sm rounded-xl font-bold">
+                Abbrechen
+              </button>
+              <button
+                type="submit"
+                x-bind:disabled="editSaving"
+                class="btn btn-primary btn-sm rounded-xl font-bold"
+              >
+                <span x-show="editSaving" class="loading loading-spinner loading-xs" style="display: none;"></span>
+                <span>Speichern</span>
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
     </div>
   );
 }
