@@ -7,7 +7,7 @@
 
 import { loadProviderConfig, type ResolvedProvider } from "./config.ts";
 import { saveAssetBytes } from "./storage.ts";
-import type { Character, Location, StorySession } from "./types.ts";
+import type { Character, Location, Persona, StorySession } from "./types.ts";
 
 function decodeDataUrl(dataUrl: string): { bytes: Uint8Array; ext: string } {
   const match = dataUrl.match(/^data:image\/([a-zA-Z0-9+.-]+);base64,(.+)$/);
@@ -116,6 +116,21 @@ export async function generateAndSaveImage(options: {
   const { bytes, ext } = decodeDataUrl(dataUrl);
   const fileName = `${options.filePrefix}_${crypto.randomUUID().slice(0, 8)}.${ext}`;
   return saveAssetBytes(fileName, bytes);
+}
+
+/**
+ * Builds an atmospheric portrait prompt from a persona sheet.
+ */
+export function buildPersonaPortraitPrompt(persona: Persona): string {
+  return [
+    `Detailed character portrait of ${persona.name}`,
+    persona.role ? `Role: ${persona.role}` : "",
+    persona.appearance ? `Appearance: ${persona.appearance}` : "",
+    persona.traits ? `Expression and vibe: ${persona.traits}` : "",
+    "cinematic lighting, expressive portrait, high detail, no text, no watermark",
+  ]
+    .filter(Boolean)
+    .join(". ");
 }
 
 /**

@@ -15,6 +15,7 @@ export const personaSchema = z.object({
   traits: z.string().default(""),
   background: z.string().default(""),
   portraitFile: z.string().optional(),
+  isDefault: z.boolean().default(false),
   updatedAt: z.string(),
 });
 

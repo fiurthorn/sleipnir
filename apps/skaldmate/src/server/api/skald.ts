@@ -9,7 +9,7 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { getAvailableModels } from "../services/config.ts";
 import { runStoryTurn } from "../services/director.ts";
-import { buildCharacterPortraitPrompt, buildSceneImagePrompt, generateAndSaveImage } from "../services/image.ts";
+import { buildCharacterPortraitPrompt, buildPersonaPortraitPrompt, buildSceneImagePrompt, generateAndSaveImage } from "../services/image.ts";
 import {
   deleteCharacter,
   deleteGameMaster,
@@ -18,6 +18,7 @@ import {
   deleteSession,
   getCharacter,
   getLocation,
+  getPersona,
   getSession,
   listCharacters,
   listGameMasters,
@@ -48,6 +49,7 @@ const personaBody = z.object({
   traits: z.string().default(""),
   background: z.string().default(""),
   portraitFile: z.string().optional(),
+  isDefault: z.boolean().optional().default(false),
 });
 
 skaldApi.get("/personas", async (c) => c.json({ items: await listPersonas() }));
@@ -63,6 +65,26 @@ skaldApi.post("/personas", async (c) => {
 skaldApi.delete("/personas/:id", async (c) => {
   const ok = await deletePersona(c.req.param("id"));
   return ok ? c.json({ ok: true }) : c.json({ error: "Nicht gefunden" }, 404);
+});
+
+skaldApi.post("/personas/:id/portrait", async (c) => {
+  const persona = await getPersona(c.req.param("id"));
+  if (!persona) return c.json({ error: "Persona nicht gefunden" }, 404);
+  const body = await c.req.json().catch(() => ({})) as { prompt?: string; imageModelId?: string };
+  const prompt = body.prompt?.trim() || buildPersonaPortraitPrompt(persona);
+
+  try {
+    const fileName = await generateAndSaveImage({
+      prompt,
+      modelId: body.imageModelId,
+      filePrefix: `persona_${persona.id}`,
+      aspectRatio: "1:1",
+    });
+    const updated = await savePersona({ ...persona, portraitFile: fileName });
+    return c.json({ item: updated, fileName });
+  } catch (err) {
+    return c.json({ error: err instanceof Error ? err.message : "Bildfehler" }, 500);
+  }
 });
 
 // Characters

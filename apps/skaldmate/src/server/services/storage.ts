@@ -192,13 +192,25 @@ export async function getPersona(id: string): Promise<Persona | null> {
   return readYamlEntity(PERSONAS_DIR, id, personaSchema);
 }
 
-export async function savePersona(input: Omit<Persona, "updatedAt"> & { updatedAt?: string }): Promise<Persona> {
+export async function savePersona(
+  input: Omit<Persona, "updatedAt" | "isDefault"> & { isDefault?: boolean; updatedAt?: string },
+): Promise<Persona> {
   await initSkaldStorage();
+  const id = sanitizeId(input.id) || slugifyName(input.name, "persona");
   const data = personaSchema.parse({
     ...input,
-    id: sanitizeId(input.id) || slugifyName(input.name, "persona"),
+    id,
+    isDefault: Boolean(input.isDefault),
     updatedAt: input.updatedAt ?? new Date().toISOString(),
   });
+  if (data.isDefault) {
+    const existing = await listPersonas();
+    for (const other of existing) {
+      if (other.id !== data.id && other.isDefault) {
+        await writeYamlEntity(PERSONAS_DIR, { ...other, isDefault: false });
+      }
+    }
+  }
   return writeYamlEntity(PERSONAS_DIR, data);
 }
 

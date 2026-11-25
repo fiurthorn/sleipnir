@@ -159,11 +159,19 @@ export const SkaldPage = () => {
             </button>
             <template x-for="p in personas" x-bind:key="p.id">
               <div
-                class="flex items-center justify-between px-2.5 py-2 rounded-lg hover:bg-base-300 cursor-pointer text-sm"
+                class="flex items-center justify-between gap-2 px-2.5 py-2 rounded-lg hover:bg-base-300 cursor-pointer text-sm"
                 x-bind:data-id="p.id"
                 x-on:click="editPersonaItem"
               >
-                <span class="truncate" x-text="p.name" />
+                <div class="flex items-center gap-2 min-w-0">
+                  <img
+                    x-show="p.portraitFile"
+                    x-bind:src="'./api/assets/' + p.portraitFile"
+                    class="w-7 h-7 rounded-full object-cover shrink-0"
+                    style="display: none;"
+                  />
+                  <span class="truncate" x-text="(p.isDefault ? '★ ' : '') + p.name" />
+                </div>
                 <span class="text-[10px] opacity-60 truncate" x-text="p.role" />
               </div>
             </template>
@@ -324,18 +332,75 @@ export const SkaldPage = () => {
               {/* Persona Editor */}
               <template x-if="editorType === 'persona'">
                 <form x-on:submit="savePersonaForm" class="flex flex-col gap-3">
-                  <h2 class="font-bold text-lg">Meine Persona</h2>
-                  <input
-                    type="text"
-                    placeholder="Dein Name in der Geschichte"
-                    class="input input-sm input-bordered"
-                    x-model="personaForm.name"
-                    required
-                  />
-                  <input type="text" placeholder="Rolle" class="input input-sm input-bordered" x-model="personaForm.role" />
-                  <textarea rows={2} placeholder="Aussehen" class="textarea textarea-sm textarea-bordered" x-model="personaForm.appearance" />
-                  <textarea rows={2} placeholder="Eigenschaften" class="textarea textarea-sm textarea-bordered" x-model="personaForm.traits" />
-                  <textarea rows={2} placeholder="Hintergrund" class="textarea textarea-sm textarea-bordered" x-model="personaForm.background" />
+                  <div class="flex justify-between items-center">
+                    <h2 class="font-bold text-lg">Meine Persona</h2>
+                    <button
+                      x-show="personaForm.id"
+                      type="button"
+                      class="btn btn-xs btn-outline"
+                      x-bind:disabled="personaPortraitLoading"
+                      x-on:click="generatePersonaPortrait"
+                    >
+                      <span x-show="personaPortraitLoading" class="loading loading-spinner loading-xs" style="display: none;" />
+                      <span>🖼 Porträt generieren</span>
+                    </button>
+                  </div>
+                  <div x-show="personaForm.portraitFile" class="flex items-center gap-3" style="display: none;">
+                    <img
+                      x-bind:src="personaForm.portraitFile ? './api/assets/' + personaForm.portraitFile : ''"
+                      class="w-20 h-20 rounded-xl object-cover border border-base-content/15"
+                    />
+                  </div>
+                  <label class="form-control">
+                    <span class="label-text text-xs mb-1">Name in der Geschichte</span>
+                    <input
+                      type="text"
+                      placeholder="z. B. Stefan"
+                      class="input input-sm input-bordered"
+                      x-model="personaForm.name"
+                      required
+                    />
+                  </label>
+                  <label class="form-control">
+                    <span class="label-text text-xs mb-1">Rolle</span>
+                    <input
+                      type="text"
+                      placeholder="z. B. Reisender, Ermittler, Nachbar"
+                      class="input input-sm input-bordered"
+                      x-model="personaForm.role"
+                    />
+                  </label>
+                  <label class="form-control">
+                    <span class="label-text text-xs mb-1">Aussehen</span>
+                    <textarea
+                      rows={2}
+                      placeholder="Optik, Kleidung, markante Merkmale"
+                      class="textarea textarea-sm textarea-bordered"
+                      x-model="personaForm.appearance"
+                    />
+                  </label>
+                  <label class="form-control">
+                    <span class="label-text text-xs mb-1">Eigenschaften &amp; Charakterzüge</span>
+                    <textarea
+                      rows={2}
+                      placeholder="Stärken, Schwächen, Auftreten"
+                      class="textarea textarea-sm textarea-bordered"
+                      x-model="personaForm.traits"
+                    />
+                  </label>
+                  <label class="form-control">
+                    <span class="label-text text-xs mb-1">Hintergrund</span>
+                    <textarea
+                      rows={2}
+                      placeholder="Kurze Vorgeschichte / Motivation"
+                      class="textarea textarea-sm textarea-bordered"
+                      x-model="personaForm.background"
+                    />
+                  </label>
+                  <label class="label cursor-pointer justify-start gap-2 pt-1">
+                    <input type="checkbox" class="checkbox checkbox-xs checkbox-primary" x-model="personaForm.isDefault" />
+                    <span class="label-text text-xs">Als Standard-Persona für neue Szenen verwenden</span>
+                  </label>
                   <div class="flex justify-end gap-2 pt-2">
                     <button x-show="personaForm.id" type="button" class="btn btn-xs btn-error btn-outline mr-auto" x-on:click="deletePersonaForm">
                       Löschen
@@ -549,6 +614,11 @@ export const SkaldPage = () => {
                 {/* User */}
                 <template x-if="msg.kind === 'user'">
                   <div class="chat chat-end">
+                    <div x-show="msg.portraitFile" class="chat-image avatar" style="display: none;">
+                      <div class="w-9 rounded-full">
+                        <img x-bind:src="msg.portraitFile ? './api/assets/' + msg.portraitFile : ''" />
+                      </div>
+                    </div>
                     <div class="chat-header text-xs opacity-60 mb-1" x-text="msg.speakerName" />
                     <div class="chat-bubble chat-bubble-primary text-sm whitespace-pre-wrap leading-relaxed" x-text="msg.content" />
                   </div>

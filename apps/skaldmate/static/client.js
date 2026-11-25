@@ -27,6 +27,7 @@ document.addEventListener("alpine:init", () => {
     turnLoading: false,
     imageLoading: false,
     portraitLoading: false,
+    personaPortraitLoading: false,
 
     newSessionForm: {
       title: "",
@@ -39,7 +40,7 @@ document.addEventListener("alpine:init", () => {
     },
 
     charForm: { id: "", name: "", role: "", appearance: "", personality: "", goals: "", speechStyle: "", modelId: "", portraitFile: "" },
-    personaForm: { id: "", name: "", role: "", appearance: "", traits: "", background: "" },
+    personaForm: { id: "", name: "", role: "", appearance: "", traits: "", background: "", portraitFile: "", isDefault: false },
     locationForm: { id: "", name: "", description: "", atmosphere: "", details: "" },
     gmForm: { id: "", name: "", style: "neutral", systemPrompt: "", modelId: "" },
 
@@ -73,7 +74,13 @@ document.addEventListener("alpine:init", () => {
           this.newSessionForm.imageModelId = this.imageModels[0].id;
         }
       }
-      if (pRes.ok) this.personas = (await pRes.json()).items || [];
+      if (pRes.ok) {
+        this.personas = (await pRes.json()).items || [];
+        if (!this.newSessionForm.personaId) {
+          const def = this.personas.find((p) => p.isDefault);
+          if (def) this.newSessionForm.personaId = def.id;
+        }
+      }
       if (cRes.ok) this.characters = (await cRes.json()).items || [];
       if (lRes.ok) {
         this.locations = (await lRes.json()).items || [];
@@ -317,7 +324,7 @@ document.addEventListener("alpine:init", () => {
 
     // Persona CRUD
     newPersonaForm() {
-      this.personaForm = { id: "", name: "", role: "", appearance: "", traits: "", background: "" };
+      this.personaForm = { id: "", name: "", role: "", appearance: "", traits: "", background: "", portraitFile: "", isDefault: false };
       this.editorType = "persona";
       this.viewMode = "editor";
       this.mobileMenuOpen = false;
@@ -326,7 +333,7 @@ document.addEventListener("alpine:init", () => {
       const id = event?.currentTarget?.dataset?.id;
       const p = this.personas.find((x) => x.id === id);
       if (!p) return;
-      this.personaForm = { ...p };
+      this.personaForm = { ...p, portraitFile: p.portraitFile || "", isDefault: Boolean(p.isDefault) };
       this.editorType = "persona";
       this.viewMode = "editor";
       this.mobileMenuOpen = false;
@@ -336,11 +343,36 @@ document.addEventListener("alpine:init", () => {
       const res = await fetch("./api/personas", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(this.personaForm),
+        body: JSON.stringify({
+          ...this.personaForm,
+          portraitFile: this.personaForm.portraitFile || undefined,
+          isDefault: Boolean(this.personaForm.isDefault),
+        }),
       });
       if (res.ok) {
+        const data = await res.json();
+        this.personaForm = { ...data.item, portraitFile: data.item.portraitFile || "", isDefault: Boolean(data.item.isDefault) };
         await this.loadAll();
-        this.closeEditor();
+      }
+    },
+    async generatePersonaPortrait() {
+      if (!this.personaForm.id || this.personaPortraitLoading) return;
+      this.personaPortraitLoading = true;
+      try {
+        const res = await fetch(`./api/personas/${encodeURIComponent(this.personaForm.id)}/portrait`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ imageModelId: this.newSessionForm.imageModelId || undefined }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          alert(data.error || "Porträt-Fehler");
+          return;
+        }
+        this.personaForm.portraitFile = data.fileName;
+        await this.loadAll();
+      } finally {
+        this.personaPortraitLoading = false;
       }
     },
     async deletePersonaForm() {
