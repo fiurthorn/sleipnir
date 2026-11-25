@@ -194,6 +194,8 @@ async function generateCharacterReply(
     char.personality ? `Charakterzüge & Persönlichkeit: ${char.personality}` : "",
     char.goals ? `Ziele & Motivation: ${char.goals}` : "",
     char.speechStyle ? `Sprechstil: ${char.speechStyle}` : "",
+    char.exampleDialogue ? `Typische Beispielsätze:\n${char.exampleDialogue}` : "",
+    char.relationships ? `Beziehungen zu anderen: ${char.relationships}` : "",
     "Regeln: Antworte auf Deutsch direkt aus der Perspektive von " + char.name +
     " (Dialog und kurze Handlungen/Gesten, z. B. *sieht sich um*). Sprich niemals für den Spieler oder andere Charaktere. Beginne deine Antwort nicht mit deinem eigenen Namen.",
   ]

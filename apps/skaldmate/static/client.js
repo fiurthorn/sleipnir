@@ -39,7 +39,20 @@ document.addEventListener("alpine:init", () => {
       imageModelId: "",
     },
 
-    charForm: { id: "", name: "", role: "", appearance: "", personality: "", goals: "", speechStyle: "", modelId: "", portraitFile: "" },
+    charForm: {
+      id: "",
+      name: "",
+      role: "",
+      appearance: "",
+      personality: "",
+      goals: "",
+      speechStyle: "",
+      exampleDialogue: "",
+      relationships: "",
+      portraitPrompt: "",
+      modelId: "",
+      portraitFile: "",
+    },
     personaForm: { id: "", name: "", role: "", appearance: "", traits: "", background: "", portraitFile: "", isDefault: false },
     locationForm: { id: "", name: "", description: "", atmosphere: "", details: "" },
     gmForm: { id: "", name: "", style: "neutral", systemPrompt: "", modelId: "" },
@@ -269,7 +282,20 @@ document.addEventListener("alpine:init", () => {
 
     // Character CRUD
     newCharacterForm() {
-      this.charForm = { id: "", name: "", role: "", appearance: "", personality: "", goals: "", speechStyle: "", modelId: "", portraitFile: "" };
+      this.charForm = {
+        id: "",
+        name: "",
+        role: "",
+        appearance: "",
+        personality: "",
+        goals: "",
+        speechStyle: "",
+        exampleDialogue: "",
+        relationships: "",
+        portraitPrompt: "",
+        modelId: "",
+        portraitFile: "",
+      };
       this.editorType = "character";
       this.viewMode = "editor";
       this.mobileMenuOpen = false;
@@ -278,7 +304,14 @@ document.addEventListener("alpine:init", () => {
       const id = event?.currentTarget?.dataset?.id;
       const c = this.characters.find((x) => x.id === id);
       if (!c) return;
-      this.charForm = { ...c, modelId: c.modelId || "", portraitFile: c.portraitFile || "" };
+      this.charForm = {
+        ...c,
+        exampleDialogue: c.exampleDialogue || "",
+        relationships: c.relationships || "",
+        portraitPrompt: c.portraitPrompt || "",
+        modelId: c.modelId || "",
+        portraitFile: c.portraitFile || "",
+      };
       this.editorType = "character";
       this.viewMode = "editor";
       this.mobileMenuOpen = false;
@@ -288,11 +321,22 @@ document.addEventListener("alpine:init", () => {
       const res = await fetch("./api/characters", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...this.charForm, modelId: this.charForm.modelId || undefined, portraitFile: this.charForm.portraitFile || undefined }),
+        body: JSON.stringify({
+          ...this.charForm,
+          modelId: this.charForm.modelId || undefined,
+          portraitFile: this.charForm.portraitFile || undefined,
+        }),
       });
       if (!res.ok) return;
       const data = await res.json();
-      this.charForm = { ...data.item, modelId: data.item.modelId || "", portraitFile: data.item.portraitFile || "" };
+      this.charForm = {
+        ...data.item,
+        exampleDialogue: data.item.exampleDialogue || "",
+        relationships: data.item.relationships || "",
+        portraitPrompt: data.item.portraitPrompt || "",
+        modelId: data.item.modelId || "",
+        portraitFile: data.item.portraitFile || "",
+      };
       await this.loadAll();
     },
     async deleteCharacterForm() {
@@ -308,7 +352,10 @@ document.addEventListener("alpine:init", () => {
         const res = await fetch(`./api/characters/${encodeURIComponent(this.charForm.id)}/portrait`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ imageModelId: this.newSessionForm.imageModelId || undefined }),
+          body: JSON.stringify({
+            prompt: this.charForm.portraitPrompt || undefined,
+            imageModelId: this.newSessionForm.imageModelId || undefined,
+          }),
         });
         const data = await res.json();
         if (!res.ok) {
@@ -316,6 +363,9 @@ document.addEventListener("alpine:init", () => {
           return;
         }
         this.charForm.portraitFile = data.fileName;
+        if (data.item?.portraitPrompt) {
+          this.charForm.portraitPrompt = data.item.portraitPrompt;
+        }
         await this.loadAll();
       } finally {
         this.portraitLoading = false;

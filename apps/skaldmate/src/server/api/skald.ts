@@ -96,6 +96,9 @@ const characterBody = z.object({
   personality: z.string().default(""),
   goals: z.string().default(""),
   speechStyle: z.string().default(""),
+  exampleDialogue: z.string().default(""),
+  relationships: z.string().default(""),
+  portraitPrompt: z.string().default(""),
   modelId: z.string().optional(),
   portraitFile: z.string().optional(),
 });
@@ -119,7 +122,7 @@ skaldApi.post("/characters/:id/portrait", async (c) => {
   const char = await getCharacter(c.req.param("id"));
   if (!char) return c.json({ error: "Charakter nicht gefunden" }, 404);
   const body = await c.req.json().catch(() => ({})) as { prompt?: string; imageModelId?: string };
-  const prompt = body.prompt?.trim() || buildCharacterPortraitPrompt(char);
+  const prompt = body.prompt?.trim() || char.portraitPrompt?.trim() || buildCharacterPortraitPrompt(char);
 
   try {
     const fileName = await generateAndSaveImage({
@@ -128,7 +131,11 @@ skaldApi.post("/characters/:id/portrait", async (c) => {
       filePrefix: `portrait_${char.id}`,
       aspectRatio: "1:1",
     });
-    const updated = await saveCharacter({ ...char, portraitFile: fileName });
+    const updated = await saveCharacter({
+      ...char,
+      portraitFile: fileName,
+      portraitPrompt: prompt,
+    });
     return c.json({ item: updated, fileName });
   } catch (err) {
     return c.json({ error: err instanceof Error ? err.message : "Bildfehler" }, 500);

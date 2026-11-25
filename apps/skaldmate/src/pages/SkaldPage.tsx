@@ -292,33 +292,93 @@ export const SkaldPage = () => {
                       class="w-20 h-20 rounded-xl object-cover border border-base-content/15"
                     />
                   </div>
-                  <input type="text" placeholder="Name" class="input input-sm input-bordered" x-model="charForm.name" required />
-                  <input
-                    type="text"
-                    placeholder="Rolle (z. B. Nachbarin, Detektiv, Waldläufer)"
-                    class="input input-sm input-bordered"
-                    x-model="charForm.role"
-                  />
-                  <textarea rows={2} placeholder="Aussehen" class="textarea textarea-sm textarea-bordered" x-model="charForm.appearance" />
-                  <textarea
-                    rows={2}
-                    placeholder="Charakterzüge & Persönlichkeit"
-                    class="textarea textarea-sm textarea-bordered"
-                    x-model="charForm.personality"
-                  />
-                  <textarea rows={2} placeholder="Ziele & Motivation" class="textarea textarea-sm textarea-bordered" x-model="charForm.goals" />
-                  <input
-                    type="text"
-                    placeholder="Sprechstil (z. B. direkt, sarkastisch, ruhig)"
-                    class="input input-sm input-bordered"
-                    x-model="charForm.speechStyle"
-                  />
-                  <select class="select select-sm select-bordered font-mono text-xs" x-model="charForm.modelId">
-                    <option value="">(Szenen-Standardmodell verwenden)</option>
-                    <template x-for="m in textModels" x-bind:key="m.id">
-                      <option x-bind:value="m.id" x-text="m.name + ' · ' + m.providerName" />
-                    </template>
-                  </select>
+                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <label class="form-control">
+                      <span class="label-text text-xs mb-1">Name</span>
+                      <input type="text" placeholder="z. B. Lena" class="input input-sm input-bordered" x-model="charForm.name" required />
+                    </label>
+                    <label class="form-control">
+                      <span class="label-text text-xs mb-1">Rolle</span>
+                      <input
+                        type="text"
+                        placeholder="z. B. Nachbarin, Detektiv, Waldläufer"
+                        class="input input-sm input-bordered"
+                        x-model="charForm.role"
+                      />
+                    </label>
+                  </div>
+                  <label class="form-control">
+                    <span class="label-text text-xs mb-1">Aussehen</span>
+                    <textarea
+                      rows={2}
+                      placeholder="Optik, Kleidung, markante Merkmale"
+                      class="textarea textarea-sm textarea-bordered"
+                      x-model="charForm.appearance"
+                    />
+                  </label>
+                  <label class="form-control">
+                    <span class="label-text text-xs mb-1">Charakterzüge &amp; Persönlichkeit</span>
+                    <textarea
+                      rows={2}
+                      placeholder="Wie verhält sich der Charakter? Stärken, Macken, Temperament"
+                      class="textarea textarea-sm textarea-bordered"
+                      x-model="charForm.personality"
+                    />
+                  </label>
+                  <label class="form-control">
+                    <span class="label-text text-xs mb-1">Ziele &amp; Motivation</span>
+                    <textarea
+                      rows={2}
+                      placeholder="Was will der Charakter erreichen?"
+                      class="textarea textarea-sm textarea-bordered"
+                      x-model="charForm.goals"
+                    />
+                  </label>
+                  <label class="form-control">
+                    <span class="label-text text-xs mb-1">Sprechstil</span>
+                    <input
+                      type="text"
+                      placeholder="z. B. direkt, sarkastisch, ruhig, bildhaft"
+                      class="input input-sm input-bordered"
+                      x-model="charForm.speechStyle"
+                    />
+                  </label>
+                  <label class="form-control">
+                    <span class="label-text text-xs mb-1">Typische Beispielsätze / Zitate</span>
+                    <textarea
+                      rows={2}
+                      placeholder="z. B. ‚Spar dir die Ausreden, ich hab’s genau gesehen.‘"
+                      class="textarea textarea-sm textarea-bordered"
+                      x-model="charForm.exampleDialogue"
+                    />
+                  </label>
+                  <label class="form-control">
+                    <span class="label-text text-xs mb-1">Beziehungen zu anderen Charakteren</span>
+                    <textarea
+                      rows={2}
+                      placeholder="z. B. Misstraut dem Kommissar, kennt Stefan aus der Nachbarschaft"
+                      class="textarea textarea-sm textarea-bordered"
+                      x-model="charForm.relationships"
+                    />
+                  </label>
+                  <label class="form-control">
+                    <span class="label-text text-xs mb-1">Porträt-Prompt (optional, wird sonst automatisch gebaut)</span>
+                    <textarea
+                      rows={2}
+                      placeholder="Englischer oder deutscher Bild-Prompt für die Porträt-Generierung..."
+                      class="textarea textarea-sm textarea-bordered font-mono text-xs"
+                      x-model="charForm.portraitPrompt"
+                    />
+                  </label>
+                  <label class="form-control">
+                    <span class="label-text text-xs mb-1">Eigenes Modell (optional)</span>
+                    <select class="select select-sm select-bordered font-mono text-xs" x-model="charForm.modelId">
+                      <option value="">(Szenen-Standardmodell verwenden)</option>
+                      <template x-for="m in textModels" x-bind:key="m.id">
+                        <option x-bind:value="m.id" x-text="m.name + ' · ' + m.providerName" />
+                      </template>
+                    </select>
+                  </label>
                   <div class="flex justify-end gap-2 pt-2">
                     <button x-show="charForm.id" type="button" class="btn btn-xs btn-error btn-outline mr-auto" x-on:click="deleteCharacterForm">
                       Löschen

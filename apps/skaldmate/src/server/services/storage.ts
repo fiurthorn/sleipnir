@@ -232,7 +232,14 @@ export async function getCharacter(id: string): Promise<Character | null> {
   return readYamlEntity(CHARACTERS_DIR, id, characterSchema);
 }
 
-export async function saveCharacter(input: Omit<Character, "updatedAt"> & { updatedAt?: string }): Promise<Character> {
+export async function saveCharacter(
+  input: Omit<Character, "updatedAt" | "exampleDialogue" | "relationships" | "portraitPrompt"> & {
+    exampleDialogue?: string;
+    relationships?: string;
+    portraitPrompt?: string;
+    updatedAt?: string;
+  },
+): Promise<Character> {
   await initSkaldStorage();
   const data = characterSchema.parse({
     ...input,
