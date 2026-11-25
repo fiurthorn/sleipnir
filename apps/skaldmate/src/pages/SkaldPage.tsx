@@ -68,7 +68,7 @@ export const SkaldPage = () => {
             x-bind:class="sidebarTab === 'characters' ? 'btn-primary' : 'btn-ghost'"
             x-on:click="setTabCharacters"
           >
-            NPCs
+            Charaktere
           </button>
           <button
             type="button"
@@ -119,7 +119,7 @@ export const SkaldPage = () => {
             </template>
           </div>
 
-          {/* TAB: NPCs */}
+          {/* TAB: CHARAKTERE */}
           <div x-show="sidebarTab === 'characters'" class="space-y-2" style="display: none;">
             <button type="button" class="btn btn-outline btn-xs w-full" x-on:click="newCharacterForm">
               + Neuer Charakter
@@ -185,7 +185,7 @@ export const SkaldPage = () => {
                 <span
                   x-show="l.residentIds && l.residentIds.length > 0"
                   class="badge badge-xs badge-ghost font-mono"
-                  x-text="l.residentIds ? l.residentIds.length + ' NPC' : ''"
+                  x-text="l.residentIds ? l.residentIds.length + ' vor Ort' : ''"
                   style="display: none;"
                 />
               </div>
@@ -292,7 +292,7 @@ export const SkaldPage = () => {
               <template x-if="editorType === 'character'">
                 <form x-on:submit="saveCharacterForm" class="flex flex-col gap-3">
                   <div class="flex justify-between items-center">
-                    <h2 class="font-bold text-lg">Charakter (NPC)</h2>
+                    <h2 class="font-bold text-lg">Charakter</h2>
                     <button
                       x-show="charForm.id"
                       type="button"
@@ -548,7 +548,7 @@ export const SkaldPage = () => {
                     </select>
                   </label>
                   <div>
-                    <span class="label-text text-xs block mb-1.5">Ortsgebundene NPCs (z. B. Barkeeper, Händler)</span>
+                    <span class="label-text text-xs block mb-1.5">Ortsgebundene Charaktere (z. B. Barkeeper, Händler)</span>
                     <div class="flex flex-wrap gap-1.5">
                       <template x-for="c in characters" x-bind:key="c.id">
                         <button
@@ -726,7 +726,7 @@ export const SkaldPage = () => {
               <div>
                 <span class="label-text text-xs block mb-1">Reisegruppe (Begleiter, die von Ort zu Ort mitkommen)</span>
                 <p class="text-[11px] opacity-60 mb-2">
-                  Ortsgebundene NPCs (z. B. Barkeeper) stoßen je nach besuchter Location automatisch dazu.
+                  Ortsgebundene Charaktere (z. B. Barkeeper) stoßen je nach besuchter Location automatisch dazu.
                 </p>
                 <div class="flex flex-wrap gap-2">
                   <template x-for="c in characters" x-bind:key="c.id">
@@ -740,7 +740,7 @@ export const SkaldPage = () => {
                     />
                   </template>
                   <span x-show="characters.length === 0" class="text-xs opacity-60">
-                    Lege links unter „NPCs“ zuerst Charaktere an.
+                    Lege links unter „Charaktere“ zuerst Charaktere an.
                   </span>
                 </div>
               </div>
@@ -822,7 +822,7 @@ export const SkaldPage = () => {
                 class="badge badge-sm badge-secondary badge-outline hover:badge-secondary cursor-pointer gap-1.5 py-2.5"
                 x-bind:data-id="r.id"
                 x-on:click="nudgeCharacter"
-                title="Orts-NPC – klicken zum Antworten"
+                title="Charakter vor Ort – klicken zum Antworten"
               >
                 <img
                   x-show="r.portraitFile"
