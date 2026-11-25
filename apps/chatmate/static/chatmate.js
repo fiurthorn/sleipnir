@@ -57,6 +57,7 @@ document.addEventListener("alpine:init", () => {
     models: [],
     providerStatus: { openrouter: false, venice: false },
     chatPendingDelete: null,
+    fullscreenImage: null,
     mobileMenuOpen: false,
 
     async init() {
@@ -229,6 +230,36 @@ document.addEventListener("alpine:init", () => {
     cancelDeleteChat() {
       this.chatPendingDelete = null;
       document.getElementById("confirm-delete-dialog").close();
+    },
+
+    openImageFullscreen(url) {
+      if (!url) return;
+      this.fullscreenImage = url;
+      document.getElementById("image-lightbox-dialog")?.showModal();
+    },
+
+    closeImageFullscreen() {
+      document.getElementById("image-lightbox-dialog")?.close();
+      this.fullscreenImage = null;
+    },
+
+    async downloadImage(url) {
+      if (!url) return;
+      try {
+        const res = await fetch(url);
+        const blob = await res.blob();
+        const ext = blob.type.split("/")[1]?.split(";")[0] || "png";
+        const blobUrl = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = blobUrl;
+        link.download = `chatmate-${Date.now()}.${ext}`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+      } catch (e) {
+        console.error("Bild-Download fehlgeschlagen:", e);
+      }
     },
 
     clearCurrentChat() {

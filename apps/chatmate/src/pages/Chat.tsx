@@ -286,7 +286,8 @@ export const ChatPage = () => {
                         <img
                           x-bind:src="msg.imageUrl"
                           x-bind:alt="msg.content"
-                          class="w-full h-auto object-cover transition duration-300 hover:scale-[1.02]"
+                          x-on:click="openImageFullscreen(msg.imageUrl)"
+                          class="w-full h-auto object-cover transition duration-300 hover:scale-[1.02] cursor-pointer"
                           loading="lazy"
                         />
                       </div>
@@ -298,14 +299,22 @@ export const ChatPage = () => {
                         <span class="badge badge-success badge-sm font-mono">
                           Generiert
                         </span>
-                        <a
-                          x-bind:href="msg.imageUrl"
-                          target="_blank"
-                          download="image.png"
-                          class="btn btn-ghost btn-xs gap-1"
-                        >
-                          Vollbild ↗
-                        </a>
+                        <div class="flex items-center gap-1">
+                          <button
+                            type="button"
+                            x-on:click="downloadImage(msg.imageUrl)"
+                            class="btn btn-ghost btn-xs gap-1"
+                          >
+                            Download ⬇
+                          </button>
+                          <button
+                            type="button"
+                            x-on:click="openImageFullscreen(msg.imageUrl)"
+                            class="btn btn-ghost btn-xs gap-1"
+                          >
+                            Vollbild ↗
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -444,6 +453,43 @@ export const ChatPage = () => {
           {/* Backdrop-Klick schließt den Dialog */}
           <form method="dialog" class="modal-backdrop">
             <button type="button" x-on:click="cancelDeleteChat()">
+              close
+            </button>
+          </form>
+        </dialog>
+
+        {/* Vollbild-Lightbox für generierte Bilder */}
+        <dialog
+          id="image-lightbox-dialog"
+          class="modal"
+          x-on:close="fullscreenImage = null"
+        >
+          <div class="modal-box max-w-[95vw] w-fit max-h-[95vh] p-3 bg-base-300/95 flex flex-col items-center gap-3">
+            <img
+              x-show="fullscreenImage"
+              x-bind:src="fullscreenImage"
+              alt="Vollbildansicht"
+              class="max-w-[90vw] max-h-[80vh] object-contain rounded-lg shadow-xl"
+            />
+            <div class="flex items-center justify-end gap-2 w-full">
+              <button
+                type="button"
+                class="btn btn-sm btn-ghost"
+                x-on:click="downloadImage(fullscreenImage)"
+              >
+                Herunterladen ⬇
+              </button>
+              <button
+                type="button"
+                class="btn btn-sm btn-primary"
+                x-on:click="closeImageFullscreen()"
+              >
+                Schließen
+              </button>
+            </div>
+          </div>
+          <form method="dialog" class="modal-backdrop">
+            <button type="button" x-on:click="closeImageFullscreen()">
               close
             </button>
           </form>
