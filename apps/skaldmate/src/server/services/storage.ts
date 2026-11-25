@@ -24,7 +24,7 @@ import {
 function resolveDataDir(): string {
   const configured = Deno.env.get("SKALDMATE_DATA_DIR");
   if (configured) return resolve(configured);
-  return resolve(new URL("../../../../../data/skaldmate", import.meta.url).pathname);
+  return resolve(new URL("../../../data", import.meta.url).pathname);
 }
 
 const DATA_DIR = resolveDataDir();
