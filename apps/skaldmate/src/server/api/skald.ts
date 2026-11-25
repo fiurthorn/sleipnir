@@ -313,16 +313,28 @@ skaldApi.patch("/sessions/:id", async (c) => {
   const existing = await getSession(c.req.param("id"));
   if (!existing) return c.json({ error: "Szene nicht gefunden" }, 404);
   const body = await c.req.json().catch(() => ({})) as Record<string, unknown>;
+  const nextLocationId = typeof body.locationId === "string" ? body.locationId : existing.locationId;
+  const nextPersonaId = typeof body.personaId === "string" ? body.personaId || undefined : existing.personaId;
+  const nextCharacterIds = Array.isArray(body.characterIds)
+    ? body.characterIds.filter((id): id is string => typeof id === "string")
+    : existing.characterIds;
+  const nextSceneState = typeof body.sceneState === "string" ? body.sceneState : existing.sceneState;
+  const contextChanged = nextLocationId !== existing.locationId ||
+    nextPersonaId !== existing.personaId ||
+    nextSceneState !== existing.sceneState ||
+    JSON.stringify(nextCharacterIds) !== JSON.stringify(existing.characterIds);
+
   const updated = await saveSession({
     ...existing,
     title: typeof body.title === "string" && body.title.trim() ? body.title.trim() : existing.title,
-    locationId: typeof body.locationId === "string" ? body.locationId : existing.locationId,
-    personaId: typeof body.personaId === "string" ? body.personaId || undefined : existing.personaId,
-    characterIds: Array.isArray(body.characterIds) ? body.characterIds.filter((id): id is string => typeof id === "string") : existing.characterIds,
+    locationId: nextLocationId,
+    personaId: nextPersonaId,
+    characterIds: nextCharacterIds,
     gameMasterId: typeof body.gameMasterId === "string" ? body.gameMasterId : existing.gameMasterId,
     modelId: typeof body.modelId === "string" ? body.modelId || undefined : existing.modelId,
     imageModelId: typeof body.imageModelId === "string" ? body.imageModelId || undefined : existing.imageModelId,
-    sceneState: typeof body.sceneState === "string" ? body.sceneState : existing.sceneState,
+    sceneState: nextSceneState,
+    resolvedContext: contextChanged ? "" : existing.resolvedContext,
     compressedSummary: typeof body.compressedSummary === "string" ? body.compressedSummary : existing.compressedSummary,
   });
   return c.json({ item: updated });

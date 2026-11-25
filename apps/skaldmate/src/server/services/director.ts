@@ -482,13 +482,25 @@ export async function runStoryTurn(options: {
     cleanUserText,
   );
 
-  // Apply location transition if Game Master decided the party moved
+  // Apply location transition if Game Master decided the party moved, or re-cache if invalidated
   if (plan.nextLocationId && plan.nextLocationId !== session.locationId) {
     session.locationId = plan.nextLocationId;
     locationChain = resolveLocationChain(session.locationId, allLocations);
     currentLocation = locationChain[locationChain.length - 1] ?? null;
     residentCharacters = getResidentsFor(currentLocation);
     allPresent = [...partyCharacters, ...residentCharacters];
+    session.resolvedContext = expandMacros(
+      buildContextHeader(
+        locationChain,
+        allLocations,
+        persona,
+        partyCharacters,
+        residentCharacters,
+        session.sceneState,
+      ),
+      { userName: persona?.name },
+    );
+  } else if (!session.resolvedContext) {
     session.resolvedContext = expandMacros(
       buildContextHeader(
         locationChain,

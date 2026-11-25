@@ -323,6 +323,30 @@ document.addEventListener("alpine:init", () => {
       await this.executeTurn({ forceCharacterId: id });
     },
 
+    async addCharacterToActiveSession(event) {
+      event?.stopPropagation?.();
+      const id = event?.currentTarget?.dataset?.id;
+      if (!id || !this.activeSession) return;
+      const currentIds = Array.isArray(this.activeSession.characterIds) ? this.activeSession.characterIds : [];
+      if (currentIds.includes(id)) return;
+      const res = await fetch(`./api/sessions/${encodeURIComponent(this.activeSession.id)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          characterIds: [...currentIds, id],
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || "Charakter konnte nicht hinzugefügt werden");
+        return;
+      }
+      this.activeSession = data.item;
+      this.sessions = this.sessions.map((s) => s.id === data.item.id ? data.item : s);
+      const char = this.characters.find((c) => c.id === id);
+      this.notify(`${char?.name || id} zur Szene "${data.item.title}" hinzugefügt.`);
+    },
+
     async executeTurn(payload) {
       this.turnLoading = true;
       try {

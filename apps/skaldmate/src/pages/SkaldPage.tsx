@@ -141,7 +141,28 @@ export const SkaldPage = () => {
                     />
                     <span class="truncate" x-text="c.name" />
                   </div>
-                  <span class="text-[10px] opacity-60 truncate" x-text="c.role" />
+                  <div class="flex items-center gap-1.5 shrink-0">
+                    <span class="text-[10px] opacity-60 truncate max-w-[80px]" x-text="c.role" />
+                    <button
+                      x-show="activeSession && !(activeSession.characterIds || []).includes(c.id)"
+                      type="button"
+                      class="btn btn-ghost btn-xs h-6 min-h-0 px-1.5 text-primary"
+                      title="Zur aktuellen Szene hinzufügen"
+                      x-bind:data-id="c.id"
+                      x-on:click="addCharacterToActiveSession"
+                      style="display: none;"
+                    >
+                      +
+                    </button>
+                    <span
+                      x-show="activeSession && (activeSession.characterIds || []).includes(c.id)"
+                      class="text-[11px] text-success px-1"
+                      title="Bereits in der aktuellen Szene"
+                      style="display: none;"
+                    >
+                      ✓
+                    </span>
+                  </div>
                 </div>
               </template>
             </div>
