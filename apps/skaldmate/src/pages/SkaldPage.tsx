@@ -876,8 +876,8 @@ export const SkaldPage = () => {
               </template>
             </div>
 
-            {/* Optional Scene State & Compressed Summary Drawer */}
-            <div x-show="showNotesPanel" class="px-4 py-3 bg-base-200 border-b border-base-content/10 flex flex-col gap-2" style="display: none;">
+            {/* Optional Scene State, Inventory, GM Notes & Compressed Summary Drawer */}
+            <div x-show="showNotesPanel" class="px-4 py-3 bg-base-200 border-b border-base-content/10 flex flex-col gap-3" style="display: none;">
               <div class="flex justify-between items-center text-xs gap-2">
                 <span class="font-semibold">Aktueller Szenenzustand (Spielleiter-Notiz)</span>
                 <div class="flex items-center gap-2">
@@ -887,7 +887,58 @@ export const SkaldPage = () => {
                 </div>
               </div>
               <textarea rows={2} class="textarea textarea-xs textarea-bordered w-full" x-model="sceneStateDraft" />
-              <div x-show="compressedSummaryDraft" class="flex flex-col gap-1 pt-1" style="display: none;">
+
+              {/* Tasche / Gepäck */}
+              <div class="flex flex-col gap-1.5 pt-1 border-t border-base-content/10">
+                <div class="flex items-center justify-between gap-2">
+                  <span class="text-[11px] font-semibold">🎒 Tasche / Gepäck</span>
+                  <span class="text-[10px] opacity-60">Wird vom Spielleiter &amp; dir gepflegt</span>
+                </div>
+                <div class="flex flex-wrap gap-1.5" x-show="activeSession && (activeSession.inventory || []).length > 0" style="display: none;">
+                  <template x-for="item in (activeSession ? (activeSession.inventory || []) : [])" x-bind:key="item">
+                    <span class="badge badge-sm badge-outline gap-1">
+                      <span x-text="item" />
+                      <button
+                        type="button"
+                        class="hover:text-error cursor-pointer font-bold"
+                        title="Aus Tasche entfernen"
+                        x-bind:data-item="item"
+                        x-on:click="removeInventoryItem"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  </template>
+                </div>
+                <div x-show="!activeSession || !(activeSession.inventory || []).length" class="text-[11px] opacity-50">
+                  Tasche ist leer.
+                </div>
+                <form class="flex gap-1.5" x-on:submit="addInventoryItem">
+                  <input
+                    type="text"
+                    class="input input-xs input-bordered flex-1"
+                    placeholder="Gegenstand hinzufügen (z. B. Messingschlüssel)..."
+                    x-model="newInventoryItem"
+                  />
+                  <button type="submit" class="btn btn-xs btn-outline">+</button>
+                </form>
+              </div>
+
+              {/* Geheimer Spielleiter-Merkzettel */}
+              <div class="flex flex-col gap-1 pt-1 border-t border-base-content/10">
+                <div class="flex items-center justify-between gap-2">
+                  <span class="text-[11px] font-semibold">🗝️ Spielleiter-Merkzettel (nur SL)</span>
+                  <span class="text-[10px] opacity-60">Charaktere sehen diese Notizen nicht</span>
+                </div>
+                <textarea
+                  rows={2}
+                  class="textarea textarea-xs textarea-bordered w-full"
+                  placeholder="Offene Plot-Fäden, versteckte Hinweise oder Pläne für später..."
+                  x-model="gmNotesDraft"
+                />
+              </div>
+
+              <div x-show="compressedSummaryDraft" class="flex flex-col gap-1 pt-1 border-t border-base-content/10" style="display: none;">
                 <span class="text-[11px] font-semibold opacity-70">Komprimierte Vorgeschichte (automatisch verdichtet)</span>
                 <textarea rows={2} class="textarea textarea-xs textarea-bordered w-full opacity-80" x-model="compressedSummaryDraft" />
               </div>

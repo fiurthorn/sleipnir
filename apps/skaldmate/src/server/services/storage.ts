@@ -405,7 +405,9 @@ export async function getSession(id: string): Promise<StorySession | null> {
 }
 
 export async function saveSession(
-  session: Omit<StorySession, "compressedSummary" | "compressedUntilIndex" | "resolvedContext"> & {
+  session: Omit<StorySession, "compressedSummary" | "compressedUntilIndex" | "resolvedContext" | "inventory" | "gmNotes"> & {
+    inventory?: string[];
+    gmNotes?: string;
     resolvedContext?: string;
     compressedSummary?: string;
     compressedUntilIndex?: number;

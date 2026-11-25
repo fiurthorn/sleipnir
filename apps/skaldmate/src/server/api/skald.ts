@@ -239,6 +239,8 @@ const createSessionBody = z.object({
   modelId: z.string().optional(),
   imageModelId: z.string().optional(),
   sceneState: z.string().default(""),
+  inventory: z.array(z.string()).default([]),
+  gmNotes: z.string().default(""),
   openingMessage: z.string().optional(),
 });
 
@@ -298,6 +300,7 @@ skaldApi.post("/sessions/:id/clone", async (c) => {
     id: crypto.randomUUID().slice(0, 12),
     title: newTitle,
     sceneState: loc?.defaultSceneState || existing.sceneState,
+    gmNotes: "",
     resolvedContext: "",
     compressedSummary: "",
     compressedUntilIndex: 0,
@@ -318,11 +321,16 @@ skaldApi.patch("/sessions/:id", async (c) => {
   const nextCharacterIds = Array.isArray(body.characterIds)
     ? body.characterIds.filter((id): id is string => typeof id === "string")
     : existing.characterIds;
+  const nextInventory = Array.isArray(body.inventory)
+    ? body.inventory.map((item) => (typeof item === "string" ? item.trim() : "")).filter(Boolean)
+    : existing.inventory;
   const nextSceneState = typeof body.sceneState === "string" ? body.sceneState : existing.sceneState;
+  const nextGmNotes = typeof body.gmNotes === "string" ? body.gmNotes : existing.gmNotes;
   const contextChanged = nextLocationId !== existing.locationId ||
     nextPersonaId !== existing.personaId ||
     nextSceneState !== existing.sceneState ||
-    JSON.stringify(nextCharacterIds) !== JSON.stringify(existing.characterIds);
+    JSON.stringify(nextCharacterIds) !== JSON.stringify(existing.characterIds) ||
+    JSON.stringify(nextInventory) !== JSON.stringify(existing.inventory);
 
   const updated = await saveSession({
     ...existing,
@@ -330,6 +338,8 @@ skaldApi.patch("/sessions/:id", async (c) => {
     locationId: nextLocationId,
     personaId: nextPersonaId,
     characterIds: nextCharacterIds,
+    inventory: nextInventory,
+    gmNotes: nextGmNotes,
     gameMasterId: typeof body.gameMasterId === "string" ? body.gameMasterId : existing.gameMasterId,
     modelId: typeof body.modelId === "string" ? body.modelId || undefined : existing.modelId,
     imageModelId: typeof body.imageModelId === "string" ? body.imageModelId || undefined : existing.imageModelId,

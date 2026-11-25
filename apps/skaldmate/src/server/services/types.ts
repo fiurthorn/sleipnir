@@ -93,6 +93,8 @@ export const sessionSchema = z.object({
   modelId: z.string().optional(),
   imageModelId: z.string().optional(),
   sceneState: z.string().default(""),
+  inventory: z.array(z.string()).default([]),
+  gmNotes: z.string().default(""),
   resolvedContext: z.string().default(""),
   compressedSummary: z.string().default(""),
   compressedUntilIndex: z.number().int().nonnegative().default(0),

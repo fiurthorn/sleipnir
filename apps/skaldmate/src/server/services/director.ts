@@ -45,6 +45,18 @@ const directorPlanSchema = z.object({
     .string()
     .optional()
     .describe("Optionaler aktualisierter kompakter Szenenzustand (1-2 Sätze), nur wenn sich etwas Wesentliches geändert hat"),
+  inventoryAdd: z
+    .array(z.string())
+    .optional()
+    .describe("Optionale neue Gegenstände für Tasche/Gepäck des Spielers (z. B. gefundene oder übergebene Items)"),
+  inventoryRemove: z
+    .array(z.string())
+    .optional()
+    .describe("Optionale Gegenstände, die aus Tasche/Gepäck entfernt werden (verbraucht, abgegeben, verloren)"),
+  gmNotesUpdate: z
+    .string()
+    .optional()
+    .describe("Optionaler aktualisierter geheimer Spielleiter-Merkzettel (offene Plot-Fäden, versteckte Hinweise, spätere Konsequenzen)"),
 });
 
 export function resolveTextModel(requestedModelId?: string) {
@@ -166,6 +178,7 @@ function buildContextHeader(
   partyCharacters: Character[],
   residentCharacters: Character[],
   sceneState: string,
+  inventory: string[] = [],
 ): string {
   const parts: string[] = [];
   const currentLocation = locationChain[locationChain.length - 1] ?? null;
@@ -223,6 +236,10 @@ function buildContextHeader(
     parts.push(`ORTS-BEWOHNER (fest an '${currentLocation?.name ?? "diesem Ort"}' gebunden):\n${resLines.join("\n")}`);
   }
 
+  if (inventory.length > 0) {
+    parts.push(`TASCHE / GEPÄCK: ${inventory.join(", ")}`);
+  }
+
   if (sceneState) {
     parts.push(`AKTUELLER SZENENZUSTAND: ${sceneState}`);
   }
@@ -266,6 +283,7 @@ async function runGameMasterDirector(
         partyCharacters,
         residentCharacters,
         session.sceneState,
+        session.inventory,
       ),
       { userName: persona?.name },
     );
@@ -289,14 +307,19 @@ async function runGameMasterDirector(
     "5. Falls situativ ein spontaner Statist/Gast (z. B. Kellnerin, Passant) etwas sagen sollte, nutze optional `extras` (max. 2).",
     narrationRule,
     "7. Nutze in `speakers` ausschließlich exakte IDs aus REISEGRUPPE oder ORTS-BEWOHNER.",
+    "8. Pflege `inventoryAdd` / `inventoryRemove`, wenn die Gruppe oder der Spieler Gegenstände findet, erhält, abgibt oder verbraucht.",
+    "9. Nutze `gmNotesUpdate` (kompakt), um dir verdeckte Hinweise, offene Plot-Fäden oder geplante Konsequenzen für spätere Züge zu merken.",
   ].join("\n");
 
   const prompt = expandMacros(
     [
       contextBlock,
+      session.gmNotes.trim() ? `GEHEIMER SPIELLEITER-MERKZETTEL (NUR FÜR DICH, CHARAKTERE KENNEN DIESEN NICHT):\n${session.gmNotes.trim()}` : "",
       historyBlock,
       userText ? `NEUE AKTION DES SPIELERS: ${userText}` : "Der Spieler lässt die Szene ohne eigene Aktion weiterlaufen.",
-    ].join("\n\n"),
+    ]
+      .filter(Boolean)
+      .join("\n\n"),
     { userName: persona?.name },
   );
 
@@ -348,6 +371,7 @@ async function generateCharacterReply(
     partyCharacters,
     residentCharacters,
     session.sceneState,
+    session.inventory,
   );
   const historyBlock = formatHistoryForPrompt(session);
 
@@ -482,6 +506,32 @@ export async function runStoryTurn(options: {
     cleanUserText,
   );
 
+  // Apply inventory & GM notes updates before character replies so characters see updated inventory
+  let contextDirty = false;
+  if (Array.isArray(plan.inventoryAdd) || Array.isArray(plan.inventoryRemove)) {
+    const nextInv = [...(session.inventory ?? [])];
+    for (const rawAdd of plan.inventoryAdd ?? []) {
+      const item = rawAdd.trim();
+      if (item && !nextInv.some((x) => x.toLowerCase() === item.toLowerCase())) {
+        nextInv.push(item);
+        contextDirty = true;
+      }
+    }
+    for (const rawRem of plan.inventoryRemove ?? []) {
+      const remLower = rawRem.trim().toLowerCase();
+      if (!remLower) continue;
+      const idx = nextInv.findIndex((x) => x.toLowerCase() === remLower);
+      if (idx !== -1) {
+        nextInv.splice(idx, 1);
+        contextDirty = true;
+      }
+    }
+    session.inventory = nextInv;
+  }
+  if (typeof plan.gmNotesUpdate === "string" && plan.gmNotesUpdate.trim()) {
+    session.gmNotes = plan.gmNotesUpdate.trim();
+  }
+
   // Apply location transition if Game Master decided the party moved, or re-cache if invalidated
   if (plan.nextLocationId && plan.nextLocationId !== session.locationId) {
     session.locationId = plan.nextLocationId;
@@ -489,6 +539,9 @@ export async function runStoryTurn(options: {
     currentLocation = locationChain[locationChain.length - 1] ?? null;
     residentCharacters = getResidentsFor(currentLocation);
     allPresent = [...partyCharacters, ...residentCharacters];
+    contextDirty = true;
+  }
+  if (contextDirty || !session.resolvedContext) {
     session.resolvedContext = expandMacros(
       buildContextHeader(
         locationChain,
@@ -497,18 +550,7 @@ export async function runStoryTurn(options: {
         partyCharacters,
         residentCharacters,
         session.sceneState,
-      ),
-      { userName: persona?.name },
-    );
-  } else if (!session.resolvedContext) {
-    session.resolvedContext = expandMacros(
-      buildContextHeader(
-        locationChain,
-        allLocations,
-        persona,
-        partyCharacters,
-        residentCharacters,
-        session.sceneState,
+        session.inventory,
       ),
       { userName: persona?.name },
     );
@@ -580,6 +622,18 @@ export async function runStoryTurn(options: {
 
   if (plan.sceneStateUpdate?.trim()) {
     session.sceneState = plan.sceneStateUpdate.trim();
+    session.resolvedContext = expandMacros(
+      buildContextHeader(
+        locationChain,
+        allLocations,
+        persona,
+        partyCharacters,
+        residentCharacters,
+        session.sceneState,
+        session.inventory,
+      ),
+      { userName: persona?.name },
+    );
   }
 
   await compressSessionHistoryIfNeeded(session, gm?.modelId || session.modelId);
@@ -658,6 +712,7 @@ export async function initializeSceneSession(
           partyCharacters,
           residentCharacters,
           session.sceneState,
+          session.inventory,
         ),
         { userName: persona?.name },
       );

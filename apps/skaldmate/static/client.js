@@ -32,6 +32,8 @@ document.addEventListener("alpine:init", () => {
     workshopLoading: false,
     workshopModelId: localStorage.getItem("skaldmate_workshop_model_v1") || "",
     sceneStateDraft: "",
+    gmNotesDraft: "",
+    newInventoryItem: "",
     compressedSummaryDraft: "",
     creatingSession: false,
     chatInput: "",
@@ -88,6 +90,8 @@ document.addEventListener("alpine:init", () => {
       if (this.sessions.length > 0) {
         this.activeSession = this.sessions[0];
         this.sceneStateDraft = this.activeSession.sceneState || "";
+        this.gmNotesDraft = this.activeSession.gmNotes || "";
+        this.compressedSummaryDraft = this.activeSession.compressedSummary || "";
         this.viewMode = "chat";
       }
     },
@@ -223,6 +227,7 @@ document.addEventListener("alpine:init", () => {
         this.sessions = [data.item, ...this.sessions];
         this.activeSession = data.item;
         this.sceneStateDraft = data.item.sceneState || "";
+        this.gmNotesDraft = data.item.gmNotes || "";
         this.compressedSummaryDraft = data.item.compressedSummary || "";
         this.newSessionForm.title = "";
         this.newSessionForm.openingMessage = "";
@@ -239,6 +244,7 @@ document.addEventListener("alpine:init", () => {
       if (!found) return;
       this.activeSession = found;
       this.sceneStateDraft = found.sceneState || "";
+      this.gmNotesDraft = found.gmNotes || "";
       this.compressedSummaryDraft = found.compressedSummary || "";
       this.viewMode = "chat";
       this.mobileMenuOpen = false;
@@ -276,6 +282,7 @@ document.addEventListener("alpine:init", () => {
         this.sessions = [data.item, ...this.sessions];
         this.activeSession = data.item;
         this.sceneStateDraft = data.item.sceneState || "";
+        this.gmNotesDraft = data.item.gmNotes || "";
         this.compressedSummaryDraft = data.item.compressedSummary || "";
         this.showCloneModal = false;
         this.showNotesPanel = false;
@@ -362,6 +369,7 @@ document.addEventListener("alpine:init", () => {
         }
         this.activeSession = data.session;
         this.sceneStateDraft = data.session.sceneState || "";
+        this.gmNotesDraft = data.session.gmNotes || "";
         this.compressedSummaryDraft = data.session.compressedSummary || "";
         this.sessions = this.sessions.map((s) => s.id === data.session.id ? data.session : s);
         this.scrollToBottom();
@@ -475,6 +483,7 @@ document.addEventListener("alpine:init", () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           sceneState: this.sceneStateDraft,
+          gmNotes: this.gmNotesDraft,
           compressedSummary: this.compressedSummaryDraft,
         }),
       });
@@ -482,7 +491,46 @@ document.addEventListener("alpine:init", () => {
         const data = await res.json();
         this.activeSession = data.item;
         this.sessions = this.sessions.map((s) => s.id === data.item.id ? data.item : s);
-        this.notify("Szenenzustand gespeichert.");
+        this.notify("Szenenzustand & Notizen gespeichert.");
+      }
+    },
+
+    async addInventoryItem(event) {
+      event?.preventDefault?.();
+      const item = this.newInventoryItem.trim();
+      if (!item || !this.activeSession) return;
+      const current = Array.isArray(this.activeSession.inventory) ? this.activeSession.inventory : [];
+      if (current.some((x) => x.toLowerCase() === item.toLowerCase())) {
+        this.newInventoryItem = "";
+        return;
+      }
+      const res = await fetch(`./api/sessions/${encodeURIComponent(this.activeSession.id)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ inventory: [...current, item] }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        this.activeSession = data.item;
+        this.sessions = this.sessions.map((s) => s.id === data.item.id ? data.item : s);
+        this.newInventoryItem = "";
+      }
+    },
+
+    async removeInventoryItem(event) {
+      const target = event?.currentTarget?.dataset?.item;
+      if (!target || !this.activeSession) return;
+      const current = Array.isArray(this.activeSession.inventory) ? this.activeSession.inventory : [];
+      const next = current.filter((x) => x !== target);
+      const res = await fetch(`./api/sessions/${encodeURIComponent(this.activeSession.id)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ inventory: next }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        this.activeSession = data.item;
+        this.sessions = this.sessions.map((s) => s.id === data.item.id ? data.item : s);
       }
     },
 
