@@ -63,6 +63,23 @@ export function initSleipnirClient(): void {
       hello: win.hello,
     }));
 
+    Alpine.data("mateSwitcher", () => ({
+      init() {
+        const root = (this as unknown as { $el?: HTMLElement }).$el;
+        if (!root) return;
+        const { protocol, hostname, port } = globalThis.location;
+        const hasSubdomainHost = hostname.includes(".") && !port && !/^\d+\.\d+\.\d+\.\d+$/.test(hostname);
+        const restHost = hasSubdomainHost ? hostname.slice(hostname.indexOf(".")) : "";
+
+        root.querySelectorAll<HTMLAnchorElement>("a[data-mate-sub]").forEach((link) => {
+          const sub = link.dataset.mateSub;
+          const targetPort = link.dataset.matePort;
+          if (!sub || !targetPort) return;
+          link.href = hasSubdomainHost ? `${protocol}//${sub}${restHost}/` : `${protocol}//${hostname}:${targetPort}/`;
+        });
+      },
+    }));
+
     // Safe x-html directive for Alpine CSP
     Alpine.directive(
       "html",
