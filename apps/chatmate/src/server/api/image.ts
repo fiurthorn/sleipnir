@@ -41,6 +41,11 @@ async function handleImageGen(c: SleipnirContext) {
   };
 
   // ZERO LOGGING: Prompt and image data are not logged
-  const result = await generateImage(req);
-  return c.json(result);
+  try {
+    const result = await generateImage(req);
+    return c.json(result);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Bildgenerierung fehlgeschlagen";
+    return c.json({ error: message }, 502);
+  }
 }

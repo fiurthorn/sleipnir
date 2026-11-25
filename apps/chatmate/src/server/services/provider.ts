@@ -175,12 +175,18 @@ export async function generateImage(
   const targetModel = modelParts.join(":");
 
   const provider = findProvider(providers, providerTag) ||
+    providers.find((p) => Boolean(p.apiKey) && p.imageModels.length > 0) ||
     providers.find((p) => p.imageModels.length > 0);
 
   if (!provider || !provider.apiKey) {
     throw new Error(
       `Kein API-Key für Bildgenerierung konfiguriert (${provider?.name ?? "Kein Provider"}).`,
     );
+  }
+
+  const resolvedModel = targetModel || provider.imageModels[0]?.id || "";
+  if (!resolvedModel) {
+    throw new Error(`Kein Bildmodell für Provider '${provider.name}' konfiguriert.`);
   }
 
   const dimensions = getDimensions(req.aspectRatio);
@@ -195,7 +201,7 @@ export async function generateImage(
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: targetModel || "flux-2-pro",
+        model: resolvedModel,
         prompt: req.prompt,
         width: dimensions.width,
         height: dimensions.height,
@@ -222,9 +228,40 @@ export async function generateImage(
     throw new Error("Venice AI hat kein Bild zurückgegeben.");
   }
 
-  throw new Error(
-    `Bildgenerierung für Provider '${provider.name}' nicht implementiert.`,
-  );
+  // OpenRouter / OpenAI-compatible image-capable chat/completions endpoint
+  const res = await fetch(`${provider.baseUrl}/chat/completions`, {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${provider.apiKey}`,
+      "Content-Type": "application/json",
+      "HTTP-Referer": "https://sleipnir.local",
+      "X-Title": "Sleipnir Chatmate",
+    },
+    body: JSON.stringify({
+      model: resolvedModel,
+      modalities: ["image", "text"],
+      messages: [{ role: "user", content: req.prompt }],
+    }),
+  });
+
+  if (!res.ok) {
+    let detail = `HTTP ${res.status}`;
+    try {
+      const errJson = await res.json();
+      const msg = errJson?.error?.message || errJson?.error;
+      if (typeof msg === "string" && msg) detail += `: ${msg}`;
+    } catch {
+      // ignore
+    }
+    throw new Error(`${provider.name}: ${detail}`);
+  }
+
+  const data = await res.json();
+  const imgUrl = data?.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+  if (typeof imgUrl === "string" && imgUrl.startsWith("data:image/")) {
+    return { imageUrl: imgUrl };
+  }
+  throw new Error(`${provider.name} hat kein Bild zurückgegeben.`);
 }
 
 function getDimensions(
