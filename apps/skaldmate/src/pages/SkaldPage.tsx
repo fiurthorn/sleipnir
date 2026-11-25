@@ -319,84 +319,84 @@ export const SkaldPage = () => {
                     />
                   </div>
                   <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <label class="form-control">
+                    <label class="flex flex-col gap-1 w-full">
                       <span class="label-text text-xs mb-1">Name</span>
-                      <input type="text" placeholder="z. B. Lena" class="input input-sm input-bordered" x-model="charForm.name" required />
+                      <input type="text" placeholder="z. B. Lena" class="input input-sm input-bordered w-full" x-model="charForm.name" required />
                     </label>
-                    <label class="form-control">
+                    <label class="flex flex-col gap-1 w-full">
                       <span class="label-text text-xs mb-1">Rolle</span>
                       <input
                         type="text"
                         placeholder="z. B. Nachbarin, Detektiv, Waldläufer"
-                        class="input input-sm input-bordered"
+                        class="input input-sm input-bordered w-full"
                         x-model="charForm.role"
                       />
                     </label>
                   </div>
-                  <label class="form-control">
+                  <label class="flex flex-col gap-1 w-full">
                     <span class="label-text text-xs mb-1">Aussehen</span>
                     <textarea
                       rows={2}
                       placeholder="Optik, Kleidung, markante Merkmale"
-                      class="textarea textarea-sm textarea-bordered"
+                      class="textarea textarea-sm textarea-bordered w-full"
                       x-model="charForm.appearance"
                     />
                   </label>
-                  <label class="form-control">
+                  <label class="flex flex-col gap-1 w-full">
                     <span class="label-text text-xs mb-1">Charakterzüge &amp; Persönlichkeit</span>
                     <textarea
                       rows={2}
                       placeholder="Wie verhält sich der Charakter? Stärken, Macken, Temperament"
-                      class="textarea textarea-sm textarea-bordered"
+                      class="textarea textarea-sm textarea-bordered w-full"
                       x-model="charForm.personality"
                     />
                   </label>
-                  <label class="form-control">
+                  <label class="flex flex-col gap-1 w-full">
                     <span class="label-text text-xs mb-1">Ziele &amp; Motivation</span>
                     <textarea
                       rows={2}
                       placeholder="Was will der Charakter erreichen?"
-                      class="textarea textarea-sm textarea-bordered"
+                      class="textarea textarea-sm textarea-bordered w-full"
                       x-model="charForm.goals"
                     />
                   </label>
-                  <label class="form-control">
+                  <label class="flex flex-col gap-1 w-full">
                     <span class="label-text text-xs mb-1">Sprechstil</span>
                     <input
                       type="text"
                       placeholder="z. B. direkt, sarkastisch, ruhig, bildhaft"
-                      class="input input-sm input-bordered"
+                      class="input input-sm input-bordered w-full"
                       x-model="charForm.speechStyle"
                     />
                   </label>
-                  <label class="form-control">
+                  <label class="flex flex-col gap-1 w-full">
                     <span class="label-text text-xs mb-1">Erster Auftritt / Begrüßung (optional)</span>
                     <textarea
                       rows={2}
                       placeholder="Was sagt oder tut der Charakter bei der Szenen-Initialisierung?"
-                      class="textarea textarea-sm textarea-bordered"
+                      class="textarea textarea-sm textarea-bordered w-full"
                       x-model="charForm.greeting"
                     />
                   </label>
-                  <label class="form-control">
+                  <label class="flex flex-col gap-1 w-full">
                     <span class="label-text text-xs mb-1">Typische Beispielsätze / Zitate</span>
                     <textarea
                       rows={2}
                       placeholder="z. B. ‚Spar dir die Ausreden, ich hab’s genau gesehen.‘"
-                      class="textarea textarea-sm textarea-bordered"
+                      class="textarea textarea-sm textarea-bordered w-full"
                       x-model="charForm.exampleDialogue"
                     />
                   </label>
-                  <label class="form-control">
+                  <label class="flex flex-col gap-1 w-full">
                     <span class="label-text text-xs mb-1">Beziehungen zu anderen Charakteren</span>
                     <textarea
                       rows={2}
                       placeholder="z. B. Misstraut dem Kommissar, kennt Stefan aus der Nachbarschaft"
-                      class="textarea textarea-sm textarea-bordered"
+                      class="textarea textarea-sm textarea-bordered w-full"
                       x-model="charForm.relationships"
                     />
                   </label>
-                  <label class="form-control">
+                  <label class="flex flex-col gap-1 w-full">
                     <span class="label-text text-xs mb-1">Porträt-Prompt (optional, wird sonst automatisch gebaut)</span>
                     <textarea
                       rows={2}
@@ -405,7 +405,7 @@ export const SkaldPage = () => {
                       x-model="charForm.portraitPrompt"
                     />
                   </label>
-                  <label class="form-control">
+                  <label class="flex flex-col gap-1 w-full">
                     <span class="label-text text-xs mb-1">Eigenes Modell (optional)</span>
                     <select class="select select-sm select-bordered font-mono text-xs" x-model="charForm.modelId">
                       <option value="">(Szenen-Standardmodell verwenden)</option>
@@ -446,49 +446,49 @@ export const SkaldPage = () => {
                       class="w-20 h-20 rounded-xl object-cover border border-base-content/15"
                     />
                   </div>
-                  <label class="form-control">
+                  <label class="flex flex-col gap-1 w-full">
                     <span class="label-text text-xs mb-1">Name in der Geschichte</span>
                     <input
                       type="text"
                       placeholder="z. B. Stefan"
-                      class="input input-sm input-bordered"
+                      class="input input-sm input-bordered w-full"
                       x-model="personaForm.name"
                       required
                     />
                   </label>
-                  <label class="form-control">
+                  <label class="flex flex-col gap-1 w-full">
                     <span class="label-text text-xs mb-1">Rolle</span>
                     <input
                       type="text"
                       placeholder="z. B. Reisender, Ermittler, Nachbar"
-                      class="input input-sm input-bordered"
+                      class="input input-sm input-bordered w-full"
                       x-model="personaForm.role"
                     />
                   </label>
-                  <label class="form-control">
+                  <label class="flex flex-col gap-1 w-full">
                     <span class="label-text text-xs mb-1">Aussehen</span>
                     <textarea
                       rows={2}
                       placeholder="Optik, Kleidung, markante Merkmale"
-                      class="textarea textarea-sm textarea-bordered"
+                      class="textarea textarea-sm textarea-bordered w-full"
                       x-model="personaForm.appearance"
                     />
                   </label>
-                  <label class="form-control">
+                  <label class="flex flex-col gap-1 w-full">
                     <span class="label-text text-xs mb-1">Eigenschaften &amp; Charakterzüge</span>
                     <textarea
                       rows={2}
                       placeholder="Stärken, Schwächen, Auftreten"
-                      class="textarea textarea-sm textarea-bordered"
+                      class="textarea textarea-sm textarea-bordered w-full"
                       x-model="personaForm.traits"
                     />
                   </label>
-                  <label class="form-control">
+                  <label class="flex flex-col gap-1 w-full">
                     <span class="label-text text-xs mb-1">Hintergrund</span>
                     <textarea
                       rows={2}
                       placeholder="Kurze Vorgeschichte / Motivation"
-                      class="textarea textarea-sm textarea-bordered"
+                      class="textarea textarea-sm textarea-bordered w-full"
                       x-model="personaForm.background"
                     />
                   </label>
@@ -532,19 +532,19 @@ export const SkaldPage = () => {
                       class="w-full h-auto object-cover"
                     />
                   </div>
-                  <label class="form-control">
+                  <label class="flex flex-col gap-1 w-full">
                     <span class="label-text text-xs mb-1">Ortsname</span>
                     <input
                       type="text"
                       placeholder="z. B. Wohnung, Stadt, Taverne"
-                      class="input input-sm input-bordered"
+                      class="input input-sm input-bordered w-full"
                       x-model="locationForm.name"
                       required
                     />
                   </label>
-                  <label class="form-control">
+                  <label class="flex flex-col gap-1 w-full">
                     <span class="label-text text-xs mb-1">Übergeordneter Ort (Ortsbaum, optional)</span>
-                    <select class="select select-sm select-bordered" x-model="locationForm.parentId">
+                    <select class="select select-sm select-bordered w-full" x-model="locationForm.parentId">
                       <option value="">(Kein übergeordneter Ort / Wurzel)</option>
                       <template x-for="l in locations" x-bind:key="l.id">
                         <option
@@ -573,43 +573,43 @@ export const SkaldPage = () => {
                       </span>
                     </div>
                   </div>
-                  <label class="form-control">
+                  <label class="flex flex-col gap-1 w-full">
                     <span class="label-text text-xs mb-1">Beschreibung des Ortes</span>
                     <textarea
                       rows={3}
                       placeholder="Wie sieht der Ort aus? Architektur, Einrichtung, Umgebung..."
-                      class="textarea textarea-sm textarea-bordered"
+                      class="textarea textarea-sm textarea-bordered w-full"
                       x-model="locationForm.description"
                     />
                   </label>
-                  <label class="form-control">
+                  <label class="flex flex-col gap-1 w-full">
                     <span class="label-text text-xs mb-1">Atmosphäre / Licht / Geräusche</span>
                     <input
                       type="text"
                       placeholder="z. B. warmes Lampenlicht, entferntes Straßenrauschen"
-                      class="input input-sm input-bordered"
+                      class="input input-sm input-bordered w-full"
                       x-model="locationForm.atmosphere"
                     />
                   </label>
-                  <label class="form-control">
+                  <label class="flex flex-col gap-1 w-full">
                     <span class="label-text text-xs mb-1">Wichtige Details / Requisiten</span>
                     <textarea
                       rows={2}
                       placeholder="z. B. Esstisch, offener Balkon, knarrende Dielen"
-                      class="textarea textarea-sm textarea-bordered"
+                      class="textarea textarea-sm textarea-bordered w-full"
                       x-model="locationForm.details"
                     />
                   </label>
-                  <label class="form-control">
+                  <label class="flex flex-col gap-1 w-full">
                     <span class="label-text text-xs mb-1">Standard-Startzustand für neue Szenen (optional)</span>
                     <textarea
                       rows={2}
                       placeholder="z. B. Später Abend, draußen nieselt es leicht."
-                      class="textarea textarea-sm textarea-bordered"
+                      class="textarea textarea-sm textarea-bordered w-full"
                       x-model="locationForm.defaultSceneState"
                     />
                   </label>
-                  <label class="form-control">
+                  <label class="flex flex-col gap-1 w-full">
                     <span class="label-text text-xs mb-1">Ortsbild-Prompt (optional)</span>
                     <textarea
                       rows={2}
@@ -632,25 +632,45 @@ export const SkaldPage = () => {
               <template x-if="editorType === 'gamemaster'">
                 <form x-on:submit="saveGmForm" class="flex flex-col gap-3">
                   <h2 class="font-bold text-lg">Spielleiter</h2>
-                  <input type="text" placeholder="Name (z. B. Der Chronist)" class="input input-sm input-bordered" x-model="gmForm.name" required />
-                  <input
-                    type="text"
-                    placeholder="Stil (z. B. neutral, noir, spannend)"
-                    class="input input-sm input-bordered"
-                    x-model="gmForm.style"
-                  />
-                  <textarea
-                    rows={4}
-                    placeholder="Regie-Anweisung / System-Prompt"
-                    class="textarea textarea-sm textarea-bordered"
-                    x-model="gmForm.systemPrompt"
-                  />
-                  <select class="select select-sm select-bordered font-mono text-xs" x-model="gmForm.modelId">
-                    <option value="">(Szenen-Standardmodell verwenden)</option>
-                    <template x-for="m in textModels" x-bind:key="m.id">
-                      <option x-bind:value="m.id" x-text="m.name + ' · ' + m.providerName" />
-                    </template>
-                  </select>
+                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <label class="flex flex-col gap-1 w-full">
+                      <span class="label-text text-xs mb-1">Name</span>
+                      <input
+                        type="text"
+                        placeholder="z. B. Der Chronist"
+                        class="input input-sm input-bordered w-full"
+                        x-model="gmForm.name"
+                        required
+                      />
+                    </label>
+                    <label class="flex flex-col gap-1 w-full">
+                      <span class="label-text text-xs mb-1">Erzählstil</span>
+                      <input
+                        type="text"
+                        placeholder="z. B. neutral, noir, spannend"
+                        class="input input-sm input-bordered w-full"
+                        x-model="gmForm.style"
+                      />
+                    </label>
+                  </div>
+                  <label class="flex flex-col gap-1 w-full">
+                    <span class="label-text text-xs mb-1">Regie-Anweisung / System-Prompt</span>
+                    <textarea
+                      rows={4}
+                      placeholder="Wie soll der Spielleiter die Welt und das Tempo führen?"
+                      class="textarea textarea-sm textarea-bordered w-full"
+                      x-model="gmForm.systemPrompt"
+                    />
+                  </label>
+                  <label class="flex flex-col gap-1 w-full">
+                    <span class="label-text text-xs mb-1">Eigenes Modell (optional)</span>
+                    <select class="select select-sm select-bordered font-mono text-xs w-full" x-model="gmForm.modelId">
+                      <option value="">(Szenen-Standardmodell verwenden)</option>
+                      <template x-for="m in textModels" x-bind:key="m.id">
+                        <option x-bind:value="m.id" x-text="m.name + ' · ' + m.providerName" />
+                      </template>
+                    </select>
+                  </label>
                   <div class="flex justify-end gap-2 pt-2">
                     <button x-show="gmForm.id" type="button" class="btn btn-xs btn-error btn-outline mr-auto" x-on:click="deleteGmForm">
                       Löschen
@@ -670,11 +690,11 @@ export const SkaldPage = () => {
             <div class="card-body gap-4">
               <h2 class="card-title text-lg">Neue Szene zusammenklicken</h2>
 
-              <label class="form-control">
+              <label class="flex flex-col gap-1 w-full">
                 <span class="label-text text-xs mb-1">Szenen-Titel</span>
                 <input
                   type="text"
-                  class="input input-sm input-bordered"
+                  class="input input-sm input-bordered w-full"
                   placeholder="z. B. Abend in der Wohnung"
                   x-model="newSessionForm.title"
                   required
@@ -682,18 +702,18 @@ export const SkaldPage = () => {
               </label>
 
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <label class="form-control">
+                <label class="flex flex-col gap-1 w-full">
                   <span class="label-text text-xs mb-1">Ort / Location</span>
-                  <select class="select select-sm select-bordered" x-model="newSessionForm.locationId" required>
+                  <select class="select select-sm select-bordered w-full" x-model="newSessionForm.locationId" required>
                     <template x-for="l in locations" x-bind:key="l.id">
                       <option x-bind:value="l.id" x-text="l.name" />
                     </template>
                   </select>
                 </label>
 
-                <label class="form-control">
+                <label class="flex flex-col gap-1 w-full">
                   <span class="label-text text-xs mb-1">Meine Persona</span>
-                  <select class="select select-sm select-bordered" x-model="newSessionForm.personaId">
+                  <select class="select select-sm select-bordered w-full" x-model="newSessionForm.personaId">
                     <option value="">(Ohne feste Persona / Du)</option>
                     <template x-for="p in personas" x-bind:key="p.id">
                       <option x-bind:value="p.id" x-text="p.name" />
@@ -725,16 +745,16 @@ export const SkaldPage = () => {
               </div>
 
               <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <label class="form-control">
+                <label class="flex flex-col gap-1 w-full">
                   <span class="label-text text-xs mb-1">Spielleiter</span>
-                  <select class="select select-sm select-bordered" x-model="newSessionForm.gameMasterId">
+                  <select class="select select-sm select-bordered w-full" x-model="newSessionForm.gameMasterId">
                     <template x-for="g in gameMasters" x-bind:key="g.id">
                       <option x-bind:value="g.id" x-text="g.name" />
                     </template>
                   </select>
                 </label>
 
-                <label class="form-control">
+                <label class="flex flex-col gap-1 w-full">
                   <span class="label-text text-xs mb-1">Text-Modell</span>
                   <select class="select select-sm select-bordered font-mono text-xs" x-model="newSessionForm.modelId">
                     <template x-for="m in textModels" x-bind:key="m.id">
@@ -743,7 +763,7 @@ export const SkaldPage = () => {
                   </select>
                 </label>
 
-                <label class="form-control">
+                <label class="flex flex-col gap-1 w-full">
                   <span class="label-text text-xs mb-1">Bild-Modell</span>
                   <select class="select select-sm select-bordered font-mono text-xs" x-model="newSessionForm.imageModelId">
                     <template x-for="m in imageModels" x-bind:key="m.id">

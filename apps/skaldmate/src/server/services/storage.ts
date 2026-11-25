@@ -161,12 +161,26 @@ async function readYamlEntity<T>(dir: string, id: string, schema: SchemaParser<T
   }
 }
 
+function stripUndefined(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.filter((v) => v !== undefined).map(stripUndefined);
+  }
+  if (value !== null && typeof value === "object") {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value)) {
+      if (v !== undefined) {
+        out[k] = stripUndefined(v);
+      }
+    }
+    return out;
+  }
+  return value;
+}
+
 async function writeYamlEntity<T extends { id: string }>(dir: string, entity: T): Promise<T> {
   const safe = sanitizeId(entity.id);
   if (!safe) throw new Error("Ungültige ID");
-  const clean = Object.fromEntries(
-    Object.entries(entity).filter(([, v]) => v !== undefined),
-  );
+  const clean = stripUndefined(entity);
   await Deno.writeTextFile(join(dir, `${safe}.yaml`), stringifyYaml(clean));
   return entity;
 }

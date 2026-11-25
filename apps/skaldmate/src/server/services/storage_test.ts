@@ -43,7 +43,17 @@ Deno.test("storage - seeds default chronist and locations and saves character", 
       characterIds: ["lena"],
       gameMasterId: "chronist",
       sceneState: "Ruhiger Abend",
-      messages: [],
+      messages: [
+        {
+          id: "m1",
+          kind: "user",
+          speakerId: undefined,
+          speakerName: "Du",
+          portraitFile: undefined,
+          content: "Hallo!",
+          createdAt: now,
+        },
+      ],
       createdAt: now,
       updatedAt: now,
     });
