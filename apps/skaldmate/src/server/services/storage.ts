@@ -322,7 +322,12 @@ export async function getGameMaster(id: string): Promise<GameMaster | null> {
   return readYamlEntity(GAMEMASTERS_DIR, id, gameMasterSchema);
 }
 
-export async function saveGameMaster(input: Omit<GameMaster, "updatedAt"> & { updatedAt?: string }): Promise<GameMaster> {
+export async function saveGameMaster(
+  input: Omit<GameMaster, "updatedAt" | "narrationFrequency"> & {
+    narrationFrequency?: GameMaster["narrationFrequency"];
+    updatedAt?: string;
+  },
+): Promise<GameMaster> {
   await initSkaldStorage();
   const data = gameMasterSchema.parse({
     ...input,

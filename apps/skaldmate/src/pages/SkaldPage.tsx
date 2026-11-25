@@ -655,6 +655,14 @@ export const SkaldPage = () => {
                     </label>
                   </div>
                   <label class="flex flex-col gap-1 w-full">
+                    <span class="label-text text-xs mb-1">Erzähler-Frequenz</span>
+                    <select class="select select-sm select-bordered w-full" x-model="gmForm.narrationFrequency">
+                      <option value="immer">Immer (jede Runde)</option>
+                      <option value="dann_und_wann">Dann und wann (Stimme aus dem Off)</option>
+                      <option value="nur_bei_aenderungen">Nur bei Ereignissen / Änderungen</option>
+                    </select>
+                  </label>
+                  <label class="flex flex-col gap-1 w-full">
                     <span class="label-text text-xs mb-1">Regie-Anweisung / System-Prompt</span>
                     <textarea
                       rows={4}

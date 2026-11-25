@@ -209,6 +209,7 @@ const gmBody = z.object({
   id: z.string().optional(),
   name: z.string().min(1),
   style: z.string().default("neutral"),
+  narrationFrequency: z.enum(["immer", "dann_und_wann", "nur_bei_aenderungen"]).default("dann_und_wann"),
   systemPrompt: z.string().default(""),
   modelId: z.string().optional(),
 });

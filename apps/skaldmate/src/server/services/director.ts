@@ -271,6 +271,13 @@ async function runGameMasterDirector(
     );
   const historyBlock = formatHistoryForPrompt(session);
 
+  const freq = gm?.narrationFrequency ?? "dann_und_wann";
+  const narrationRule = freq === "immer"
+    ? "6. Erzähle IN JEDER RUNDE eine kurze, atmosphärische Beobachtung (1-3 Sätze) über Umgebung, Stimmung oder Körpersprache in `narrationBefore` oder `narrationAfter`."
+    : freq === "nur_bei_aenderungen"
+    ? "6. Füge `narrationBefore` oder `narrationAfter` NUR dann hinzu, wenn sich an der Umgebung, Handlung oder Situation etwas Wesentliches ändert (sonst leer lassen)."
+    : "6. Streue ab und zu (etwa alle 2-4 Züge oder bei Stimmungswechseln) eine kurze Stimme aus dem Off (Atmosphäre, Umgebungsdetail, kleine Beobachtung) in `narrationBefore` oder `narrationAfter` ein – nicht in jeder Runde, aber so, dass die Szene lebendig bleibt.";
+
   const systemPrompt = [
     gm?.systemPrompt ||
     "Du bist ein neutraler, aufmerksamer Spielleiter einer interaktiven Geschichte.",
@@ -280,7 +287,7 @@ async function runGameMasterDirector(
     "3. Text in eckigen Klammern [...] sind direkte OOC-Regieanweisungen des Spielers an dich (z. B. Zeitsprung, Ereignis, Ortswechsel). Setze sie in `narrationBefore` / `nextLocationId` / `sceneStateUpdate` um.",
     "4. Wenn die Gruppe explizit an einen anderen bekannten Ort geht, setze `nextLocationId` auf dessen exakte ID.",
     "5. Falls situativ ein spontaner Statist/Gast (z. B. Kellnerin, Passant) etwas sagen sollte, nutze optional `extras` (max. 2).",
-    "6. Füge `narrationBefore` oder `narrationAfter` nur hinzu, wenn die Umgebung, ein Ereignis oder eine Konsequenz beschrieben werden muss (knapp, 1-3 Sätze).",
+    narrationRule,
     "7. Nutze in `speakers` ausschließlich exakte IDs aus REISEGRUPPE oder ORTS-BEWOHNER.",
   ].join("\n");
 

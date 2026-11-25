@@ -76,7 +76,7 @@ document.addEventListener("alpine:init", () => {
       imagePrompt: "",
       imageFile: "",
     },
-    gmForm: { id: "", name: "", style: "neutral", systemPrompt: "", modelId: "" },
+    gmForm: { id: "", name: "", style: "neutral", narrationFrequency: "dann_und_wann", systemPrompt: "", modelId: "" },
 
     async init() {
       await this.loadAll();
@@ -698,7 +698,7 @@ document.addEventListener("alpine:init", () => {
 
     // GameMaster CRUD
     newGmForm() {
-      this.gmForm = { id: "", name: "", style: "neutral", systemPrompt: "", modelId: "" };
+      this.gmForm = { id: "", name: "", style: "neutral", narrationFrequency: "dann_und_wann", systemPrompt: "", modelId: "" };
       this.editorType = "gamemaster";
       this.viewMode = "editor";
       this.mobileMenuOpen = false;
@@ -707,7 +707,7 @@ document.addEventListener("alpine:init", () => {
       const id = event?.currentTarget?.dataset?.id;
       const g = this.gameMasters.find((x) => x.id === id);
       if (!g) return;
-      this.gmForm = { ...g, modelId: g.modelId || "" };
+      this.gmForm = { ...g, narrationFrequency: g.narrationFrequency || "dann_und_wann", modelId: g.modelId || "" };
       this.editorType = "gamemaster";
       this.viewMode = "editor";
       this.mobileMenuOpen = false;

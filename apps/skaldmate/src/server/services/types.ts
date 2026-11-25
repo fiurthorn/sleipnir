@@ -61,6 +61,7 @@ export const gameMasterSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
   style: z.string().default("neutral"),
+  narrationFrequency: z.enum(["immer", "dann_und_wann", "nur_bei_aenderungen"]).default("dann_und_wann"),
   systemPrompt: z.string().default(""),
   modelId: z.string().optional(),
   updatedAt: z.string(),
