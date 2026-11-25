@@ -652,7 +652,7 @@ export async function initializeSceneSession(
     session.resolvedContext = contextBlock;
 
     const prompt = [
-      resolvedHeader,
+      contextBlock,
       cleanCustomOpening ? `BEREITS GESETZTER ERÖFFNUNGSDIALOG:\n${cleanCustomOpening}` : "",
       cleanCustomOpening
         ? "Führe diese Eröffnung als Spielleiter in 2-4 Sätzen fort und gib dem Spieler Raum für seinen ersten Zug."

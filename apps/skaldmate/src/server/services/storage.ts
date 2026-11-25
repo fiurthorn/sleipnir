@@ -27,15 +27,20 @@ function resolveDataDir(): string {
   return resolve(new URL("../../../data", import.meta.url).pathname);
 }
 
-const DATA_DIR = resolveDataDir();
-const PERSONAS_DIR = join(DATA_DIR, "personas");
-const CHARACTERS_DIR = join(DATA_DIR, "characters");
-const LOCATIONS_DIR = join(DATA_DIR, "locations");
-const GAMEMASTERS_DIR = join(DATA_DIR, "gamemasters");
-const SESSIONS_DIR = join(DATA_DIR, "sessions");
-const ASSETS_DIR = join(DATA_DIR, "assets");
+function getDirs() {
+  const dataDir = resolveDataDir();
+  return {
+    dataDir,
+    personasDir: join(dataDir, "personas"),
+    charactersDir: join(dataDir, "characters"),
+    locationsDir: join(dataDir, "locations"),
+    gamemastersDir: join(dataDir, "gamemasters"),
+    sessionsDir: join(dataDir, "sessions"),
+    assetsDir: join(dataDir, "assets"),
+  };
+}
 
-let initialized = false;
+let initializedDir: string | null = null;
 
 function sanitizeId(raw: string): string {
   return raw
@@ -61,9 +66,10 @@ export function slugifyName(name: string, fallbackPrefix = "item"): string {
 
 async function seedDefaultsIfEmpty(): Promise<void> {
   const now = new Date().toISOString();
+  const { gamemastersDir, locationsDir } = getDirs();
 
   // Default neutral Game Master
-  const existingGms = await listYamlEntities(GAMEMASTERS_DIR, gameMasterSchema);
+  const existingGms = await listYamlEntities(gamemastersDir, gameMasterSchema);
   if (existingGms.length === 0) {
     await saveGameMaster({
       id: "chronist",
@@ -76,7 +82,7 @@ async function seedDefaultsIfEmpty(): Promise<void> {
   }
 
   // Default simple Locations
-  const existingLocations = await listYamlEntities(LOCATIONS_DIR, locationSchema);
+  const existingLocations = await listYamlEntities(locationsDir, locationSchema);
   if (existingLocations.length === 0) {
     const defaults: Array<Parameters<typeof saveLocation>[0]> = [
       {
@@ -111,14 +117,15 @@ async function seedDefaultsIfEmpty(): Promise<void> {
 }
 
 export async function initSkaldStorage(): Promise<void> {
-  if (initialized) return;
-  await ensureDir(PERSONAS_DIR);
-  await ensureDir(CHARACTERS_DIR);
-  await ensureDir(LOCATIONS_DIR);
-  await ensureDir(GAMEMASTERS_DIR);
-  await ensureDir(SESSIONS_DIR);
-  await ensureDir(ASSETS_DIR);
-  initialized = true;
+  const dirs = getDirs();
+  if (initializedDir === dirs.dataDir) return;
+  await ensureDir(dirs.personasDir);
+  await ensureDir(dirs.charactersDir);
+  await ensureDir(dirs.locationsDir);
+  await ensureDir(dirs.gamemastersDir);
+  await ensureDir(dirs.sessionsDir);
+  await ensureDir(dirs.assetsDir);
+  initializedDir = dirs.dataDir;
   await seedDefaultsIfEmpty();
 }
 
@@ -197,19 +204,20 @@ async function deleteFileIfExists(path: string): Promise<boolean> {
 // Personas
 export async function listPersonas(): Promise<Persona[]> {
   await initSkaldStorage();
-  const list = await listYamlEntities(PERSONAS_DIR, personaSchema);
+  const list = await listYamlEntities(getDirs().personasDir, personaSchema);
   return list.sort((a, b) => a.name.localeCompare(b.name));
 }
 
 export async function getPersona(id: string): Promise<Persona | null> {
   await initSkaldStorage();
-  return readYamlEntity(PERSONAS_DIR, id, personaSchema);
+  return readYamlEntity(getDirs().personasDir, id, personaSchema);
 }
 
 export async function savePersona(
   input: Omit<Persona, "updatedAt" | "isDefault"> & { isDefault?: boolean; updatedAt?: string },
 ): Promise<Persona> {
   await initSkaldStorage();
+  const { personasDir } = getDirs();
   const id = sanitizeId(input.id) || slugifyName(input.name, "persona");
   const data = personaSchema.parse({
     ...input,
@@ -221,29 +229,29 @@ export async function savePersona(
     const existing = await listPersonas();
     for (const other of existing) {
       if (other.id !== data.id && other.isDefault) {
-        await writeYamlEntity(PERSONAS_DIR, { ...other, isDefault: false });
+        await writeYamlEntity(personasDir, { ...other, isDefault: false });
       }
     }
   }
-  return writeYamlEntity(PERSONAS_DIR, data);
+  return writeYamlEntity(personasDir, data);
 }
 
 export async function deletePersona(id: string): Promise<boolean> {
   await initSkaldStorage();
   const safe = sanitizeId(id);
-  return safe ? deleteFileIfExists(join(PERSONAS_DIR, `${safe}.yaml`)) : false;
+  return safe ? deleteFileIfExists(join(getDirs().personasDir, `${safe}.yaml`)) : false;
 }
 
 // Characters (NPCs)
 export async function listCharacters(): Promise<Character[]> {
   await initSkaldStorage();
-  const list = await listYamlEntities(CHARACTERS_DIR, characterSchema);
+  const list = await listYamlEntities(getDirs().charactersDir, characterSchema);
   return list.sort((a, b) => a.name.localeCompare(b.name));
 }
 
 export async function getCharacter(id: string): Promise<Character | null> {
   await initSkaldStorage();
-  return readYamlEntity(CHARACTERS_DIR, id, characterSchema);
+  return readYamlEntity(getDirs().charactersDir, id, characterSchema);
 }
 
 export async function saveCharacter(
@@ -261,25 +269,25 @@ export async function saveCharacter(
     id: sanitizeId(input.id) || slugifyName(input.name, "char"),
     updatedAt: input.updatedAt ?? new Date().toISOString(),
   });
-  return writeYamlEntity(CHARACTERS_DIR, data);
+  return writeYamlEntity(getDirs().charactersDir, data);
 }
 
 export async function deleteCharacter(id: string): Promise<boolean> {
   await initSkaldStorage();
   const safe = sanitizeId(id);
-  return safe ? deleteFileIfExists(join(CHARACTERS_DIR, `${safe}.yaml`)) : false;
+  return safe ? deleteFileIfExists(join(getDirs().charactersDir, `${safe}.yaml`)) : false;
 }
 
 // Locations
 export async function listLocations(): Promise<Location[]> {
   await initSkaldStorage();
-  const list = await listYamlEntities(LOCATIONS_DIR, locationSchema);
+  const list = await listYamlEntities(getDirs().locationsDir, locationSchema);
   return list.sort((a, b) => a.name.localeCompare(b.name));
 }
 
 export async function getLocation(id: string): Promise<Location | null> {
   await initSkaldStorage();
-  return readYamlEntity(LOCATIONS_DIR, id, locationSchema);
+  return readYamlEntity(getDirs().locationsDir, id, locationSchema);
 }
 
 export async function saveLocation(
@@ -301,25 +309,25 @@ export async function saveLocation(
     residentIds: Array.isArray(input.residentIds) ? input.residentIds : [],
     updatedAt: input.updatedAt ?? new Date().toISOString(),
   });
-  return writeYamlEntity(LOCATIONS_DIR, data);
+  return writeYamlEntity(getDirs().locationsDir, data);
 }
 
 export async function deleteLocation(id: string): Promise<boolean> {
   await initSkaldStorage();
   const safe = sanitizeId(id);
-  return safe ? deleteFileIfExists(join(LOCATIONS_DIR, `${safe}.yaml`)) : false;
+  return safe ? deleteFileIfExists(join(getDirs().locationsDir, `${safe}.yaml`)) : false;
 }
 
 // GameMasters
 export async function listGameMasters(): Promise<GameMaster[]> {
   await initSkaldStorage();
-  const list = await listYamlEntities(GAMEMASTERS_DIR, gameMasterSchema);
+  const list = await listYamlEntities(getDirs().gamemastersDir, gameMasterSchema);
   return list.sort((a, b) => a.name.localeCompare(b.name));
 }
 
 export async function getGameMaster(id: string): Promise<GameMaster | null> {
   await initSkaldStorage();
-  return readYamlEntity(GAMEMASTERS_DIR, id, gameMasterSchema);
+  return readYamlEntity(getDirs().gamemastersDir, id, gameMasterSchema);
 }
 
 export async function saveGameMaster(
@@ -334,13 +342,13 @@ export async function saveGameMaster(
     id: sanitizeId(input.id) || slugifyName(input.name, "gm"),
     updatedAt: input.updatedAt ?? new Date().toISOString(),
   });
-  return writeYamlEntity(GAMEMASTERS_DIR, data);
+  return writeYamlEntity(getDirs().gamemastersDir, data);
 }
 
 export async function deleteGameMaster(id: string): Promise<boolean> {
   await initSkaldStorage();
   const safe = sanitizeId(id);
-  return safe ? deleteFileIfExists(join(GAMEMASTERS_DIR, `${safe}.yaml`)) : false;
+  return safe ? deleteFileIfExists(join(getDirs().gamemastersDir, `${safe}.yaml`)) : false;
 }
 
 // Sessions (stored as YAML, with legacy .json read compatibility)
@@ -356,12 +364,13 @@ function parseSessionContent(fileName: string, raw: string): StorySession | null
 
 export async function listSessions(): Promise<StorySession[]> {
   await initSkaldStorage();
+  const { sessionsDir } = getDirs();
   const byId = new Map<string, StorySession>();
   try {
-    for await (const entry of Deno.readDir(SESSIONS_DIR)) {
+    for await (const entry of Deno.readDir(sessionsDir)) {
       if (!entry.isFile || (!entry.name.endsWith(".yaml") && !entry.name.endsWith(".json"))) continue;
       try {
-        const raw = await Deno.readTextFile(join(SESSIONS_DIR, entry.name));
+        const raw = await Deno.readTextFile(join(sessionsDir, entry.name));
         const session = parseSessionContent(entry.name, raw);
         if (!session) continue;
         // Prefer .yaml over legacy .json if both exist
@@ -382,9 +391,10 @@ export async function getSession(id: string): Promise<StorySession | null> {
   await initSkaldStorage();
   const safe = sanitizeId(id);
   if (!safe) return null;
+  const { sessionsDir } = getDirs();
   for (const ext of ["yaml", "json"] as const) {
     try {
-      const raw = await Deno.readTextFile(join(SESSIONS_DIR, `${safe}.${ext}`));
+      const raw = await Deno.readTextFile(join(sessionsDir, `${safe}.${ext}`));
       const session = parseSessionContent(`${safe}.${ext}`, raw);
       if (session) return session;
     } catch {
@@ -408,7 +418,7 @@ export async function saveSession(
     id: safe,
     updatedAt: new Date().toISOString(),
   });
-  await writeYamlEntity(SESSIONS_DIR, validated);
+  await writeYamlEntity(getDirs().sessionsDir, validated);
   return validated;
 }
 
@@ -416,8 +426,9 @@ export async function deleteSession(id: string): Promise<boolean> {
   await initSkaldStorage();
   const safe = sanitizeId(id);
   if (!safe) return false;
-  const deletedYaml = await deleteFileIfExists(join(SESSIONS_DIR, `${safe}.yaml`));
-  const deletedJson = await deleteFileIfExists(join(SESSIONS_DIR, `${safe}.json`));
+  const { sessionsDir } = getDirs();
+  const deletedYaml = await deleteFileIfExists(join(sessionsDir, `${safe}.yaml`));
+  const deletedJson = await deleteFileIfExists(join(sessionsDir, `${safe}.json`));
   return deletedYaml || deletedJson;
 }
 
@@ -425,7 +436,7 @@ export async function deleteSession(id: string): Promise<boolean> {
 export async function saveAssetBytes(fileName: string, bytes: Uint8Array): Promise<string> {
   await initSkaldStorage();
   const safeName = basename(fileName).replace(/[^a-zA-Z0-9._-]/g, "_");
-  await Deno.writeFile(join(ASSETS_DIR, safeName), bytes);
+  await Deno.writeFile(join(getDirs().assetsDir, safeName), bytes);
   return safeName;
 }
 
@@ -434,7 +445,7 @@ export async function readAssetBytes(fileName: string): Promise<{ bytes: Uint8Ar
   const safeName = basename(fileName).replace(/[^a-zA-Z0-9._-]/g, "_");
   if (!safeName) return null;
   try {
-    const bytes = await Deno.readFile(join(ASSETS_DIR, safeName));
+    const bytes = await Deno.readFile(join(getDirs().assetsDir, safeName));
     const lower = safeName.toLowerCase();
     const contentType = lower.endsWith(".jpg") || lower.endsWith(".jpeg") ? "image/jpeg" : lower.endsWith(".webp") ? "image/webp" : "image/png";
     return { bytes, contentType };

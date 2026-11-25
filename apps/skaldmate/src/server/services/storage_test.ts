@@ -13,6 +13,7 @@ Deno.test("slugifyName - normalizes umlauts and special characters", () => {
 });
 
 Deno.test("storage - seeds default chronist and locations and saves character", async () => {
+  const previousDataDir = Deno.env.get("SKALDMATE_DATA_DIR");
   const tempDir = await Deno.makeTempDir();
   Deno.env.set("SKALDMATE_DATA_DIR", tempDir);
   try {
@@ -61,6 +62,11 @@ Deno.test("storage - seeds default chronist and locations and saves character", 
     assertEquals(loadedSession?.title, "Testszene");
     assertEquals(loadedSession?.compressedUntilIndex, 0);
   } finally {
+    if (previousDataDir === undefined) {
+      Deno.env.delete("SKALDMATE_DATA_DIR");
+    } else {
+      Deno.env.set("SKALDMATE_DATA_DIR", previousDataDir);
+    }
     await Deno.remove(tempDir, { recursive: true }).catch(() => {});
   }
 });
