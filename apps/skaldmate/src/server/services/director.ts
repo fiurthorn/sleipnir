@@ -580,7 +580,10 @@ export async function runStoryTurn(options: {
  * Generates an atmospheric opening narration (plus optional character greetings)
  * when a new story session starts.
  */
-export async function initializeSceneSession(sessionInput: StorySession): Promise<StorySession> {
+export async function initializeSceneSession(
+  sessionInput: StorySession,
+  customOpening?: string,
+): Promise<StorySession> {
   const session: StorySession = {
     ...sessionInput,
     messages: [...sessionInput.messages],
@@ -617,6 +620,18 @@ export async function initializeSceneSession(sessionInput: StorySession): Promis
     });
   }
 
+  // Optional custom opening dialog/prompt provided when creating the scene
+  const cleanCustomOpening = customOpening?.trim() ? expandMacros(customOpening.trim(), { userName: persona?.name }) : "";
+  if (cleanCustomOpening) {
+    session.messages.push({
+      id: crypto.randomUUID(),
+      kind: "narrator",
+      speakerName: gm?.name || "Eröffnung",
+      content: cleanCustomOpening,
+      createdAt: now(),
+    });
+  }
+
   try {
     const model = resolveTextModel(gm?.modelId || session.modelId);
     if (session.sceneState) {
@@ -637,9 +652,14 @@ export async function initializeSceneSession(sessionInput: StorySession): Promis
     session.resolvedContext = contextBlock;
 
     const prompt = [
-      contextBlock,
-      "Eröffne diese neue Szene als Spielleiter in 3-5 stimmungsvollen Sätzen auf Deutsch: Beschreibe kurz den Ort, die Atmosphäre und wer gerade anwesend ist oder eintrifft. Lass dem Spieler Raum für seinen ersten Zug.",
-    ].join("\n\n");
+      resolvedHeader,
+      cleanCustomOpening ? `BEREITS GESETZTER ERÖFFNUNGSDIALOG:\n${cleanCustomOpening}` : "",
+      cleanCustomOpening
+        ? "Führe diese Eröffnung als Spielleiter in 2-4 Sätzen fort und gib dem Spieler Raum für seinen ersten Zug."
+        : "Eröffne diese neue Szene als Spielleiter in 3-5 stimmungsvollen Sätzen auf Deutsch: Beschreibe kurz den Ort, die Atmosphäre und wer gerade anwesend ist oder eintrifft. Lass dem Spieler Raum für seinen ersten Zug.",
+    ]
+      .filter(Boolean)
+      .join("\n\n");
 
     const result = await generateText({
       model,

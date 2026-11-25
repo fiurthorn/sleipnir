@@ -27,6 +27,7 @@ document.addEventListener("alpine:init", () => {
     workshopMessages: [],
     workshopInput: "",
     workshopLoading: false,
+    workshopModelId: localStorage.getItem("skaldmate_workshop_model_v1") || "",
     sceneStateDraft: "",
     compressedSummaryDraft: "",
     creatingSession: false,
@@ -45,6 +46,7 @@ document.addEventListener("alpine:init", () => {
       gameMasterId: "chronist",
       modelId: "",
       imageModelId: "",
+      openingMessage: "",
     },
 
     charForm: {
@@ -103,6 +105,9 @@ document.addEventListener("alpine:init", () => {
         this.imageModels = models.filter((m) => m.type === "image");
         if (!this.newSessionForm.modelId && this.textModels.length > 0) {
           this.newSessionForm.modelId = this.textModels[0].id;
+        }
+        if (!this.workshopModelId && this.textModels.length > 0) {
+          this.workshopModelId = this.textModels[0].id;
         }
         if (!this.newSessionForm.imageModelId && this.imageModels.length > 0) {
           this.newSessionForm.imageModelId = this.imageModels[0].id;
@@ -217,6 +222,7 @@ document.addEventListener("alpine:init", () => {
         this.sceneStateDraft = data.item.sceneState || "";
         this.compressedSummaryDraft = data.item.compressedSummary || "";
         this.newSessionForm.title = "";
+        this.newSessionForm.openingMessage = "";
         this.viewMode = "chat";
         this.scrollToBottom();
       } finally {
@@ -233,6 +239,22 @@ document.addEventListener("alpine:init", () => {
       this.compressedSummaryDraft = found.compressedSummary || "";
       this.viewMode = "chat";
       this.mobileMenuOpen = false;
+      this.scrollToBottom();
+    },
+
+    async cloneActiveSession() {
+      if (!this.activeSession?.id) return;
+      const res = await fetch(`./api/sessions/${encodeURIComponent(this.activeSession.id)}/clone`, {
+        method: "POST",
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      this.sessions = [data.item, ...this.sessions];
+      this.activeSession = data.item;
+      this.sceneStateDraft = data.item.sceneState || "";
+      this.compressedSummaryDraft = data.item.compressedSummary || "";
+      this.showNotesPanel = false;
+      this.notify(`Szene als "${data.item.title}" geklont.`);
       this.scrollToBottom();
     },
 
@@ -364,6 +386,9 @@ document.addEventListener("alpine:init", () => {
       event?.preventDefault?.();
       const text = this.workshopInput.trim();
       if (!text || this.workshopLoading) return;
+      if (this.workshopModelId) {
+        localStorage.setItem("skaldmate_workshop_model_v1", this.workshopModelId);
+      }
       this.workshopMessages = [...this.workshopMessages, { role: "user", content: text }];
       this.workshopInput = "";
       this.workshopLoading = true;
@@ -372,7 +397,7 @@ document.addEventListener("alpine:init", () => {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            modelId: this.activeSession?.modelId || this.newSessionForm.modelId || undefined,
+            modelId: this.workshopModelId || this.activeSession?.modelId || this.newSessionForm.modelId || undefined,
             messages: this.workshopMessages,
           }),
         });

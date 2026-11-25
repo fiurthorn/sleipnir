@@ -784,6 +784,16 @@ export const SkaldPage = () => {
                   </label>
                 </div>
 
+                <label class="flex flex-col gap-1 w-full">
+                  <span class="label-text text-xs mb-1">Eröffnungsdialog / Start-Szene (optional, Makros erlaubt)</span>
+                  <textarea
+                    rows={2}
+                    class="textarea textarea-sm textarea-bordered w-full"
+                    placeholder="Optionaler eigener Einstieg, auf dem Spielleiter &amp; Charaktere direkt aufbauen..."
+                    x-model="newSessionForm.openingMessage"
+                  />
+                </label>
+
                 <div class="card-actions justify-end pt-2">
                   <button type="submit" class="btn btn-primary btn-sm">Szene starten</button>
                 </div>
@@ -850,6 +860,7 @@ export const SkaldPage = () => {
               <div class="flex justify-between items-center text-xs gap-2">
                 <span class="font-semibold">Aktueller Szenenzustand (Spielleiter-Notiz)</span>
                 <div class="flex items-center gap-2">
+                  <button type="button" class="btn btn-xs btn-outline" x-on:click="cloneActiveSession">📋 Klonen</button>
                   <button type="button" class="btn btn-xs btn-error btn-outline" x-on:click="deleteActiveSession">🗑 Szene löschen</button>
                   <button type="button" class="btn btn-xs btn-primary" x-on:click="saveSceneState">Speichern</button>
                 </div>
@@ -945,15 +956,26 @@ export const SkaldPage = () => {
           class="fixed inset-0 md:static w-full md:w-96 bg-base-200 border-l border-base-content/10 flex flex-col z-50 md:z-30"
           style="display: none;"
         >
-          <div class="px-4 py-3 border-b border-base-content/10 flex items-center justify-between gap-2">
-            <div>
-              <h3 class="font-bold text-sm">🧠 Werkstatt-Chat</h3>
-              <p class="text-[11px] opacity-60">Neutraler Assistent für Charaktere, Orte &amp; Ideen</p>
+          <div class="px-4 py-3 border-b border-base-content/10 flex flex-col gap-2">
+            <div class="flex items-center justify-between gap-2">
+              <div>
+                <h3 class="font-bold text-sm">🧠 Werkstatt-Chat</h3>
+                <p class="text-[11px] opacity-60">Neutraler Assistent für Charaktere, Orte &amp; Ideen</p>
+              </div>
+              <div class="flex items-center gap-1">
+                <button type="button" class="btn btn-ghost btn-xs" x-on:click="clearWorkshop" title="Chat leeren">🗑</button>
+                <button type="button" class="btn btn-ghost btn-xs" x-on:click="toggleWorkshop">✕</button>
+              </div>
             </div>
-            <div class="flex items-center gap-1">
-              <button type="button" class="btn btn-ghost btn-xs" x-on:click="clearWorkshop" title="Chat leeren">🗑</button>
-              <button type="button" class="btn btn-ghost btn-xs" x-on:click="toggleWorkshop">✕</button>
-            </div>
+            <select
+              class="select select-xs select-bordered font-mono w-full bg-base-100"
+              x-model="workshopModelId"
+              aria-label="Werkstatt-Modell"
+            >
+              <template x-for="m in textModels" x-bind:key="m.id">
+                <option x-bind:value="m.id" x-text="'Modell: ' + m.name + ' · ' + m.providerName" />
+              </template>
+            </select>
           </div>
 
           <div id="skald-workshop-thread" class="flex-1 overflow-y-auto p-3 space-y-3">
