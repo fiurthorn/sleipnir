@@ -7,21 +7,23 @@
 
 import type { HtmlEscapedString } from "hono/utils/html";
 
-export type MateAppId = "chat" | "notes" | "scan" | "agent";
+export type MateAppId = "chat" | "notes" | "scan" | "agent" | "skald";
 
 interface MateEntry {
   id: MateAppId;
   name: string;
+  shortName: string;
   icon: string;
   subdomain: string;
   port: number;
 }
 
 const MATES: MateEntry[] = [
-  { id: "chat", name: "Chatmate", icon: "💬", subdomain: "chat", port: 3002 },
-  { id: "notes", name: "Notemate", icon: "📝", subdomain: "notes", port: 3003 },
-  { id: "scan", name: "Scanmate", icon: "📷", subdomain: "scan", port: 3004 },
-  { id: "agent", name: "Agentmate", icon: "🤖", subdomain: "agent", port: 3005 },
+  { id: "chat", name: "Chatmate", shortName: "Chat", icon: "💬", subdomain: "chat", port: 3002 },
+  { id: "notes", name: "Notemate", shortName: "Notes", icon: "📝", subdomain: "notes", port: 3003 },
+  { id: "scan", name: "Scanmate", shortName: "Scan", icon: "📷", subdomain: "scan", port: 3004 },
+  { id: "agent", name: "Agentmate", shortName: "Agent", icon: "🤖", subdomain: "agent", port: 3005 },
+  { id: "skald", name: "Skaldmate", shortName: "Skald", icon: "🎭", subdomain: "skald", port: 3006 },
 ];
 
 export const MateSwitcher = (props: {
@@ -44,13 +46,14 @@ export const MateSwitcher = (props: {
               href={`http://localhost:${m.port}/`}
               data-mate-sub={m.subdomain}
               data-mate-port={String(m.port)}
-              class={`btn btn-xs rounded-lg gap-1.5 font-medium whitespace-nowrap ${
+              class={`btn btn-xs rounded-lg gap-1 sm:gap-1.5 px-1.5 sm:px-2 font-medium whitespace-nowrap ${
                 isCurrent ? "btn-primary font-bold shadow-xs" : "btn-ghost text-base-content/75 hover:text-base-content"
               }`}
               aria-current={isCurrent ? "page" : undefined}
             >
               <span>{m.icon}</span>
-              <span>{m.name}</span>
+              <span class="sm:hidden">{m.shortName}</span>
+              <span class="hidden sm:inline">{m.name}</span>
             </a>
           );
         })}
