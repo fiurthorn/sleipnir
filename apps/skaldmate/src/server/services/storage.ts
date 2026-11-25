@@ -268,16 +268,21 @@ export async function getLocation(id: string): Promise<Location | null> {
 }
 
 export async function saveLocation(
-  input: Omit<Location, "updatedAt" | "defaultSceneState" | "imagePrompt"> & {
+  input: Omit<Location, "updatedAt" | "defaultSceneState" | "imagePrompt" | "residentIds"> & {
+    residentIds?: string[];
     defaultSceneState?: string;
     imagePrompt?: string;
     updatedAt?: string;
   },
 ): Promise<Location> {
   await initSkaldStorage();
+  const id = sanitizeId(input.id) || slugifyName(input.name, "loc");
+  const parentId = input.parentId ? sanitizeId(input.parentId) : undefined;
   const data = locationSchema.parse({
     ...input,
-    id: sanitizeId(input.id) || slugifyName(input.name, "loc"),
+    id,
+    parentId: parentId && parentId !== id ? parentId : undefined,
+    residentIds: Array.isArray(input.residentIds) ? input.residentIds : [],
     updatedAt: input.updatedAt ?? new Date().toISOString(),
   });
   return writeYamlEntity(LOCATIONS_DIR, data);

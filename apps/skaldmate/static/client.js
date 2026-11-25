@@ -56,7 +56,18 @@ document.addEventListener("alpine:init", () => {
       portraitFile: "",
     },
     personaForm: { id: "", name: "", role: "", appearance: "", traits: "", background: "", portraitFile: "", isDefault: false },
-    locationForm: { id: "", name: "", description: "", atmosphere: "", details: "", defaultSceneState: "", imagePrompt: "", imageFile: "" },
+    locationForm: {
+      id: "",
+      name: "",
+      parentId: "",
+      residentIds: [],
+      description: "",
+      atmosphere: "",
+      details: "",
+      defaultSceneState: "",
+      imagePrompt: "",
+      imageFile: "",
+    },
     gmForm: { id: "", name: "", style: "neutral", systemPrompt: "", modelId: "" },
 
     async init() {
@@ -130,6 +141,36 @@ document.addEventListener("alpine:init", () => {
       if (!this.activeSession) return [];
       const ids = this.activeSession.characterIds || [];
       return this.characters.filter((c) => ids.includes(c.id));
+    },
+
+    get activeResidents() {
+      if (!this.activeSession) return [];
+      const loc = this.locations.find((l) => l.id === this.activeSession.locationId);
+      if (!loc || !Array.isArray(loc.residentIds)) return [];
+      const partyIds = new Set(this.activeSession.characterIds || []);
+      return this.characters.filter((c) => loc.residentIds.includes(c.id) && !partyIds.has(c.id));
+    },
+
+    get locationTree() {
+      const byParent = new Map();
+      const ids = new Set(this.locations.map((l) => l.id));
+      for (const l of this.locations) {
+        const key = l.parentId && ids.has(l.parentId) ? l.parentId : "";
+        if (!byParent.has(key)) byParent.set(key, []);
+        byParent.get(key).push(l);
+      }
+      const result = [];
+      const visited = new Set();
+      const walk = (parentId, depth) => {
+        for (const item of byParent.get(parentId) || []) {
+          if (visited.has(item.id)) continue;
+          visited.add(item.id);
+          result.push({ ...item, depth });
+          walk(item.id, depth + 1);
+        }
+      };
+      walk("", 0);
+      return result;
     },
 
     openNewSession() {
@@ -278,6 +319,21 @@ document.addEventListener("alpine:init", () => {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sceneState: this.sceneStateDraft }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        this.activeSession = data.item;
+        this.sessions = this.sessions.map((s) => s.id === data.item.id ? data.item : s);
+      }
+    },
+
+    async changeSessionLocation(event) {
+      const nextLocId = event?.target?.value;
+      if (!this.activeSession || !nextLocId) return;
+      const res = await fetch(`./api/sessions/${encodeURIComponent(this.activeSession.id)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ locationId: nextLocId }),
       });
       if (res.ok) {
         const data = await res.json();
@@ -444,7 +500,18 @@ document.addEventListener("alpine:init", () => {
 
     // Location CRUD
     newLocationForm() {
-      this.locationForm = { id: "", name: "", description: "", atmosphere: "", details: "", defaultSceneState: "", imagePrompt: "", imageFile: "" };
+      this.locationForm = {
+        id: "",
+        name: "",
+        parentId: "",
+        residentIds: [],
+        description: "",
+        atmosphere: "",
+        details: "",
+        defaultSceneState: "",
+        imagePrompt: "",
+        imageFile: "",
+      };
       this.editorType = "location";
       this.viewMode = "editor";
       this.mobileMenuOpen = false;
@@ -455,6 +522,8 @@ document.addEventListener("alpine:init", () => {
       if (!l) return;
       this.locationForm = {
         ...l,
+        parentId: l.parentId || "",
+        residentIds: Array.isArray(l.residentIds) ? [...l.residentIds] : [],
         defaultSceneState: l.defaultSceneState || "",
         imagePrompt: l.imagePrompt || "",
         imageFile: l.imageFile || "",
@@ -463,6 +532,19 @@ document.addEventListener("alpine:init", () => {
       this.viewMode = "editor";
       this.mobileMenuOpen = false;
     },
+    isResidentSelected(charId) {
+      return Array.isArray(this.locationForm.residentIds) && this.locationForm.residentIds.includes(charId);
+    },
+    toggleLocationResident(event) {
+      const id = event?.currentTarget?.dataset?.id;
+      if (!id) return;
+      const current = Array.isArray(this.locationForm.residentIds) ? this.locationForm.residentIds : [];
+      if (current.includes(id)) {
+        this.locationForm.residentIds = current.filter((x) => x !== id);
+      } else {
+        this.locationForm.residentIds = [...current, id];
+      }
+    },
     async saveLocationForm(event) {
       event?.preventDefault?.();
       const res = await fetch("./api/locations", {
@@ -470,6 +552,8 @@ document.addEventListener("alpine:init", () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...this.locationForm,
+          parentId: this.locationForm.parentId || undefined,
+          residentIds: this.locationForm.residentIds || [],
           imageFile: this.locationForm.imageFile || undefined,
         }),
       });
@@ -477,6 +561,8 @@ document.addEventListener("alpine:init", () => {
         const data = await res.json();
         this.locationForm = {
           ...data.item,
+          parentId: data.item.parentId || "",
+          residentIds: Array.isArray(data.item.residentIds) ? [...data.item.residentIds] : [],
           defaultSceneState: data.item.defaultSceneState || "",
           imagePrompt: data.item.imagePrompt || "",
           imageFile: data.item.imageFile || "",

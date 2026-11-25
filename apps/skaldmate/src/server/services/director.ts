@@ -10,8 +10,14 @@ import { generateText, Output } from "ai";
 import { z } from "zod";
 import { getAvailableModels, loadProviderConfig } from "./config.ts";
 import { expandMacros } from "./macros.ts";
-import { getGameMaster, getLocation, getPersona, listCharacters, saveSession } from "./storage.ts";
+import { getGameMaster, getPersona, listCharacters, listLocations, saveSession } from "./storage.ts";
 import type { Character, GameMaster, Location, Persona, SessionMessage, StorySession } from "./types.ts";
+
+const directorExtraSchema = z.object({
+  name: z.string().min(1).describe("Kurzer Name oder Bezeichnung (z. B. 'Gast am Nebentisch', 'Kellnerin')"),
+  role: z.string().optional().describe("Optionale kurze Rolle"),
+  dialogue: z.string().min(1).describe("Kurze Reaktion/Dialog des Statisten in der Szene"),
+});
 
 const directorPlanSchema = z.object({
   narrationBefore: z
@@ -21,11 +27,20 @@ const directorPlanSchema = z.object({
   speakers: z
     .array(z.string())
     .default([])
-    .describe("Liste der exakten IDs der Charaktere, die in diesem Zug wirklich reagieren sollten (0 bis 3 IDs)"),
+    .describe("Liste der exakten IDs der anwesenden Charaktere, die in diesem Zug wirklich reagieren sollten (0 bis 3 IDs)"),
+  extras: z
+    .array(directorExtraSchema)
+    .max(2)
+    .default([])
+    .describe("Optionale spontane Statisten/Gäste (0 bis 2), die nur situativ am aktuellen Ort auftreten"),
   narrationAfter: z
     .string()
     .optional()
     .describe("Optionaler kurzer Abschluss-Hinweis des Spielleiters falls die Szene sich danach weiterentwickelt"),
+  nextLocationId: z
+    .string()
+    .optional()
+    .describe("Exakte ID eines anderen bekannten Ortes, falls die Reisegruppe in diesem Zug den Ort wechselt"),
   sceneStateUpdate: z
     .string()
     .optional()
@@ -73,20 +88,58 @@ function formatHistoryForPrompt(messages: SessionMessage[], limit = 18): string 
     .join("\n");
 }
 
+function resolveLocationChain(locationId: string, allLocations: Location[]): Location[] {
+  const byId = new Map(allLocations.map((l) => [l.id, l]));
+  const chain: Location[] = [];
+  const visited = new Set<string>();
+  let current = byId.get(locationId);
+
+  while (current && !visited.has(current.id)) {
+    visited.add(current.id);
+    chain.unshift(current);
+    current = current.parentId ? byId.get(current.parentId) : undefined;
+  }
+  return chain;
+}
+
 function buildContextHeader(
-  location: Location | null,
+  locationChain: Location[],
+  allLocations: Location[],
   persona: Persona | null,
-  characters: Character[],
+  partyCharacters: Character[],
+  residentCharacters: Character[],
   sceneState: string,
 ): string {
   const parts: string[] = [];
-  if (location) {
+  const currentLocation = locationChain[locationChain.length - 1] ?? null;
+
+  if (currentLocation) {
+    const pathNames = locationChain.map((l) => l.name).join(" > ");
+    const parentNotes = locationChain
+      .slice(0, -1)
+      .map((p) => `${p.name}: ${p.description}`)
+      .filter(Boolean)
+      .join(" | ");
+
+    const otherLocs = allLocations
+      .filter((l) => l.id !== currentLocation.id)
+      .map((l) => `[${l.id}] ${l.name}`)
+      .join(", ");
+
     parts.push(
-      `ORT: ${location.name}\nBeschreibung: ${location.description}\nAtmosphäre: ${location.atmosphere}${
-        location.details ? `\nDetails: ${location.details}` : ""
-      }`,
+      [
+        `AKTUELLER ORT: ${currentLocation.name} (Pfad: ${pathNames})`,
+        `Beschreibung: ${currentLocation.description}`,
+        `Atmosphäre: ${currentLocation.atmosphere}`,
+        currentLocation.details ? `Details: ${currentLocation.details}` : "",
+        parentNotes ? `Übergeordneter Kontext: ${parentNotes}` : "",
+        otherLocs ? `Weitere bekannte Orte (für Ortswechsel): ${otherLocs}` : "",
+      ]
+        .filter(Boolean)
+        .join("\n"),
     );
   }
+
   if (persona) {
     parts.push(
       `SPIELER-PERSONA: ${persona.name}${persona.role ? ` (${persona.role})` : ""}${persona.traits ? ` | Eigenschaften: ${persona.traits}` : ""}${
@@ -94,17 +147,29 @@ function buildContextHeader(
       }`,
     );
   }
-  if (characters.length > 0) {
-    const charLines = characters.map((c) =>
+
+  if (partyCharacters.length > 0) {
+    const partyLines = partyCharacters.map((c) =>
       `- [${c.id}] ${c.name}${c.role ? ` (${c.role})` : ""}: Persönlichkeit=${c.personality || "—"}; Ziele=${c.goals || "—"}; Stil=${
         c.speechStyle || "natürlich"
       }`
     );
-    parts.push(`ANWESENDE CHARAKTERE:\n${charLines.join("\n")}`);
+    parts.push(`REISEGRUPPE (Begleiter, die mitreisen):\n${partyLines.join("\n")}`);
   }
+
+  if (residentCharacters.length > 0) {
+    const resLines = residentCharacters.map((c) =>
+      `- [${c.id}] ${c.name}${c.role ? ` (${c.role})` : ""} [Orts-NPC]: Persönlichkeit=${c.personality || "—"}; Ziele=${c.goals || "—"}; Stil=${
+        c.speechStyle || "natürlich"
+      }`
+    );
+    parts.push(`ORTS-BEWOHNER (fest an '${currentLocation?.name ?? "diesem Ort"}' gebunden):\n${resLines.join("\n")}`);
+  }
+
   if (sceneState) {
     parts.push(`AKTUELLER SZENENZUSTAND: ${sceneState}`);
   }
+
   return parts.join("\n\n");
 }
 
@@ -122,28 +187,40 @@ function detectMentionedCharacters(text: string, characters: Character[]): strin
 async function runGameMasterDirector(
   gm: GameMaster | null,
   session: StorySession,
-  location: Location | null,
+  locationChain: Location[],
+  allLocations: Location[],
   persona: Persona | null,
-  characters: Character[],
+  partyCharacters: Character[],
+  residentCharacters: Character[],
   userText: string,
 ): Promise<z.infer<typeof directorPlanSchema>> {
-  if (characters.length === 0) {
-    return { speakers: [] };
+  const allPresent = [...partyCharacters, ...residentCharacters];
+  if (allPresent.length === 0 && allLocations.length <= 1) {
+    return { speakers: [], extras: [] };
   }
 
   const model = resolveTextModel(gm?.modelId || session.modelId);
-  const contextBlock = buildContextHeader(location, persona, characters, session.sceneState);
+  const contextBlock = buildContextHeader(
+    locationChain,
+    allLocations,
+    persona,
+    partyCharacters,
+    residentCharacters,
+    session.sceneState,
+  );
   const historyBlock = formatHistoryForPrompt(session.messages);
 
   const systemPrompt = [
     gm?.systemPrompt ||
     "Du bist ein neutraler, aufmerksamer Spielleiter einer interaktiven Geschichte.",
     "Deine Aufgabe als Regisseur:",
-    "1. Entscheide autark, welche anwesenden Charaktere auf die aktuelle Situation wirklich reagieren (0, 1 oder 2 – NICHT stumpf alle der Reihe nach!).",
+    "1. Entscheide autark, welche anwesenden Charaktere (aus REISEGRUPPE oder ORTS-BEWOHNER) auf die aktuelle Situation wirklich reagieren (0, 1 oder 2 – NICHT stumpf alle der Reihe nach!).",
     "2. Wenn ein Charakter direkt angesprochen/erwähnt wird, gehört seine ID in `speakers`.",
-    "3. Text in eckigen Klammern [...] sind direkte OOC-Regieanweisungen des Spielers an dich (z. B. Zeitsprung, Ereignis, Stimmungswechsel). Setze sie in `narrationBefore` / `sceneStateUpdate` um.",
-    "4. Füge `narrationBefore` oder `narrationAfter` nur hinzu, wenn die Umgebung, ein Ereignis oder eine Konsequenz beschrieben werden muss (knapp, 1-3 Sätze).",
-    "5. Nutze in `speakers` ausschließlich exakte IDs aus `ANWESENDE CHARAKTERE`.",
+    "3. Text in eckigen Klammern [...] sind direkte OOC-Regieanweisungen des Spielers an dich (z. B. Zeitsprung, Ereignis, Ortswechsel). Setze sie in `narrationBefore` / `nextLocationId` / `sceneStateUpdate` um.",
+    "4. Wenn die Gruppe explizit an einen anderen bekannten Ort geht, setze `nextLocationId` auf dessen exakte ID.",
+    "5. Falls situativ ein spontaner Statist/Gast (z. B. Kellnerin, Passant) etwas sagen sollte, nutze optional `extras` (max. 2).",
+    "6. Füge `narrationBefore` oder `narrationAfter` nur hinzu, wenn die Umgebung, ein Ereignis oder eine Konsequenz beschrieben werden muss (knapp, 1-3 Sätze).",
+    "7. Nutze in `speakers` ausschließlich exakte IDs aus REISEGRUPPE oder ORTS-BEWOHNER.",
   ].join("\n");
 
   const prompt = expandMacros(
@@ -163,20 +240,25 @@ async function runGameMasterDirector(
       prompt,
     });
 
-    const validIds = new Set(characters.map((c) => c.id));
+    const validCharIds = new Set(allPresent.map((c) => c.id));
+    const validLocIds = new Set(allLocations.map((l) => l.id));
     const filteredSpeakers = (result.output.speakers ?? [])
-      .filter((id) => validIds.has(id))
+      .filter((id) => validCharIds.has(id))
       .slice(0, 3);
+
+    const nextLoc = result.output.nextLocationId && validLocIds.has(result.output.nextLocationId) ? result.output.nextLocationId : undefined;
 
     return {
       ...result.output,
       speakers: filteredSpeakers,
+      extras: (result.output.extras ?? []).slice(0, 2),
+      nextLocationId: nextLoc,
     };
   } catch {
-    // Fallback: reply with mentioned characters or the first character in the scene
-    const mentioned = detectMentionedCharacters(userText, characters);
+    const mentioned = detectMentionedCharacters(userText, allPresent);
     return {
-      speakers: mentioned.length > 0 ? mentioned.slice(0, 2) : [characters[0].id],
+      speakers: mentioned.length > 0 ? mentioned.slice(0, 2) : (allPresent[0] ? [allPresent[0].id] : []),
+      extras: [],
     };
   }
 }
@@ -184,12 +266,21 @@ async function runGameMasterDirector(
 async function generateCharacterReply(
   char: Character,
   session: StorySession,
-  location: Location | null,
+  locationChain: Location[],
+  allLocations: Location[],
   persona: Persona | null,
-  allCharacters: Character[],
+  partyCharacters: Character[],
+  residentCharacters: Character[],
 ): Promise<string> {
   const model = resolveTextModel(char.modelId || session.modelId);
-  const contextBlock = buildContextHeader(location, persona, allCharacters, session.sceneState);
+  const contextBlock = buildContextHeader(
+    locationChain,
+    allLocations,
+    persona,
+    partyCharacters,
+    residentCharacters,
+    session.sceneState,
+  );
   const historyBlock = formatHistoryForPrompt(session.messages);
 
   const systemPrompt = [
@@ -226,8 +317,9 @@ async function generateCharacterReply(
 }
 
 /**
- * Executes a full group-chat turn: optional user message, Game Master orchestration,
- * and replies from the selected characters (or a single forced speaker).
+ * Executes a full group-chat turn: optional user message, Game Master orchestration
+ * (supporting location transitions, party + location residents, and spontaneous extras),
+ * and replies from the selected characters.
  */
 export async function runStoryTurn(options: {
   session: StorySession;
@@ -239,14 +331,26 @@ export async function runStoryTurn(options: {
     messages: [...options.session.messages],
   };
 
-  const [location, persona, gm, allCharacters] = await Promise.all([
-    getLocation(session.locationId),
+  const [allLocations, persona, gm, allCharacters] = await Promise.all([
+    listLocations(),
     session.personaId ? getPersona(session.personaId) : Promise.resolve(null),
     getGameMaster(session.gameMasterId),
     listCharacters(),
   ]);
 
-  const activeCharacters = allCharacters.filter((c) => session.characterIds.includes(c.id));
+  let locationChain = resolveLocationChain(session.locationId, allLocations);
+  let currentLocation = locationChain[locationChain.length - 1] ?? null;
+
+  const partyCharacters = allCharacters.filter((c) => session.characterIds.includes(c.id));
+  const getResidentsFor = (loc: Location | null): Character[] => {
+    if (!loc || !Array.isArray(loc.residentIds)) return [];
+    const partySet = new Set(session.characterIds);
+    return allCharacters.filter((c) => loc.residentIds.includes(c.id) && !partySet.has(c.id));
+  };
+
+  let residentCharacters = getResidentsFor(currentLocation);
+  let allPresent = [...partyCharacters, ...residentCharacters];
+
   const addedMessages: SessionMessage[] = [];
   const now = () => new Date().toISOString();
 
@@ -266,13 +370,21 @@ export async function runStoryTurn(options: {
     addedMessages.push(userMsg);
   }
 
-  // Direct nudge for a specific character
+  // Direct nudge for a specific character (party or current location resident)
   if (options.forceCharacterId) {
-    const target = activeCharacters.find((c) => c.id === options.forceCharacterId);
+    const target = allPresent.find((c) => c.id === options.forceCharacterId);
     if (!target) {
-      throw new Error("Ausgewählter Charakter ist nicht in dieser Szene.");
+      throw new Error("Ausgewählter Charakter ist aktuell nicht anwesend.");
     }
-    const reply = await generateCharacterReply(target, session, location, persona, activeCharacters);
+    const reply = await generateCharacterReply(
+      target,
+      session,
+      locationChain,
+      allLocations,
+      persona,
+      partyCharacters,
+      residentCharacters,
+    );
     if (reply) {
       const msg: SessionMessage = {
         id: crypto.randomUUID(),
@@ -294,11 +406,22 @@ export async function runStoryTurn(options: {
   const plan = await runGameMasterDirector(
     gm,
     session,
-    location,
+    locationChain,
+    allLocations,
     persona,
-    activeCharacters,
+    partyCharacters,
+    residentCharacters,
     cleanUserText,
   );
+
+  // Apply location transition if Game Master decided the party moved
+  if (plan.nextLocationId && plan.nextLocationId !== session.locationId) {
+    session.locationId = plan.nextLocationId;
+    locationChain = resolveLocationChain(session.locationId, allLocations);
+    currentLocation = locationChain[locationChain.length - 1] ?? null;
+    residentCharacters = getResidentsFor(currentLocation);
+    allPresent = [...partyCharacters, ...residentCharacters];
+  }
 
   if (plan.narrationBefore?.trim()) {
     const narMsg: SessionMessage = {
@@ -314,9 +437,17 @@ export async function runStoryTurn(options: {
   }
 
   for (const speakerId of plan.speakers) {
-    const char = activeCharacters.find((c) => c.id === speakerId);
+    const char = allPresent.find((c) => c.id === speakerId);
     if (!char) continue;
-    const reply = await generateCharacterReply(char, session, location, persona, activeCharacters);
+    const reply = await generateCharacterReply(
+      char,
+      session,
+      locationChain,
+      allLocations,
+      persona,
+      partyCharacters,
+      residentCharacters,
+    );
     if (!reply) continue;
     const charMsg: SessionMessage = {
       id: crypto.randomUUID(),
@@ -329,6 +460,18 @@ export async function runStoryTurn(options: {
     };
     session.messages.push(charMsg);
     addedMessages.push(charMsg);
+  }
+
+  for (const extra of plan.extras) {
+    const extraMsg: SessionMessage = {
+      id: crypto.randomUUID(),
+      kind: "character",
+      speakerName: extra.role ? `${extra.name} (${extra.role})` : extra.name,
+      content: extra.dialogue,
+      createdAt: now(),
+    };
+    session.messages.push(extraMsg);
+    addedMessages.push(extraMsg);
   }
 
   if (plan.narrationAfter?.trim()) {

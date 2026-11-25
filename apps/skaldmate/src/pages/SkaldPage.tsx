@@ -177,18 +177,25 @@ export const SkaldPage = () => {
             </template>
           </div>
 
-          {/* TAB: ORTE */}
-          <div x-show="sidebarTab === 'locations'" class="space-y-2" style="display: none;">
-            <button type="button" class="btn btn-outline btn-xs w-full" x-on:click="newLocationForm">
+          {/* TAB: ORTE (BAUM) */}
+          <div x-show="sidebarTab === 'locations'" class="space-y-1.5" style="display: none;">
+            <button type="button" class="btn btn-outline btn-xs w-full mb-1" x-on:click="newLocationForm">
               + Neuer Ort
             </button>
-            <template x-for="l in locations" x-bind:key="l.id">
+            <template x-for="l in locationTree" x-bind:key="l.id">
               <div
-                class="flex items-center justify-between px-2.5 py-2 rounded-lg hover:bg-base-300 cursor-pointer text-sm"
+                class="flex items-center justify-between gap-2 px-2.5 py-2 rounded-lg hover:bg-base-300 cursor-pointer text-sm"
+                x-bind:style="'padding-left: ' + (10 + l.depth * 14) + 'px'"
                 x-bind:data-id="l.id"
                 x-on:click="editLocationItem"
               >
-                <span class="truncate" x-text="'📍 ' + l.name" />
+                <span class="truncate" x-text="(l.depth > 0 ? '└─ ' : '📍 ') + l.name" />
+                <span
+                  x-show="l.residentIds && l.residentIds.length > 0"
+                  class="badge badge-xs badge-ghost font-mono"
+                  x-text="l.residentIds ? l.residentIds.length + ' NPC' : ''"
+                  style="display: none;"
+                />
               </div>
             </template>
           </div>
@@ -509,12 +516,43 @@ export const SkaldPage = () => {
                     <span class="label-text text-xs mb-1">Ortsname</span>
                     <input
                       type="text"
-                      placeholder="z. B. Wohnung, Stadt, Wald"
+                      placeholder="z. B. Wohnung, Stadt, Taverne"
                       class="input input-sm input-bordered"
                       x-model="locationForm.name"
                       required
                     />
                   </label>
+                  <label class="form-control">
+                    <span class="label-text text-xs mb-1">Übergeordneter Ort (Ortsbaum, optional)</span>
+                    <select class="select select-sm select-bordered" x-model="locationForm.parentId">
+                      <option value="">(Kein übergeordneter Ort / Wurzel)</option>
+                      <template x-for="l in locations" x-bind:key="l.id">
+                        <option
+                          x-bind:value="l.id"
+                          x-bind:disabled="l.id === locationForm.id"
+                          x-text="l.name"
+                        />
+                      </template>
+                    </select>
+                  </label>
+                  <div>
+                    <span class="label-text text-xs block mb-1.5">Ortsgebundene NPCs (z. B. Barkeeper, Händler)</span>
+                    <div class="flex flex-wrap gap-1.5">
+                      <template x-for="c in characters" x-bind:key="c.id">
+                        <button
+                          type="button"
+                          class="btn btn-xs"
+                          x-bind:class="isResidentSelected(c.id) ? 'btn-primary' : 'btn-outline'"
+                          x-bind:data-id="c.id"
+                          x-on:click="toggleLocationResident"
+                          x-text="c.name"
+                        />
+                      </template>
+                      <span x-show="characters.length === 0" class="text-xs opacity-60">
+                        Noch keine Charaktere angelegt.
+                      </span>
+                    </div>
+                  </div>
                   <label class="form-control">
                     <span class="label-text text-xs mb-1">Beschreibung des Ortes</span>
                     <textarea
@@ -645,7 +683,10 @@ export const SkaldPage = () => {
               </div>
 
               <div>
-                <span class="label-text text-xs block mb-2">Anwesende Charaktere (NPCs)</span>
+                <span class="label-text text-xs block mb-1">Reisegruppe (Begleiter, die von Ort zu Ort mitkommen)</span>
+                <p class="text-[11px] opacity-60 mb-2">
+                  Ortsgebundene NPCs (z. B. Barkeeper) stoßen je nach besuchter Location automatisch dazu.
+                </p>
                 <div class="flex flex-wrap gap-2">
                   <template x-for="c in characters" x-bind:key="c.id">
                     <button
@@ -701,16 +742,26 @@ export const SkaldPage = () => {
 
         {/* VIEW C: ACTIVE GROUP CHAT */}
         <section x-show="viewMode === 'chat'" class="flex-1 flex flex-col overflow-hidden" style="display: none;">
-          {/* Active Cast Bar (click character to nudge reply) */}
+          {/* Active Cast Bar (location switch + party + location residents) */}
           <div class="px-4 py-2 bg-base-200/60 border-b border-base-content/10 flex flex-wrap items-center gap-2 text-xs">
-            <span class="opacity-60">In der Szene:</span>
+            <select
+              class="select select-xs select-bordered bg-base-100 font-semibold"
+              x-bind:value="activeSession ? activeSession.locationId : ''"
+              x-on:change="changeSessionLocation"
+              title="Aktuellen Ort wechseln"
+            >
+              <template x-for="l in locationTree" x-bind:key="l.id">
+                <option x-bind:value="l.id" x-text="(l.depth > 0 ? '↳ ' : '📍 ') + l.name" />
+              </template>
+            </select>
+            <span class="opacity-60">Gruppe:</span>
             <template x-for="c in activeCast" x-bind:key="c.id">
               <button
                 type="button"
                 class="badge badge-sm badge-outline hover:badge-primary cursor-pointer gap-1.5 py-2.5"
                 x-bind:data-id="c.id"
                 x-on:click="nudgeCharacter"
-                title="Klicken, um diesen Charakter direkt antworten zu lassen"
+                title="Begleiter – klicken zum Antworten"
               >
                 <img
                   x-show="c.portraitFile"
@@ -719,6 +770,26 @@ export const SkaldPage = () => {
                   style="display: none;"
                 />
                 <span x-text="c.name" />
+              </button>
+            </template>
+            <template x-if="activeResidents.length > 0">
+              <span class="opacity-60 ml-1">Vor Ort:</span>
+            </template>
+            <template x-for="r in activeResidents" x-bind:key="r.id">
+              <button
+                type="button"
+                class="badge badge-sm badge-secondary badge-outline hover:badge-secondary cursor-pointer gap-1.5 py-2.5"
+                x-bind:data-id="r.id"
+                x-on:click="nudgeCharacter"
+                title="Orts-NPC – klicken zum Antworten"
+              >
+                <img
+                  x-show="r.portraitFile"
+                  x-bind:src="'./api/assets/' + r.portraitFile"
+                  class="w-4 h-4 rounded-full object-cover"
+                  style="display: none;"
+                />
+                <span x-text="'📍 ' + r.name" />
               </button>
             </template>
           </div>

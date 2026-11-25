@@ -152,6 +152,8 @@ skaldApi.post("/characters/:id/portrait", async (c) => {
 const locationBody = z.object({
   id: z.string().optional(),
   name: z.string().min(1),
+  parentId: z.string().optional(),
+  residentIds: z.array(z.string()).default([]),
   description: z.string().default(""),
   atmosphere: z.string().default(""),
   details: z.string().default(""),

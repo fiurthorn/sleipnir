@@ -42,6 +42,8 @@ export type Character = z.infer<typeof characterSchema>;
 export const locationSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
+  parentId: z.string().optional(),
+  residentIds: z.array(z.string()).default([]),
   description: z.string().default(""),
   atmosphere: z.string().default(""),
   details: z.string().default(""),
