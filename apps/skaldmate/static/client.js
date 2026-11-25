@@ -239,6 +239,8 @@ document.addEventListener("alpine:init", () => {
       event?.stopPropagation?.();
       const id = event?.currentTarget?.dataset?.id;
       if (!id) return;
+      const target = this.sessions.find((s) => s.id === id);
+      if (!confirm(`Szene "${target?.title || id}" wirklich endgültig löschen?`)) return;
       await fetch(`./api/sessions/${encodeURIComponent(id)}`, { method: "DELETE" });
       this.sessions = this.sessions.filter((s) => s.id !== id);
       if (this.activeSession?.id === id) {
@@ -481,6 +483,7 @@ document.addEventListener("alpine:init", () => {
     },
     async deleteCharacterForm() {
       if (!this.charForm.id) return;
+      if (!confirm(`Charakter "${this.charForm.name || this.charForm.id}" wirklich löschen?`)) return;
       await fetch(`./api/characters/${encodeURIComponent(this.charForm.id)}`, { method: "DELETE" });
       await this.loadAll();
       this.closeEditor();
@@ -567,6 +570,7 @@ document.addEventListener("alpine:init", () => {
     },
     async deletePersonaForm() {
       if (!this.personaForm.id) return;
+      if (!confirm(`Persona "${this.personaForm.name || this.personaForm.id}" wirklich löschen?`)) return;
       await fetch(`./api/personas/${encodeURIComponent(this.personaForm.id)}`, { method: "DELETE" });
       await this.loadAll();
       this.closeEditor();
@@ -672,6 +676,7 @@ document.addEventListener("alpine:init", () => {
     },
     async deleteLocationForm() {
       if (!this.locationForm.id) return;
+      if (!confirm(`Ort "${this.locationForm.name || this.locationForm.id}" wirklich löschen?`)) return;
       await fetch(`./api/locations/${encodeURIComponent(this.locationForm.id)}`, { method: "DELETE" });
       await this.loadAll();
       this.closeEditor();
@@ -707,6 +712,7 @@ document.addEventListener("alpine:init", () => {
     },
     async deleteGmForm() {
       if (!this.gmForm.id) return;
+      if (!confirm(`Spielleiter "${this.gmForm.name || this.gmForm.id}" wirklich löschen?`)) return;
       await fetch(`./api/gamemasters/${encodeURIComponent(this.gmForm.id)}`, { method: "DELETE" });
       await this.loadAll();
       this.closeEditor();
