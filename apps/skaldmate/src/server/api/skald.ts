@@ -9,7 +9,13 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { getAvailableModels } from "../services/config.ts";
 import { runStoryTurn } from "../services/director.ts";
-import { buildCharacterPortraitPrompt, buildPersonaPortraitPrompt, buildSceneImagePrompt, generateAndSaveImage } from "../services/image.ts";
+import {
+  buildCharacterPortraitPrompt,
+  buildLocationImagePrompt,
+  buildPersonaPortraitPrompt,
+  buildSceneImagePrompt,
+  generateAndSaveImage,
+} from "../services/image.ts";
 import {
   deleteCharacter,
   deleteGameMaster,
@@ -149,6 +155,9 @@ const locationBody = z.object({
   description: z.string().default(""),
   atmosphere: z.string().default(""),
   details: z.string().default(""),
+  defaultSceneState: z.string().default(""),
+  imagePrompt: z.string().default(""),
+  imageFile: z.string().optional(),
 });
 
 skaldApi.get("/locations", async (c) => c.json({ items: await listLocations() }));
@@ -164,6 +173,30 @@ skaldApi.post("/locations", async (c) => {
 skaldApi.delete("/locations/:id", async (c) => {
   const ok = await deleteLocation(c.req.param("id"));
   return ok ? c.json({ ok: true }) : c.json({ error: "Nicht gefunden" }, 404);
+});
+
+skaldApi.post("/locations/:id/image", async (c) => {
+  const loc = await getLocation(c.req.param("id"));
+  if (!loc) return c.json({ error: "Ort nicht gefunden" }, 404);
+  const body = await c.req.json().catch(() => ({})) as { prompt?: string; imageModelId?: string };
+  const prompt = body.prompt?.trim() || loc.imagePrompt?.trim() || buildLocationImagePrompt(loc);
+
+  try {
+    const fileName = await generateAndSaveImage({
+      prompt,
+      modelId: body.imageModelId,
+      filePrefix: `loc_${loc.id}`,
+      aspectRatio: "16:9",
+    });
+    const updated = await saveLocation({
+      ...loc,
+      imageFile: fileName,
+      imagePrompt: prompt,
+    });
+    return c.json({ item: updated, fileName });
+  } catch (err) {
+    return c.json({ error: err instanceof Error ? err.message : "Bildfehler" }, 500);
+  }
 });
 
 // Game Masters
@@ -211,9 +244,11 @@ skaldApi.get("/sessions/:id", async (c) => {
 skaldApi.post("/sessions", async (c) => {
   const parsed = createSessionBody.safeParse(await c.req.json().catch(() => undefined));
   if (!parsed.success) return c.json({ error: parsed.error.message }, 400);
+  const loc = await getLocation(parsed.data.locationId);
   const now = new Date().toISOString();
   const item = await saveSession({
     ...parsed.data,
+    sceneState: parsed.data.sceneState || loc?.defaultSceneState || "",
     id: crypto.randomUUID().slice(0, 12),
     messages: [],
     createdAt: now,

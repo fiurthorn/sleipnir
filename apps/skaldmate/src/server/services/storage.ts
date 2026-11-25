@@ -78,7 +78,7 @@ async function seedDefaultsIfEmpty(): Promise<void> {
   // Default simple Locations
   const existingLocations = await listYamlEntities(LOCATIONS_DIR, locationSchema);
   if (existingLocations.length === 0) {
-    const defaults: Location[] = [
+    const defaults: Array<Parameters<typeof saveLocation>[0]> = [
       {
         id: "wohnung",
         name: "Die Wohnung",
@@ -267,7 +267,13 @@ export async function getLocation(id: string): Promise<Location | null> {
   return readYamlEntity(LOCATIONS_DIR, id, locationSchema);
 }
 
-export async function saveLocation(input: Omit<Location, "updatedAt"> & { updatedAt?: string }): Promise<Location> {
+export async function saveLocation(
+  input: Omit<Location, "updatedAt" | "defaultSceneState" | "imagePrompt"> & {
+    defaultSceneState?: string;
+    imagePrompt?: string;
+    updatedAt?: string;
+  },
+): Promise<Location> {
   await initSkaldStorage();
   const data = locationSchema.parse({
     ...input,

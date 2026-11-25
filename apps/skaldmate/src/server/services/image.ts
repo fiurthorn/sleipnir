@@ -149,6 +149,21 @@ export function buildCharacterPortraitPrompt(char: Character): string {
 }
 
 /**
+ * Builds an atmospheric environment prompt from a location sheet.
+ */
+export function buildLocationImagePrompt(location: Location): string {
+  return [
+    `Atmospheric environment illustration of ${location.name}`,
+    location.description ? location.description : "",
+    location.atmosphere ? `Atmosphere: ${location.atmosphere}` : "",
+    location.details ? `Details: ${location.details}` : "",
+    "wide shot, detailed environment art, cinematic lighting, no people, no text, no watermark",
+  ]
+    .filter(Boolean)
+    .join(". ");
+}
+
+/**
  * Builds a scene illustration prompt from the current location, characters, and latest messages.
  */
 export function buildSceneImagePrompt(

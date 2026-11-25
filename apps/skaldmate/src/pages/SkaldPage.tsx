@@ -474,27 +474,84 @@ export const SkaldPage = () => {
               {/* Location Editor */}
               <template x-if="editorType === 'location'">
                 <form x-on:submit="saveLocationForm" class="flex flex-col gap-3">
-                  <h2 class="font-bold text-lg">Ort / Location</h2>
-                  <input
-                    type="text"
-                    placeholder="Ortsname (z. B. Wohnung, Stadt, Wald)"
-                    class="input input-sm input-bordered"
-                    x-model="locationForm.name"
-                    required
-                  />
-                  <textarea
-                    rows={3}
-                    placeholder="Beschreibung des Ortes"
-                    class="textarea textarea-sm textarea-bordered"
-                    x-model="locationForm.description"
-                  />
-                  <input type="text" placeholder="Atmosphäre / Stimmung" class="input input-sm input-bordered" x-model="locationForm.atmosphere" />
-                  <textarea
-                    rows={2}
-                    placeholder="Wichtige Details / Objekte"
-                    class="textarea textarea-sm textarea-bordered"
-                    x-model="locationForm.details"
-                  />
+                  <div class="flex justify-between items-center">
+                    <h2 class="font-bold text-lg">Ort / Location</h2>
+                    <button
+                      x-show="locationForm.id"
+                      type="button"
+                      class="btn btn-xs btn-outline"
+                      x-bind:disabled="locationImageLoading"
+                      x-on:click="generateLocationImage"
+                    >
+                      <span x-show="locationImageLoading" class="loading loading-spinner loading-xs" style="display: none;" />
+                      <span>🖼 Ortsbild generieren</span>
+                    </button>
+                  </div>
+                  <div
+                    x-show="locationForm.imageFile"
+                    class="rounded-xl overflow-hidden border border-base-content/15 max-w-md"
+                    style="display: none;"
+                  >
+                    <img
+                      x-bind:src="locationForm.imageFile ? './api/assets/' + locationForm.imageFile : ''"
+                      class="w-full h-auto object-cover"
+                    />
+                  </div>
+                  <label class="form-control">
+                    <span class="label-text text-xs mb-1">Ortsname</span>
+                    <input
+                      type="text"
+                      placeholder="z. B. Wohnung, Stadt, Wald"
+                      class="input input-sm input-bordered"
+                      x-model="locationForm.name"
+                      required
+                    />
+                  </label>
+                  <label class="form-control">
+                    <span class="label-text text-xs mb-1">Beschreibung des Ortes</span>
+                    <textarea
+                      rows={3}
+                      placeholder="Wie sieht der Ort aus? Architektur, Einrichtung, Umgebung..."
+                      class="textarea textarea-sm textarea-bordered"
+                      x-model="locationForm.description"
+                    />
+                  </label>
+                  <label class="form-control">
+                    <span class="label-text text-xs mb-1">Atmosphäre / Licht / Geräusche</span>
+                    <input
+                      type="text"
+                      placeholder="z. B. warmes Lampenlicht, entferntes Straßenrauschen"
+                      class="input input-sm input-bordered"
+                      x-model="locationForm.atmosphere"
+                    />
+                  </label>
+                  <label class="form-control">
+                    <span class="label-text text-xs mb-1">Wichtige Details / Requisiten</span>
+                    <textarea
+                      rows={2}
+                      placeholder="z. B. Esstisch, offener Balkon, knarrende Dielen"
+                      class="textarea textarea-sm textarea-bordered"
+                      x-model="locationForm.details"
+                    />
+                  </label>
+                  <label class="form-control">
+                    <span class="label-text text-xs mb-1">Standard-Startzustand für neue Szenen (optional)</span>
+                    <textarea
+                      rows={2}
+                      placeholder="z. B. Später Abend, draußen nieselt es leicht."
+                      class="textarea textarea-sm textarea-bordered"
+                      x-model="locationForm.defaultSceneState"
+                    />
+                  </label>
+                  <label class="form-control">
+                    <span class="label-text text-xs mb-1">Ortsbild-Prompt (optional)</span>
+                    <textarea
+                      rows={2}
+                      placeholder="Wird sonst automatisch aus Beschreibung & Atmosphäre erzeugt..."
+                      class="textarea textarea-sm textarea-bordered font-mono text-xs"
+                      x-model="locationForm.imagePrompt"
+                    />
+                  </label>
                   <div class="flex justify-end gap-2 pt-2">
                     <button x-show="locationForm.id" type="button" class="btn btn-xs btn-error btn-outline mr-auto" x-on:click="deleteLocationForm">
                       Löschen

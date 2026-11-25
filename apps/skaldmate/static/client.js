@@ -28,6 +28,7 @@ document.addEventListener("alpine:init", () => {
     imageLoading: false,
     portraitLoading: false,
     personaPortraitLoading: false,
+    locationImageLoading: false,
 
     newSessionForm: {
       title: "",
@@ -54,7 +55,7 @@ document.addEventListener("alpine:init", () => {
       portraitFile: "",
     },
     personaForm: { id: "", name: "", role: "", appearance: "", traits: "", background: "", portraitFile: "", isDefault: false },
-    locationForm: { id: "", name: "", description: "", atmosphere: "", details: "" },
+    locationForm: { id: "", name: "", description: "", atmosphere: "", details: "", defaultSceneState: "", imagePrompt: "", imageFile: "" },
     gmForm: { id: "", name: "", style: "neutral", systemPrompt: "", modelId: "" },
 
     async init() {
@@ -434,7 +435,7 @@ document.addEventListener("alpine:init", () => {
 
     // Location CRUD
     newLocationForm() {
-      this.locationForm = { id: "", name: "", description: "", atmosphere: "", details: "" };
+      this.locationForm = { id: "", name: "", description: "", atmosphere: "", details: "", defaultSceneState: "", imagePrompt: "", imageFile: "" };
       this.editorType = "location";
       this.viewMode = "editor";
       this.mobileMenuOpen = false;
@@ -443,7 +444,12 @@ document.addEventListener("alpine:init", () => {
       const id = event?.currentTarget?.dataset?.id;
       const l = this.locations.find((x) => x.id === id);
       if (!l) return;
-      this.locationForm = { ...l };
+      this.locationForm = {
+        ...l,
+        defaultSceneState: l.defaultSceneState || "",
+        imagePrompt: l.imagePrompt || "",
+        imageFile: l.imageFile || "",
+      };
       this.editorType = "location";
       this.viewMode = "editor";
       this.mobileMenuOpen = false;
@@ -453,11 +459,46 @@ document.addEventListener("alpine:init", () => {
       const res = await fetch("./api/locations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(this.locationForm),
+        body: JSON.stringify({
+          ...this.locationForm,
+          imageFile: this.locationForm.imageFile || undefined,
+        }),
       });
       if (res.ok) {
+        const data = await res.json();
+        this.locationForm = {
+          ...data.item,
+          defaultSceneState: data.item.defaultSceneState || "",
+          imagePrompt: data.item.imagePrompt || "",
+          imageFile: data.item.imageFile || "",
+        };
         await this.loadAll();
-        this.closeEditor();
+      }
+    },
+    async generateLocationImage() {
+      if (!this.locationForm.id || this.locationImageLoading) return;
+      this.locationImageLoading = true;
+      try {
+        const res = await fetch(`./api/locations/${encodeURIComponent(this.locationForm.id)}/image`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            prompt: this.locationForm.imagePrompt || undefined,
+            imageModelId: this.newSessionForm.imageModelId || undefined,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          alert(data.error || "Ortsbild-Fehler");
+          return;
+        }
+        this.locationForm.imageFile = data.fileName;
+        if (data.item?.imagePrompt) {
+          this.locationForm.imagePrompt = data.item.imagePrompt;
+        }
+        await this.loadAll();
+      } finally {
+        this.locationImageLoading = false;
       }
     },
     async deleteLocationForm() {
