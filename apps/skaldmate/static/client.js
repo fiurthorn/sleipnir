@@ -1,0 +1,423 @@
+/**
+ * @project Sleipnir Stack / Skaldmate
+ * @authors Stefan & Sam (AI Peer)
+ * @collaboration Erarbeitet im gemeinschaftlichen Dialog.
+ * Architektur & Review: Stefan | Implementation & Synthese: Sam
+ */
+
+document.addEventListener("alpine:init", () => {
+  Alpine.data("skaldmate", () => ({
+    mobileMenuOpen: false,
+    sidebarTab: "sessions", // "sessions" | "characters" | "personas" | "locations" | "gamemasters"
+    viewMode: "new-session", // "new-session" | "chat" | "editor"
+    editorType: "",
+
+    textModels: [],
+    imageModels: [],
+    personas: [],
+    characters: [],
+    locations: [],
+    gameMasters: [],
+    sessions: [],
+    activeSession: null,
+
+    showNotesPanel: false,
+    sceneStateDraft: "",
+    chatInput: "",
+    turnLoading: false,
+    imageLoading: false,
+    portraitLoading: false,
+
+    newSessionForm: {
+      title: "",
+      locationId: "",
+      personaId: "",
+      characterIds: [],
+      gameMasterId: "chronist",
+      modelId: "",
+      imageModelId: "",
+    },
+
+    charForm: { id: "", name: "", role: "", appearance: "", personality: "", goals: "", speechStyle: "", modelId: "", portraitFile: "" },
+    personaForm: { id: "", name: "", role: "", appearance: "", traits: "", background: "" },
+    locationForm: { id: "", name: "", description: "", atmosphere: "", details: "" },
+    gmForm: { id: "", name: "", style: "neutral", systemPrompt: "", modelId: "" },
+
+    async init() {
+      await this.loadAll();
+      if (this.sessions.length > 0) {
+        this.activeSession = this.sessions[0];
+        this.sceneStateDraft = this.activeSession.sceneState || "";
+        this.viewMode = "chat";
+      }
+    },
+
+    async loadAll() {
+      const [cfgRes, pRes, cRes, lRes, gRes, sRes] = await Promise.all([
+        fetch("./api/config"),
+        fetch("./api/personas"),
+        fetch("./api/characters"),
+        fetch("./api/locations"),
+        fetch("./api/gamemasters"),
+        fetch("./api/sessions"),
+      ]);
+      if (cfgRes.ok) {
+        const cfg = await cfgRes.json();
+        const models = cfg.models || [];
+        this.textModels = models.filter((m) => m.type === "text");
+        this.imageModels = models.filter((m) => m.type === "image");
+        if (!this.newSessionForm.modelId && this.textModels.length > 0) {
+          this.newSessionForm.modelId = this.textModels[0].id;
+        }
+        if (!this.newSessionForm.imageModelId && this.imageModels.length > 0) {
+          this.newSessionForm.imageModelId = this.imageModels[0].id;
+        }
+      }
+      if (pRes.ok) this.personas = (await pRes.json()).items || [];
+      if (cRes.ok) this.characters = (await cRes.json()).items || [];
+      if (lRes.ok) {
+        this.locations = (await lRes.json()).items || [];
+        if (!this.newSessionForm.locationId && this.locations.length > 0) {
+          this.newSessionForm.locationId = this.locations[0].id;
+        }
+      }
+      if (gRes.ok) {
+        this.gameMasters = (await gRes.json()).items || [];
+        if (this.gameMasters.length > 0 && !this.gameMasters.some((g) => g.id === this.newSessionForm.gameMasterId)) {
+          this.newSessionForm.gameMasterId = this.gameMasters[0].id;
+        }
+      }
+      if (sRes.ok) this.sessions = (await sRes.json()).items || [];
+    },
+
+    openMobileMenu() { this.mobileMenuOpen = true; },
+    closeMobileMenu() { this.mobileMenuOpen = false; },
+    setTabSessions() { this.sidebarTab = "sessions"; },
+    setTabCharacters() { this.sidebarTab = "characters"; },
+    setTabPersonas() { this.sidebarTab = "personas"; },
+    setTabLocations() { this.sidebarTab = "locations"; },
+    setTabGameMasters() { this.sidebarTab = "gamemasters"; },
+
+    get activeLocationName() {
+      if (!this.activeSession) return "";
+      const loc = this.locations.find((l) => l.id === this.activeSession.locationId);
+      return loc ? loc.name : this.activeSession.locationId;
+    },
+
+    get activeCast() {
+      if (!this.activeSession) return [];
+      const ids = this.activeSession.characterIds || [];
+      return this.characters.filter((c) => ids.includes(c.id));
+    },
+
+    openNewSession() {
+      this.viewMode = "new-session";
+      this.mobileMenuOpen = false;
+    },
+
+    isCharSelectedForNew(id) {
+      return this.newSessionForm.characterIds.includes(id);
+    },
+
+    toggleNewSessionChar(event) {
+      const id = event?.currentTarget?.dataset?.id;
+      if (!id) return;
+      if (this.newSessionForm.characterIds.includes(id)) {
+        this.newSessionForm.characterIds = this.newSessionForm.characterIds.filter((x) => x !== id);
+      } else {
+        this.newSessionForm.characterIds = [...this.newSessionForm.characterIds, id];
+      }
+    },
+
+    async createSession(event) {
+      event?.preventDefault?.();
+      const res = await fetch("./api/sessions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(this.newSessionForm),
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      this.sessions = [data.item, ...this.sessions];
+      this.activeSession = data.item;
+      this.sceneStateDraft = data.item.sceneState || "";
+      this.newSessionForm.title = "";
+      this.viewMode = "chat";
+    },
+
+    selectSession(event) {
+      const id = event?.currentTarget?.dataset?.id;
+      const found = this.sessions.find((s) => s.id === id);
+      if (!found) return;
+      this.activeSession = found;
+      this.sceneStateDraft = found.sceneState || "";
+      this.viewMode = "chat";
+      this.mobileMenuOpen = false;
+      this.scrollToBottom();
+    },
+
+    async deleteSessionItem(event) {
+      event?.stopPropagation?.();
+      const id = event?.currentTarget?.dataset?.id;
+      if (!id) return;
+      await fetch(`./api/sessions/${encodeURIComponent(id)}`, { method: "DELETE" });
+      this.sessions = this.sessions.filter((s) => s.id !== id);
+      if (this.activeSession?.id === id) {
+        this.activeSession = this.sessions[0] || null;
+        this.viewMode = this.activeSession ? "chat" : "new-session";
+      }
+    },
+
+    scrollToBottom() {
+      this.$nextTick(() => {
+        const el = document.getElementById("skald-thread");
+        if (el) el.scrollTop = el.scrollHeight;
+      });
+    },
+
+    async sendTurn(event) {
+      event?.preventDefault?.();
+      const msg = this.chatInput.trim();
+      if (!msg || !this.activeSession || this.turnLoading) return;
+      this.chatInput = "";
+      await this.executeTurn({ message: msg });
+    },
+
+    async continueScene() {
+      if (!this.activeSession || this.turnLoading) return;
+      await this.executeTurn({});
+    },
+
+    async nudgeCharacter(event) {
+      const id = event?.currentTarget?.dataset?.id;
+      if (!id || !this.activeSession || this.turnLoading) return;
+      await this.executeTurn({ forceCharacterId: id });
+    },
+
+    async executeTurn(payload) {
+      this.turnLoading = true;
+      try {
+        const res = await fetch(`./api/sessions/${encodeURIComponent(this.activeSession.id)}/turn`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          alert(data.error || "Fehler beim Turn");
+          return;
+        }
+        this.activeSession = data.session;
+        this.sceneStateDraft = data.session.sceneState || "";
+        this.sessions = this.sessions.map((s) => s.id === data.session.id ? data.session : s);
+        this.scrollToBottom();
+      } finally {
+        this.turnLoading = false;
+      }
+    },
+
+    async generateSceneImage() {
+      if (!this.activeSession || this.imageLoading) return;
+      this.imageLoading = true;
+      try {
+        const res = await fetch(`./api/sessions/${encodeURIComponent(this.activeSession.id)}/scene-image`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({}),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          alert(data.error || "Bildgenerierung fehlgeschlagen");
+          return;
+        }
+        this.activeSession = data.session;
+        this.sessions = this.sessions.map((s) => s.id === data.session.id ? data.session : s);
+        this.scrollToBottom();
+      } finally {
+        this.imageLoading = false;
+      }
+    },
+
+    toggleNotesPanel() {
+      this.showNotesPanel = !this.showNotesPanel;
+    },
+
+    async saveSceneState() {
+      if (!this.activeSession) return;
+      const res = await fetch(`./api/sessions/${encodeURIComponent(this.activeSession.id)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sceneState: this.sceneStateDraft }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        this.activeSession = data.item;
+        this.sessions = this.sessions.map((s) => s.id === data.item.id ? data.item : s);
+      }
+    },
+
+    closeEditor() {
+      this.viewMode = this.activeSession ? "chat" : "new-session";
+    },
+
+    // Character CRUD
+    newCharacterForm() {
+      this.charForm = { id: "", name: "", role: "", appearance: "", personality: "", goals: "", speechStyle: "", modelId: "", portraitFile: "" };
+      this.editorType = "character";
+      this.viewMode = "editor";
+      this.mobileMenuOpen = false;
+    },
+    editCharacterItem(event) {
+      const id = event?.currentTarget?.dataset?.id;
+      const c = this.characters.find((x) => x.id === id);
+      if (!c) return;
+      this.charForm = { ...c, modelId: c.modelId || "", portraitFile: c.portraitFile || "" };
+      this.editorType = "character";
+      this.viewMode = "editor";
+      this.mobileMenuOpen = false;
+    },
+    async saveCharacterForm(event) {
+      event?.preventDefault?.();
+      const res = await fetch("./api/characters", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...this.charForm, modelId: this.charForm.modelId || undefined, portraitFile: this.charForm.portraitFile || undefined }),
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      this.charForm = { ...data.item, modelId: data.item.modelId || "", portraitFile: data.item.portraitFile || "" };
+      await this.loadAll();
+    },
+    async deleteCharacterForm() {
+      if (!this.charForm.id) return;
+      await fetch(`./api/characters/${encodeURIComponent(this.charForm.id)}`, { method: "DELETE" });
+      await this.loadAll();
+      this.closeEditor();
+    },
+    async generatePortrait() {
+      if (!this.charForm.id || this.portraitLoading) return;
+      this.portraitLoading = true;
+      try {
+        const res = await fetch(`./api/characters/${encodeURIComponent(this.charForm.id)}/portrait`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ imageModelId: this.newSessionForm.imageModelId || undefined }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          alert(data.error || "Porträt-Fehler");
+          return;
+        }
+        this.charForm.portraitFile = data.fileName;
+        await this.loadAll();
+      } finally {
+        this.portraitLoading = false;
+      }
+    },
+
+    // Persona CRUD
+    newPersonaForm() {
+      this.personaForm = { id: "", name: "", role: "", appearance: "", traits: "", background: "" };
+      this.editorType = "persona";
+      this.viewMode = "editor";
+      this.mobileMenuOpen = false;
+    },
+    editPersonaItem(event) {
+      const id = event?.currentTarget?.dataset?.id;
+      const p = this.personas.find((x) => x.id === id);
+      if (!p) return;
+      this.personaForm = { ...p };
+      this.editorType = "persona";
+      this.viewMode = "editor";
+      this.mobileMenuOpen = false;
+    },
+    async savePersonaForm(event) {
+      event?.preventDefault?.();
+      const res = await fetch("./api/personas", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(this.personaForm),
+      });
+      if (res.ok) {
+        await this.loadAll();
+        this.closeEditor();
+      }
+    },
+    async deletePersonaForm() {
+      if (!this.personaForm.id) return;
+      await fetch(`./api/personas/${encodeURIComponent(this.personaForm.id)}`, { method: "DELETE" });
+      await this.loadAll();
+      this.closeEditor();
+    },
+
+    // Location CRUD
+    newLocationForm() {
+      this.locationForm = { id: "", name: "", description: "", atmosphere: "", details: "" };
+      this.editorType = "location";
+      this.viewMode = "editor";
+      this.mobileMenuOpen = false;
+    },
+    editLocationItem(event) {
+      const id = event?.currentTarget?.dataset?.id;
+      const l = this.locations.find((x) => x.id === id);
+      if (!l) return;
+      this.locationForm = { ...l };
+      this.editorType = "location";
+      this.viewMode = "editor";
+      this.mobileMenuOpen = false;
+    },
+    async saveLocationForm(event) {
+      event?.preventDefault?.();
+      const res = await fetch("./api/locations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(this.locationForm),
+      });
+      if (res.ok) {
+        await this.loadAll();
+        this.closeEditor();
+      }
+    },
+    async deleteLocationForm() {
+      if (!this.locationForm.id) return;
+      await fetch(`./api/locations/${encodeURIComponent(this.locationForm.id)}`, { method: "DELETE" });
+      await this.loadAll();
+      this.closeEditor();
+    },
+
+    // GameMaster CRUD
+    newGmForm() {
+      this.gmForm = { id: "", name: "", style: "neutral", systemPrompt: "", modelId: "" };
+      this.editorType = "gamemaster";
+      this.viewMode = "editor";
+      this.mobileMenuOpen = false;
+    },
+    editGmItem(event) {
+      const id = event?.currentTarget?.dataset?.id;
+      const g = this.gameMasters.find((x) => x.id === id);
+      if (!g) return;
+      this.gmForm = { ...g, modelId: g.modelId || "" };
+      this.editorType = "gamemaster";
+      this.viewMode = "editor";
+      this.mobileMenuOpen = false;
+    },
+    async saveGmForm(event) {
+      event?.preventDefault?.();
+      const res = await fetch("./api/gamemasters", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...this.gmForm, modelId: this.gmForm.modelId || undefined }),
+      });
+      if (res.ok) {
+        await this.loadAll();
+        this.closeEditor();
+      }
+    },
+    async deleteGmForm() {
+      if (!this.gmForm.id) return;
+      await fetch(`./api/gamemasters/${encodeURIComponent(this.gmForm.id)}`, { method: "DELETE" });
+      await this.loadAll();
+      this.closeEditor();
+    },
+  }));
+});

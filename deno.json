@@ -18,6 +18,7 @@
     "dev:chatmate": "deno run -P=app --watch apps/chatmate/main.ts",
     "dev:scanmate": "deno run -P=app --watch apps/scanmate/main.ts",
     "dev:agentmate": "deno run -P=app --unstable-cron --watch apps/agentmate/main.ts",
+    "dev:skaldmate": "deno run -P=app --watch apps/skaldmate/main.ts",
     "check": "deno check packages/**/*.ts apps/**/*.ts apps/**/*.tsx",
     "lint": "deno lint",
     "test": "deno test -P=app"

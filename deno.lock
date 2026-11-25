@@ -2095,6 +2095,21 @@
           "npm:zod@^3.24.2"
         ]
       },
+      "apps/skaldmate": {
+        "dependencies": [
+          "jsr:@std/assert@^1.0.19",
+          "jsr:@std/fs@^1.0.8",
+          "jsr:@std/path@^1.0.8",
+          "jsr:@std/yaml@^1.0.12",
+          "npm:@ai-sdk/openai-compatible@2",
+          "npm:@tailwindcss/cli@^4.3.3",
+          "npm:ai@6",
+          "npm:daisyui@^5.7.46",
+          "npm:hono@^4.13.10",
+          "npm:tailwindcss@^4.3.3",
+          "npm:zod@^3.24.2"
+        ]
+      },
       "packages/sleipnir": {
         "dependencies": [
           "jsr:@std/assert@^1.0.19",

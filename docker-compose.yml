@@ -102,6 +102,33 @@ services:
       - sleipnir-net
     restart: unless-stopped
 
+  skaldmate:
+    image: docker.io/denoland/deno:alpine
+    container_name: skaldmate
+    hostname: skaldmate
+    working_dir: /workspace/apps/skaldmate
+    volumes:
+      - .:/workspace:Z
+      - ./data:/workspace/data:Z
+      - deno-cache:/deno-dir
+    environment:
+      - PORT=3006
+      - BASE_PATH=
+      - DENO_DIR=/deno-dir
+    command: ["run", "-P=app", "--watch", "main.ts"]
+    env_file:
+      - path: .env
+        required: false
+      - path: apps/chatmate/.env
+        required: false
+      - path: apps/skaldmate/.env
+        required: false
+    ports:
+      - "3006:3006"
+    networks:
+      - sleipnir-net
+    restart: unless-stopped
+
 volumes:
   deno-cache:
     name: sleipnir-deno-cache
