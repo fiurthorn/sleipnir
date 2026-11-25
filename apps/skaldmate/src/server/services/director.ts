@@ -599,6 +599,17 @@ export async function initializeSceneSession(sessionInput: StorySession): Promis
   const allPresent = [...partyCharacters, ...residentCharacters];
   const now = () => new Date().toISOString();
 
+  // Optional static opening message defined directly on the location
+  if (currentLocation?.openingMessage?.trim()) {
+    session.messages.push({
+      id: crypto.randomUUID(),
+      kind: "narrator",
+      speakerName: currentLocation.name,
+      content: expandMacros(currentLocation.openingMessage.trim(), { userName: persona?.name }),
+      createdAt: now(),
+    });
+  }
+
   try {
     const model = resolveTextModel(gm?.modelId || session.modelId);
     if (session.sceneState) {

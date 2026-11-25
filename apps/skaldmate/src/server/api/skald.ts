@@ -159,6 +159,7 @@ const locationBody = z.object({
   description: z.string().default(""),
   atmosphere: z.string().default(""),
   details: z.string().default(""),
+  openingMessage: z.string().default(""),
   defaultSceneState: z.string().default(""),
   imagePrompt: z.string().default(""),
   imageFile: z.string().optional(),

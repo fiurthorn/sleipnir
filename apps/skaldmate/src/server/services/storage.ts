@@ -283,8 +283,9 @@ export async function getLocation(id: string): Promise<Location | null> {
 }
 
 export async function saveLocation(
-  input: Omit<Location, "updatedAt" | "defaultSceneState" | "imagePrompt" | "residentIds"> & {
+  input: Omit<Location, "updatedAt" | "openingMessage" | "defaultSceneState" | "imagePrompt" | "residentIds"> & {
     residentIds?: string[];
+    openingMessage?: string;
     defaultSceneState?: string;
     imagePrompt?: string;
     updatedAt?: string;

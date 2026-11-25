@@ -71,6 +71,7 @@ document.addEventListener("alpine:init", () => {
       description: "",
       atmosphere: "",
       details: "",
+      openingMessage: "",
       defaultSceneState: "",
       imagePrompt: "",
       imageFile: "",
@@ -235,18 +236,15 @@ document.addEventListener("alpine:init", () => {
       this.scrollToBottom();
     },
 
-    async deleteSessionItem(event) {
-      event?.stopPropagation?.();
-      const id = event?.currentTarget?.dataset?.id;
-      if (!id) return;
-      const target = this.sessions.find((s) => s.id === id);
-      if (!confirm(`Szene "${target?.title || id}" wirklich endgültig löschen?`)) return;
+    async deleteActiveSession() {
+      if (!this.activeSession?.id) return;
+      const id = this.activeSession.id;
+      if (!confirm(`Szene "${this.activeSession.title || id}" wirklich endgültig löschen?`)) return;
       await fetch(`./api/sessions/${encodeURIComponent(id)}`, { method: "DELETE" });
       this.sessions = this.sessions.filter((s) => s.id !== id);
-      if (this.activeSession?.id === id) {
-        this.activeSession = this.sessions[0] || null;
-        this.viewMode = this.activeSession ? "chat" : "new-session";
-      }
+      this.activeSession = this.sessions[0] || null;
+      this.showNotesPanel = false;
+      this.viewMode = this.activeSession ? "chat" : "new-session";
     },
 
     scrollToBottom() {
@@ -586,6 +584,7 @@ document.addEventListener("alpine:init", () => {
         description: "",
         atmosphere: "",
         details: "",
+        openingMessage: "",
         defaultSceneState: "",
         imagePrompt: "",
         imageFile: "",
@@ -602,6 +601,7 @@ document.addEventListener("alpine:init", () => {
         ...l,
         parentId: l.parentId || "",
         residentIds: Array.isArray(l.residentIds) ? [...l.residentIds] : [],
+        openingMessage: l.openingMessage || "",
         defaultSceneState: l.defaultSceneState || "",
         imagePrompt: l.imagePrompt || "",
         imageFile: l.imageFile || "",
@@ -641,6 +641,7 @@ document.addEventListener("alpine:init", () => {
           ...data.item,
           parentId: data.item.parentId || "",
           residentIds: Array.isArray(data.item.residentIds) ? [...data.item.residentIds] : [],
+          openingMessage: data.item.openingMessage || "",
           defaultSceneState: data.item.defaultSceneState || "",
           imagePrompt: data.item.imagePrompt || "",
           imageFile: data.item.imageFile || "",

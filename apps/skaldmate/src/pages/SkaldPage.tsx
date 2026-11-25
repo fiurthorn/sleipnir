@@ -109,20 +109,12 @@ export const SkaldPage = () => {
             </button>
             <template x-for="s in sessions" x-bind:key="s.id">
               <div
-                class="group flex items-center justify-between px-3 py-2 rounded-lg text-sm cursor-pointer transition"
+                class="flex items-center justify-between px-3 py-2 rounded-lg text-sm cursor-pointer transition"
                 x-bind:class="activeSession && activeSession.id === s.id ? 'bg-primary text-primary-content font-medium' : 'hover:bg-base-300'"
                 x-bind:data-id="s.id"
                 x-on:click="selectSession"
               >
                 <span class="truncate" x-text="s.title" />
-                <button
-                  type="button"
-                  class="opacity-0 group-hover:opacity-100 hover:text-error px-1 text-xs"
-                  x-bind:data-id="s.id"
-                  x-on:click="deleteSessionItem"
-                >
-                  ✕
-                </button>
               </div>
             </template>
           </div>
@@ -601,6 +593,15 @@ export const SkaldPage = () => {
                     />
                   </label>
                   <label class="flex flex-col gap-1 w-full">
+                    <span class="label-text text-xs mb-1">Initialer Start-Text im Dialog (optional, Makros erlaubt)</span>
+                    <textarea
+                      rows={2}
+                      placeholder="Wird beim Szenenstart direkt als erster Text im Chat angezeigt..."
+                      class="textarea textarea-sm textarea-bordered w-full"
+                      x-model="locationForm.openingMessage"
+                    />
+                  </label>
+                  <label class="flex flex-col gap-1 w-full">
                     <span class="label-text text-xs mb-1">Standard-Startzustand für neue Szenen (optional)</span>
                     <textarea
                       rows={2}
@@ -836,9 +837,12 @@ export const SkaldPage = () => {
 
           {/* Optional Scene State & Compressed Summary Drawer */}
           <div x-show="showNotesPanel" class="px-4 py-3 bg-base-200 border-b border-base-content/10 flex flex-col gap-2" style="display: none;">
-            <div class="flex justify-between items-center text-xs">
+            <div class="flex justify-between items-center text-xs gap-2">
               <span class="font-semibold">Aktueller Szenenzustand (Spielleiter-Notiz)</span>
-              <button type="button" class="btn btn-xs btn-primary" x-on:click="saveSceneState">Speichern</button>
+              <div class="flex items-center gap-2">
+                <button type="button" class="btn btn-xs btn-error btn-outline" x-on:click="deleteActiveSession">🗑 Szene löschen</button>
+                <button type="button" class="btn btn-xs btn-primary" x-on:click="saveSceneState">Speichern</button>
+              </div>
             </div>
             <textarea rows={2} class="textarea textarea-xs textarea-bordered w-full" x-model="sceneStateDraft" />
             <div x-show="compressedSummaryDraft" class="flex flex-col gap-1 pt-1" style="display: none;">
