@@ -236,10 +236,62 @@ export async function savePersona(
   return writeYamlEntity(personasDir, data);
 }
 
+export class EntityInUseError extends Error {
+  constructor(
+    public readonly entityKind: "persona" | "character" | "location" | "gamemaster",
+    public readonly entityId: string,
+    public readonly references: string[],
+  ) {
+    super(`Kann nicht gelöscht werden — noch verknüpft mit: ${references.join(", ")}.`);
+    this.name = "EntityInUseError";
+  }
+}
+
+async function assertEntityUnused(
+  kind: "persona" | "character" | "location" | "gamemaster",
+  id: string,
+): Promise<void> {
+  const safe = sanitizeId(id);
+  if (!safe) return;
+
+  const [sessions, locations] = await Promise.all([
+    listSessions(),
+    kind === "character" || kind === "location" ? listLocations() : Promise.resolve([]),
+  ]);
+
+  const refs: string[] = [];
+
+  for (const s of sessions) {
+    if (
+      (kind === "persona" && s.personaId === safe) ||
+      (kind === "character" && s.characterIds.includes(safe)) ||
+      (kind === "location" && s.locationId === safe) ||
+      (kind === "gamemaster" && s.gameMasterId === safe)
+    ) {
+      refs.push(`Szene "${s.title}"`);
+    }
+  }
+
+  for (const loc of locations) {
+    if (kind === "character" && loc.residentIds.includes(safe)) {
+      refs.push(`Ort "${loc.name}" (Bewohner)`);
+    }
+    if (kind === "location" && loc.parentId === safe) {
+      refs.push(`Unter-Ort "${loc.name}"`);
+    }
+  }
+
+  if (refs.length > 0) {
+    throw new EntityInUseError(kind, safe, refs);
+  }
+}
+
 export async function deletePersona(id: string): Promise<boolean> {
   await initSkaldStorage();
   const safe = sanitizeId(id);
-  return safe ? deleteFileIfExists(join(getDirs().personasDir, `${safe}.yaml`)) : false;
+  if (!safe) return false;
+  await assertEntityUnused("persona", safe);
+  return deleteFileIfExists(join(getDirs().personasDir, `${safe}.yaml`));
 }
 
 // Characters (NPCs)
@@ -275,7 +327,9 @@ export async function saveCharacter(
 export async function deleteCharacter(id: string): Promise<boolean> {
   await initSkaldStorage();
   const safe = sanitizeId(id);
-  return safe ? deleteFileIfExists(join(getDirs().charactersDir, `${safe}.yaml`)) : false;
+  if (!safe) return false;
+  await assertEntityUnused("character", safe);
+  return deleteFileIfExists(join(getDirs().charactersDir, `${safe}.yaml`));
 }
 
 // Locations
@@ -315,7 +369,9 @@ export async function saveLocation(
 export async function deleteLocation(id: string): Promise<boolean> {
   await initSkaldStorage();
   const safe = sanitizeId(id);
-  return safe ? deleteFileIfExists(join(getDirs().locationsDir, `${safe}.yaml`)) : false;
+  if (!safe) return false;
+  await assertEntityUnused("location", safe);
+  return deleteFileIfExists(join(getDirs().locationsDir, `${safe}.yaml`));
 }
 
 // GameMasters
@@ -348,7 +404,9 @@ export async function saveGameMaster(
 export async function deleteGameMaster(id: string): Promise<boolean> {
   await initSkaldStorage();
   const safe = sanitizeId(id);
-  return safe ? deleteFileIfExists(join(getDirs().gamemastersDir, `${safe}.yaml`)) : false;
+  if (!safe) return false;
+  await assertEntityUnused("gamemaster", safe);
+  return deleteFileIfExists(join(getDirs().gamemastersDir, `${safe}.yaml`));
 }
 
 // Sessions (stored as YAML, with legacy .json read compatibility)

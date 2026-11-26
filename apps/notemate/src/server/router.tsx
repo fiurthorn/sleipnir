@@ -54,7 +54,7 @@ export default function App(basePath?: string, developMode: boolean = false) {
 
   // Notes, Kanban and Attachments API
   notesApi(app, storage, basePath);
-  kanbanApi(app, kanban);
+  kanbanApi(app, kanban, basePath);
 
   // MCP Endpoint (Streamable HTTP)
   mountMcp(app, () => createNotemateMcpServer(storage, kanban), "/mcp", {

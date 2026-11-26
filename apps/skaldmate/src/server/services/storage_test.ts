@@ -5,8 +5,21 @@
  * Architektur & Review: Stefan | Implementation & Synthese: Sam
  */
 
-import { assertEquals } from "@std/assert";
-import { getCharacter, getSession, listGameMasters, listLocations, saveCharacter, saveSession, slugifyName } from "./storage.ts";
+import { assertEquals, assertRejects } from "@std/assert";
+import {
+  deleteCharacter,
+  deleteGameMaster,
+  deleteLocation,
+  deleteSession,
+  EntityInUseError,
+  getCharacter,
+  getSession,
+  listGameMasters,
+  listLocations,
+  saveCharacter,
+  saveSession,
+  slugifyName,
+} from "./storage.ts";
 
 Deno.test("slugifyName - normalizes umlauts and special characters", () => {
   assertEquals(slugifyName("Alte Bäckerei & Café"), "alte-baeckerei-cafe");
@@ -61,6 +74,15 @@ Deno.test("storage - seeds default chronist and locations and saves character", 
     const loadedSession = await getSession("szene-1");
     assertEquals(loadedSession?.title, "Testszene");
     assertEquals(loadedSession?.compressedUntilIndex, 0);
+
+    // Referentielle Integrität (RESTRICT): Verknüpfte Entitäten dürfen nicht gelöscht werden
+    await assertRejects(() => deleteCharacter("lena"), EntityInUseError);
+    await assertRejects(() => deleteLocation("wohnung"), EntityInUseError);
+    await assertRejects(() => deleteGameMaster("chronist"), EntityInUseError);
+
+    // Nach Löschen der Session ist das Entfernen des Charakters erlaubt
+    assertEquals(await deleteSession("szene-1"), true);
+    assertEquals(await deleteCharacter("lena"), true);
   } finally {
     if (previousDataDir === undefined) {
       Deno.env.delete("SKALDMATE_DATA_DIR");

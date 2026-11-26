@@ -6,7 +6,7 @@
  */
 
 import { generateText } from "ai";
-import { Hono } from "hono";
+import { type Context, Hono } from "hono";
 import { z } from "zod";
 import { getAvailableModels } from "../services/config.ts";
 import { initializeSceneSession, resolveTextModel, runStoryTurn } from "../services/director.ts";
@@ -23,6 +23,7 @@ import {
   deleteLocation,
   deletePersona,
   deleteSession,
+  EntityInUseError,
   getCharacter,
   getLocation,
   getPersona,
@@ -69,10 +70,20 @@ skaldApi.post("/personas", async (c) => {
   });
   return c.json({ item });
 });
-skaldApi.delete("/personas/:id", async (c) => {
-  const ok = await deletePersona(c.req.param("id"));
-  return ok ? c.json({ ok: true }) : c.json({ error: "Nicht gefunden" }, 404);
-});
+async function handleDeleteEntity(c: Context, deleter: (id: string) => Promise<boolean>) {
+  try {
+    const id = c.req.param("id") ?? "";
+    const ok = await deleter(id);
+    return ok ? c.json({ ok: true }) : c.json({ error: "Nicht gefunden" }, 404);
+  } catch (err) {
+    if (err instanceof EntityInUseError) {
+      return c.json({ error: err.message, references: err.references }, 409);
+    }
+    throw err;
+  }
+}
+
+skaldApi.delete("/personas/:id", (c) => handleDeleteEntity(c, deletePersona));
 
 skaldApi.post("/personas/:id/portrait", async (c) => {
   const persona = await getPersona(c.req.param("id"));
@@ -121,10 +132,7 @@ skaldApi.post("/characters", async (c) => {
   });
   return c.json({ item });
 });
-skaldApi.delete("/characters/:id", async (c) => {
-  const ok = await deleteCharacter(c.req.param("id"));
-  return ok ? c.json({ ok: true }) : c.json({ error: "Nicht gefunden" }, 404);
-});
+skaldApi.delete("/characters/:id", (c) => handleDeleteEntity(c, deleteCharacter));
 
 skaldApi.post("/characters/:id/portrait", async (c) => {
   const char = await getCharacter(c.req.param("id"));
@@ -175,10 +183,7 @@ skaldApi.post("/locations", async (c) => {
   });
   return c.json({ item });
 });
-skaldApi.delete("/locations/:id", async (c) => {
-  const ok = await deleteLocation(c.req.param("id"));
-  return ok ? c.json({ ok: true }) : c.json({ error: "Nicht gefunden" }, 404);
-});
+skaldApi.delete("/locations/:id", (c) => handleDeleteEntity(c, deleteLocation));
 
 skaldApi.post("/locations/:id/image", async (c) => {
   const loc = await getLocation(c.req.param("id"));
@@ -224,10 +229,7 @@ skaldApi.post("/gamemasters", async (c) => {
   });
   return c.json({ item });
 });
-skaldApi.delete("/gamemasters/:id", async (c) => {
-  const ok = await deleteGameMaster(c.req.param("id"));
-  return ok ? c.json({ ok: true }) : c.json({ error: "Nicht gefunden" }, 404);
-});
+skaldApi.delete("/gamemasters/:id", (c) => handleDeleteEntity(c, deleteGameMaster));
 
 // Sessions
 const createSessionBody = z.object({

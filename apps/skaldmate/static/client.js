@@ -615,12 +615,23 @@ document.addEventListener("alpine:init", () => {
       await this.loadAll();
       this.notify(`Charakter "${data.item.name}" gespeichert.`);
     },
-    async deleteCharacterForm() {
-      if (!this.charForm.id) return;
-      if (!confirm(`Charakter "${this.charForm.name || this.charForm.id}" wirklich löschen?`)) return;
-      await fetch(`./api/characters/${encodeURIComponent(this.charForm.id)}`, { method: "DELETE" });
+    async deleteEntityWithGuard(url, confirmMessage) {
+      if (!confirm(confirmMessage)) return;
+      const res = await fetch(url, { method: "DELETE" });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        alert(errData.error || "Löschen fehlgeschlagen.");
+        return;
+      }
       await this.loadAll();
       this.closeEditor();
+    },
+    async deleteCharacterForm() {
+      if (!this.charForm.id) return;
+      await this.deleteEntityWithGuard(
+        `./api/characters/${encodeURIComponent(this.charForm.id)}`,
+        `Charakter "${this.charForm.name || this.charForm.id}" wirklich löschen?`,
+      );
     },
     async generatePortrait() {
       if (!this.charForm.id || this.portraitLoading) return;
@@ -705,10 +716,10 @@ document.addEventListener("alpine:init", () => {
     },
     async deletePersonaForm() {
       if (!this.personaForm.id) return;
-      if (!confirm(`Persona "${this.personaForm.name || this.personaForm.id}" wirklich löschen?`)) return;
-      await fetch(`./api/personas/${encodeURIComponent(this.personaForm.id)}`, { method: "DELETE" });
-      await this.loadAll();
-      this.closeEditor();
+      await this.deleteEntityWithGuard(
+        `./api/personas/${encodeURIComponent(this.personaForm.id)}`,
+        `Persona "${this.personaForm.name || this.personaForm.id}" wirklich löschen?`,
+      );
     },
 
     // Location CRUD
@@ -815,10 +826,10 @@ document.addEventListener("alpine:init", () => {
     },
     async deleteLocationForm() {
       if (!this.locationForm.id) return;
-      if (!confirm(`Ort "${this.locationForm.name || this.locationForm.id}" wirklich löschen?`)) return;
-      await fetch(`./api/locations/${encodeURIComponent(this.locationForm.id)}`, { method: "DELETE" });
-      await this.loadAll();
-      this.closeEditor();
+      await this.deleteEntityWithGuard(
+        `./api/locations/${encodeURIComponent(this.locationForm.id)}`,
+        `Ort "${this.locationForm.name || this.locationForm.id}" wirklich löschen?`,
+      );
     },
 
     // GameMaster CRUD
@@ -853,10 +864,10 @@ document.addEventListener("alpine:init", () => {
     },
     async deleteGmForm() {
       if (!this.gmForm.id) return;
-      if (!confirm(`Spielleiter "${this.gmForm.name || this.gmForm.id}" wirklich löschen?`)) return;
-      await fetch(`./api/gamemasters/${encodeURIComponent(this.gmForm.id)}`, { method: "DELETE" });
-      await this.loadAll();
-      this.closeEditor();
+      await this.deleteEntityWithGuard(
+        `./api/gamemasters/${encodeURIComponent(this.gmForm.id)}`,
+        `Spielleiter "${this.gmForm.name || this.gmForm.id}" wirklich löschen?`,
+      );
     },
   }));
 });

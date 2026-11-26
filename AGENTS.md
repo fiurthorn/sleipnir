@@ -1,7 +1,6 @@
 # 🐎 Sleipnir Workspace — Agenten-Leitfaden & Gesetzbuch
 
-Willkommen im **Sleipnir Monorepo** (Deno 2 + Hono + TSX + Alpine.js + HTMX +
-DaisyUI).\
+Willkommen im **Sleipnir Monorepo** (Deno 2 + Hono + TSX + Alpine.js + DaisyUI).\
 Dieses Dokument definiert die verbindlichen architektonischen Leitplanken,
 Code-Standards und Verhaltensregeln für alle KI-Agenten und Entwickler, die an
 diesem Workspace arbeiten.

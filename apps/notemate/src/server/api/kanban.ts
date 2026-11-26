@@ -6,10 +6,64 @@
  */
 
 import type { Sleipnir, SleipnirContext } from "@sleipnir/core";
+import { buildKanbanCalendarIcs } from "../services/calendar.ts";
 import type { KanbanStorage } from "../services/kanban.ts";
 import { isNsfwUnlocked } from "./nsfw.ts";
 
-export function kanbanApi(app: Sleipnir, kanban: KanbanStorage) {
+async function computeWeakOrStrongEtag(content: string): Promise<string> {
+  const bytes = new TextEncoder().encode(content);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  const hex = Array.from(new Uint8Array(digest))
+    .slice(0, 16)
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+  return `"${hex}"`;
+}
+
+export function kanbanApi(app: Sleipnir, kanban: KanbanStorage, basePath?: string) {
+  const calendarHandler = async (c: SleipnirContext) => {
+    const expectedToken = Deno.env.get("NOTEMATE_CALENDAR_TOKEN")?.trim();
+    if (expectedToken) {
+      const providedToken = c.req.query("token")?.trim();
+      if (providedToken !== expectedToken) {
+        return c.json({ error: "Unauthorized" }, 401);
+      }
+    }
+
+    const configuredBaseUrl = Deno.env.get("NOTEMATE_PUBLIC_URL")?.trim();
+    const requestOrigin = new URL(c.req.url).origin;
+    const normalizedBasePath = basePath ? `/${basePath.replace(/^\/+|\/+$/g, "")}` : "";
+    const baseUrl = configuredBaseUrl || `${requestOrigin}${normalizedBasePath}`;
+
+    try {
+      const ics = await buildKanbanCalendarIcs(kanban, {
+        baseUrl,
+        includeNsfw: true,
+      });
+      const etag = await computeWeakOrStrongEtag(ics);
+      const ifNoneMatch = c.req.header("if-none-match");
+
+      if (ifNoneMatch && ifNoneMatch.split(",").map((v) => v.trim()).includes(etag)) {
+        return c.body(null, 304, {
+          "ETag": etag,
+          "Cache-Control": "public, max-age=3600",
+        });
+      }
+
+      return c.body(ics, 200, {
+        "Content-Type": "text/calendar; charset=utf-8",
+        "Content-Disposition": 'inline; filename="notemate-kanban.ics"',
+        "Cache-Control": "public, max-age=3600",
+        "ETag": etag,
+      });
+    } catch (e) {
+      const err = e instanceof Error ? e.message : "Failed to build calendar feed";
+      return c.json({ error: err }, 500);
+    }
+  };
+
+  app.get("/api/kanban/calendar.ics", calendarHandler);
+  app.get("/calendar.ics", calendarHandler);
   app.get("/api/kanban/boards", async (c: SleipnirContext) => {
     try {
       const boards = await kanban.listBoards({ includeNsfw: isNsfwUnlocked(c) });

@@ -16,7 +16,7 @@ import { modelsApi } from "./api/models.ts";
 
 export default function App(basePath?: string, developMode: boolean = false) {
   console.log(
-    `Starting Notemate with basePath: ${basePath ?? "none"} as ${developMode ? "development" : "production"} mode`,
+    `Starting Chatmate with basePath: ${basePath ?? "none"} as ${developMode ? "development" : "production"} mode`,
   );
 
   const app = new Sleipnir().basePath(basePath ?? "");
