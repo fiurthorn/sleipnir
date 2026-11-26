@@ -5,7 +5,14 @@
  * Architektur & Review: Stefan | Implementation & Synthese: Sam
  */
 
-import type { KanbanStorage } from "./kanban.ts";
+import type { KanbanRecurrence, KanbanStorage } from "./kanban.ts";
+
+const RECURRENCE_RRULE_MAP: Record<KanbanRecurrence, string> = {
+  weekly: "FREQ=WEEKLY",
+  monthly: "FREQ=MONTHLY",
+  quarterly: "FREQ=MONTHLY;INTERVAL=3",
+  yearly: "FREQ=YEARLY",
+};
 
 export interface CalendarIcsOptions {
   baseUrl: string;
@@ -95,6 +102,7 @@ export async function buildKanbanCalendarIcs(
         `DTSTAMP:${dtStamp}`,
         `DTSTART;VALUE=DATE:${dtStart}`,
         `DTEND;VALUE=DATE:${dtEnd}`,
+        ...(card.recurrence ? [`RRULE:${RECURRENCE_RRULE_MAP[card.recurrence]}`] : []),
         `SUMMARY:${escapeIcsText(card.title)}`,
         `DESCRIPTION:${escapeIcsText(boardLink)}`,
         `URL:${boardLink}`,

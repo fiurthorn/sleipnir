@@ -904,7 +904,8 @@ export const NotesPage = () => {
                               x-show="card.dueDate"
                               class="badge badge-xs font-mono gap-1 whitespace-nowrap shrink-0"
                               x-bind:class="isKanbanCardOverdue(card) ? 'badge-error text-error-content' : 'badge-ghost border-base-content/15'"
-                              x-text="'📅 ' + card.dueDate"
+                              x-bind:title="kanbanRecurrenceLabel(card.recurrence)"
+                              x-text="'📅 ' + card.dueDate + (card.recurrence ? ' 🔁' : '')"
                             >
                             </span>
                           </div>
@@ -986,11 +987,32 @@ export const NotesPage = () => {
               <label class="text-xs font-medium opacity-75">
                 Fälligkeitsdatum (optional)
               </label>
-              <input
-                type="date"
-                class="input input-bordered input-sm w-full font-mono text-xs"
-                x-model="kanbanCardFormDueDate"
-              />
+              <div class="flex items-center gap-2">
+                <input
+                  type="date"
+                  class="input input-bordered input-sm flex-1 font-mono text-xs"
+                  x-model="kanbanCardFormDueDate"
+                />
+                <button
+                  type="button"
+                  x-show="kanbanCardFormDueDate && !kanbanCardFormRecurrence && !kanbanCardRecurrencePickerOpen"
+                  x-on:click="kanbanCardRecurrencePickerOpen = true"
+                  class="btn btn-sm btn-outline shrink-0"
+                >
+                  🔁 Wiederholen
+                </button>
+              </div>
+              <select
+                x-show="kanbanCardFormDueDate && (kanbanCardFormRecurrence || kanbanCardRecurrencePickerOpen)"
+                x-model="kanbanCardFormRecurrence"
+                class="select select-bordered select-sm w-full text-xs mt-1"
+              >
+                <option value="">Einmalig (keine Wiederholung)</option>
+                <option value="weekly">Wöchentlich</option>
+                <option value="monthly">Monatlich</option>
+                <option value="quarterly">Quartalsweise</option>
+                <option value="yearly">Jährlich</option>
+              </select>
             </div>
 
             <div class="flex flex-col gap-1">

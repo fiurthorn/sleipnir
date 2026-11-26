@@ -19,6 +19,9 @@ export const DEFAULT_KANBAN_COLUMNS: readonly string[] = [
 const BOARD_ID_REGEX = /^[a-z0-9][a-z0-9_-]{0,63}$/i;
 const DUE_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
+export type KanbanRecurrence = "weekly" | "monthly" | "quarterly" | "yearly";
+const VALID_RECURRENCES = new Set<KanbanRecurrence>(["weekly", "monthly", "quarterly", "yearly"]);
+
 export interface KanbanCard {
   id: string;
   title: string;
@@ -27,6 +30,7 @@ export interface KanbanCard {
   tags: string[];
   description: string;
   dueDate?: string;
+  recurrence?: KanbanRecurrence;
   createdAt: string;
   updatedAt: string;
 }
@@ -61,6 +65,7 @@ export interface CreateCardInput {
   tags?: string[];
   description?: string;
   dueDate?: string | null;
+  recurrence?: KanbanRecurrence | string | null;
 }
 
 export interface UpdateCardInput {
@@ -70,6 +75,7 @@ export interface UpdateCardInput {
   tags?: string[];
   description?: string;
   dueDate?: string | null;
+  recurrence?: KanbanRecurrence | string | null;
 }
 
 export interface OverdueCardEntry {
@@ -102,6 +108,16 @@ export function normalizeDueDate(raw?: string | null): string | undefined {
     throw new Error("Ungültiges Kalenderdatum.");
   }
   return trimmed;
+}
+
+function normalizeRecurrence(raw?: string | null): KanbanRecurrence | undefined {
+  if (raw === undefined || raw === null) return undefined;
+  const trimmed = raw.trim();
+  if (!trimmed) return undefined;
+  if (!VALID_RECURRENCES.has(trimmed as KanbanRecurrence)) {
+    throw new Error(`Ungültige Wiederholung '${raw}'. Erlaubt: weekly, monthly, quarterly, yearly.`);
+  }
+  return trimmed as KanbanRecurrence;
 }
 
 export function isCardOverdue(card: KanbanCard, today = getLocalDateIso()): boolean {
@@ -243,6 +259,8 @@ export class KanbanStorage {
       const now = new Date().toISOString();
 
       const dueDate = typeof c.dueDate === "string" && DUE_DATE_REGEX.test(c.dueDate.trim()) ? c.dueDate.trim() : undefined;
+      const rawRecurrence = typeof c.recurrence === "string" ? c.recurrence.trim() : "";
+      const recurrence = VALID_RECURRENCES.has(rawRecurrence as KanbanRecurrence) ? (rawRecurrence as KanbanRecurrence) : undefined;
 
       cards.push({
         id: typeof c.id === "string" && c.id.trim() ? c.id.trim() : this.generateCardId(),
@@ -252,6 +270,7 @@ export class KanbanStorage {
         tags: normalizeTags(Array.isArray(c.tags) ? c.tags.filter((t): t is string => typeof t === "string") : []),
         description: typeof c.description === "string" ? c.description : "",
         ...(dueDate ? { dueDate } : {}),
+        ...(dueDate && recurrence ? { recurrence } : {}),
         createdAt: typeof c.createdAt === "string" ? c.createdAt : now,
         updatedAt: typeof c.updatedAt === "string" ? c.updatedAt : now,
       });
@@ -404,6 +423,7 @@ export class KanbanStorage {
       const existingInCol = board.cards.filter((c) => c.column === targetCol);
       const now = new Date().toISOString();
       const dueDate = normalizeDueDate(input.dueDate);
+      const recurrence = dueDate ? normalizeRecurrence(input.recurrence) : undefined;
       const card: KanbanCard = {
         id: this.generateCardId(),
         title,
@@ -412,6 +432,7 @@ export class KanbanStorage {
         tags: normalizeTags(input.tags),
         description: typeof input.description === "string" ? input.description : "",
         ...(dueDate ? { dueDate } : {}),
+        ...(recurrence ? { recurrence } : {}),
         createdAt: now,
         updatedAt: now,
       };
@@ -460,6 +481,16 @@ export class KanbanStorage {
           card.dueDate = nextDueDate;
         } else {
           delete card.dueDate;
+          delete card.recurrence;
+        }
+      }
+
+      if (patch.recurrence !== undefined) {
+        const nextRecurrence = card.dueDate ? normalizeRecurrence(patch.recurrence) : undefined;
+        if (nextRecurrence) {
+          card.recurrence = nextRecurrence;
+        } else {
+          delete card.recurrence;
         }
       }
 

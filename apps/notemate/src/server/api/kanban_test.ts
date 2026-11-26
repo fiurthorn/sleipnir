@@ -100,6 +100,7 @@ Deno.test("kanbanApi - serves ICS calendar feed with title-only summary, server 
       body: JSON.stringify({
         title: "Steuererklärung abgeben",
         dueDate: "2026-12-01",
+        recurrence: "quarterly",
         description: "Geheimer Body mit Details, der nicht ins ICS darf",
       }),
     });
@@ -116,6 +117,7 @@ Deno.test("kanbanApi - serves ICS calendar feed with title-only summary, server 
     assertEquals(body.includes("SUMMARY:Steuererklärung abgeben"), true);
     assertEquals(body.includes("DTSTART;VALUE=DATE:20261201"), true);
     assertEquals(body.includes("DTEND;VALUE=DATE:20261202"), true);
+    assertEquals(body.includes("RRULE:FREQ=MONTHLY;INTERVAL=3"), true);
     assertEquals(body.includes("DESCRIPTION:https://notes.tailnet.ts.net/?board=projekte"), true);
     assertEquals(body.includes("Geheimer Body"), false);
 

@@ -146,7 +146,7 @@ export function kanbanApi(app: Sleipnir, kanban: KanbanStorage, basePath?: strin
       return c.json({ error: "Body must be an object" }, 400);
     }
 
-    const { title, column, tags, description, dueDate } = body as Record<string, unknown>;
+    const { title, column, tags, description, dueDate, recurrence } = body as Record<string, unknown>;
     if (typeof title !== "string" || !title.trim()) {
       return c.json({ error: "Title must be a non-empty string" }, 400);
     }
@@ -158,6 +158,7 @@ export function kanbanApi(app: Sleipnir, kanban: KanbanStorage, basePath?: strin
         tags: Array.isArray(tags) ? tags.filter((t): t is string => typeof t === "string") : undefined,
         description: typeof description === "string" ? description : undefined,
         dueDate: typeof dueDate === "string" ? dueDate : undefined,
+        recurrence: recurrence === null || typeof recurrence === "string" ? recurrence : undefined,
       });
       return c.json({ ok: true, card }, 201);
     } catch (e) {
@@ -184,7 +185,7 @@ export function kanbanApi(app: Sleipnir, kanban: KanbanStorage, basePath?: strin
       return c.json({ error: "Body must be an object" }, 400);
     }
 
-    const { title, column, order, tags, description, dueDate } = body as Record<string, unknown>;
+    const { title, column, order, tags, description, dueDate, recurrence } = body as Record<string, unknown>;
 
     try {
       const card = await kanban.updateCard(id, cardId, {
@@ -194,6 +195,7 @@ export function kanbanApi(app: Sleipnir, kanban: KanbanStorage, basePath?: strin
         tags: Array.isArray(tags) ? tags.filter((t): t is string => typeof t === "string") : undefined,
         description: typeof description === "string" ? description : undefined,
         dueDate: dueDate === null || typeof dueDate === "string" ? dueDate : undefined,
+        recurrence: recurrence === null || typeof recurrence === "string" ? recurrence : undefined,
       });
       return c.json({ ok: true, card });
     } catch (e) {

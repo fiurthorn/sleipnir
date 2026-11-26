@@ -104,6 +104,8 @@ document.addEventListener("alpine:init", () => {
     kanbanCardFormTitle: "",
     kanbanCardFormColumn: "Eingang",
     kanbanCardFormDueDate: "",
+    kanbanCardFormRecurrence: "",
+    kanbanCardRecurrencePickerOpen: false,
     kanbanCardFormTags: "",
     kanbanCardFormDescription: "",
     kanbanCardInitialSnapshot: "",
@@ -1376,9 +1378,20 @@ document.addEventListener("alpine:init", () => {
         this.kanbanCardFormTitle,
         this.kanbanCardFormColumn,
         this.kanbanCardFormDueDate,
+        this.kanbanCardFormRecurrence,
         this.kanbanCardFormTags,
         this.kanbanCardFormDescription,
       ]);
+    },
+
+    kanbanRecurrenceLabel(recurrence) {
+      const labels = {
+        weekly: "Wiederholt sich wöchentlich",
+        monthly: "Wiederholt sich monatlich",
+        quarterly: "Wiederholt sich quartalsweise",
+        yearly: "Wiederholt sich jährlich",
+      };
+      return labels[recurrence] || "";
     },
 
     isKanbanCardDirty() {
@@ -1391,6 +1404,8 @@ document.addEventListener("alpine:init", () => {
         this.kanbanCardFormTitle = card.title || "";
         this.kanbanCardFormColumn = card.column || this.kanbanColumns[0] || "Eingang";
         this.kanbanCardFormDueDate = card.dueDate || "";
+        this.kanbanCardFormRecurrence = card.recurrence || "";
+        this.kanbanCardRecurrencePickerOpen = Boolean(card.recurrence);
         this.kanbanCardFormTags = (card.tags || []).join(", ");
         this.kanbanCardFormDescription = card.description || "";
       } else {
@@ -1401,6 +1416,8 @@ document.addEventListener("alpine:init", () => {
           this.kanbanColumns[0] ||
           "Eingang";
         this.kanbanCardFormDueDate = "";
+        this.kanbanCardFormRecurrence = "";
+        this.kanbanCardRecurrencePickerOpen = false;
         this.kanbanCardFormTags = "";
         this.kanbanCardFormDescription = "";
       }
@@ -1428,6 +1445,7 @@ document.addEventListener("alpine:init", () => {
         title,
         column: this.kanbanCardFormColumn,
         dueDate: this.kanbanCardFormDueDate ? this.kanbanCardFormDueDate : null,
+        recurrence: this.kanbanCardFormDueDate && this.kanbanCardFormRecurrence ? this.kanbanCardFormRecurrence : null,
         tags,
         description: this.kanbanCardFormDescription || "",
       };
