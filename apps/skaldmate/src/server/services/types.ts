@@ -7,6 +7,8 @@
 
 import { z } from "zod";
 
+export const voiceGenderSchema = z.enum(["", "female", "male"]).default("");
+
 export const personaSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
@@ -14,6 +16,7 @@ export const personaSchema = z.object({
   appearance: z.string().default(""),
   traits: z.string().default(""),
   background: z.string().default(""),
+  voiceGender: voiceGenderSchema,
   portraitFile: z.string().optional(),
   isDefault: z.boolean().default(false),
   updatedAt: z.string(),
@@ -33,6 +36,7 @@ export const characterSchema = z.object({
   exampleDialogue: z.string().default(""),
   relationships: z.string().default(""),
   portraitPrompt: z.string().default(""),
+  voiceGender: voiceGenderSchema,
   modelId: z.string().optional(),
   portraitFile: z.string().optional(),
   updatedAt: z.string(),
@@ -52,6 +56,8 @@ export const locationSchema = z.object({
   defaultSceneState: z.string().default(""),
   imagePrompt: z.string().default(""),
   imageFile: z.string().optional(),
+  mapPrompt: z.string().default(""),
+  mapFile: z.string().optional(),
   updatedAt: z.string(),
 });
 
@@ -63,6 +69,7 @@ export const gameMasterSchema = z.object({
   style: z.string().default("neutral"),
   narrationFrequency: z.enum(["immer", "dann_und_wann", "nur_bei_aenderungen"]).default("dann_und_wann"),
   systemPrompt: z.string().default(""),
+  voiceGender: voiceGenderSchema,
   modelId: z.string().optional(),
   updatedAt: z.string(),
 });
@@ -94,6 +101,7 @@ export const sessionSchema = z.object({
   imageModelId: z.string().optional(),
   sceneState: z.string().default(""),
   inventory: z.array(z.string()).default([]),
+  variables: z.record(z.string(), z.string()).default({}),
   gmNotes: z.string().default(""),
   resolvedContext: z.string().default(""),
   compressedSummary: z.string().default(""),
@@ -104,3 +112,20 @@ export const sessionSchema = z.object({
 });
 
 export type StorySession = z.infer<typeof sessionSchema>;
+
+export const sceneTemplateSchema = z.object({
+  id: z.string().min(1),
+  title: z.string().min(1),
+  locationId: z.string().min(1),
+  personaId: z.string().optional(),
+  characterIds: z.array(z.string()).default([]),
+  gameMasterId: z.string().min(1).default("chronist"),
+  modelId: z.string().optional(),
+  imageModelId: z.string().optional(),
+  openingMessage: z.string().default(""),
+  sceneState: z.string().default(""),
+  gmNotes: z.string().default(""),
+  updatedAt: z.string(),
+});
+
+export type SceneTemplate = z.infer<typeof sceneTemplateSchema>;

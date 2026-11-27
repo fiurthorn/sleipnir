@@ -1555,15 +1555,36 @@ document.addEventListener("alpine:init", () => {
         loupeRadius * 2,
       );
 
-      // Fadenkreuz
-      ctx.strokeStyle = "rgba(59, 130, 246, 0.9)";
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.moveTo(lx - 14, ly);
-      ctx.lineTo(lx + 14, ly);
-      ctx.moveTo(lx, ly - 14);
-      ctx.lineTo(lx, ly + 14);
-      ctx.stroke();
+      // Fadenkreuz (skaliert mit loupeRadius + Kontrast-Halo für gute Sichtbarkeit)
+      const crossArm = Math.max(24, Math.round(loupeRadius * 0.45));
+      const crossWidth = Math.max(3, Math.round(loupeRadius * 0.045));
+      const centerGap = Math.max(6, Math.round(crossWidth * 1.5));
+
+      const drawCrosshairPath = () => {
+        ctx.beginPath();
+        ctx.moveTo(lx - crossArm, ly);
+        ctx.lineTo(lx - centerGap, ly);
+        ctx.moveTo(lx + centerGap, ly);
+        ctx.lineTo(lx + crossArm, ly);
+        ctx.moveTo(lx, ly - crossArm);
+        ctx.lineTo(lx, ly - centerGap);
+        ctx.moveTo(lx, ly + centerGap);
+        ctx.lineTo(lx, ly + crossArm);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.arc(lx, ly, centerGap, 0, Math.PI * 2);
+        ctx.stroke();
+      };
+
+      ctx.lineCap = "round";
+      ctx.strokeStyle = "rgba(0, 0, 0, 0.85)";
+      ctx.lineWidth = crossWidth + 3;
+      drawCrosshairPath();
+
+      ctx.strokeStyle = "#38bdf8";
+      ctx.lineWidth = crossWidth;
+      drawCrosshairPath();
       ctx.restore();
 
       // 3px-Fokusring

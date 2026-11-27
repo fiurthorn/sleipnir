@@ -112,6 +112,11 @@ Notemate ist deine **hierarchische, ablenkungsfreie Markdown-Ablage** – direkt
    * Resolves and verifies that a relative path stays within the base directory.
    * Throws Error if path escapes the sandbox (Path Traversal Protection).
    */
+  private isWithinDir(targetPath: string, baseDir: string): boolean {
+    const normalizedBase = baseDir.endsWith("/") ? baseDir.slice(0, -1) : baseDir;
+    return targetPath === normalizedBase || targetPath.startsWith(`${normalizedBase}/`);
+  }
+
   private resolveSafePath(relPath: string): string {
     if (!relPath || typeof relPath !== "string") {
       throw new Error("Invalid relative path");
@@ -122,7 +127,7 @@ Notemate ist deine **hierarchische, ablenkungsfreie Markdown-Ablage** – direkt
     const targetPath = resolve(this.baseDir, normalize(cleanRel));
 
     // Guard Clause: Path must be strictly within baseDir
-    if (!targetPath.startsWith(this.baseDir)) {
+    if (!this.isWithinDir(targetPath, this.baseDir)) {
       throw new Error("Access denied: Path escapes notes directory");
     }
 
@@ -298,10 +303,10 @@ Notemate ist deine **hierarchische, ablenkungsfreie Markdown-Ablage** – direkt
     }
     const clean = notePath.replace(/^(\/|\\)+/, "").replace(/\.md$/i, "");
     return clean
-      .split("/")
+      .split(/[/\\]/)
       .map((part) => part.trim().replace(/\s+/g, "_"))
-      .filter(Boolean)
-      .join("/");
+      .filter((part) => Boolean(part) && part !== "." && part !== "..")
+      .join("/") || "default";
   }
 
   /**
@@ -379,13 +384,21 @@ Notemate ist deine **hierarchische, ablenkungsfreie Markdown-Ablage** – direkt
     bytes: Uint8Array,
     notePath?: string,
   ): Promise<{ filename: string; url: string; relPath: string }> {
-    const ext = extname(suggestedName) || ".png";
+    const rawExt = (extname(suggestedName) || ".png").toLowerCase();
+    const allowedExts = new Set([".png", ".jpg", ".jpeg", ".webp", ".gif"]);
+    if (!allowedExts.has(rawExt)) {
+      throw new Error(`Unsupported attachment extension: ${rawExt}`);
+    }
+
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
     const rand = Math.random().toString(36).substring(2, 7);
-    const cleanFilename = `img_${timestamp}_${rand}${ext}`;
+    const cleanFilename = `img_${timestamp}_${rand}${rawExt}`;
 
     const subDir = this.getAttachmentSubdir(notePath);
-    const targetDir = join(this.attachmentsDir, subDir);
+    const targetDir = resolve(this.attachmentsDir, normalize(subDir));
+    if (!this.isWithinDir(targetDir, this.attachmentsDir)) {
+      throw new Error("Access denied: Attachment path escapes attachments directory");
+    }
     await Deno.mkdir(targetDir, { recursive: true });
 
     const filePath = join(targetDir, cleanFilename);
@@ -406,7 +419,8 @@ Notemate ist deine **hierarchische, ablenkungsfreie Markdown-Ablage** – direkt
   async isAttachmentNsfw(relPath: string): Promise<boolean> {
     if (!relPath || typeof relPath !== "string") return false;
 
-    const clean = relPath.replace(/^(\/|\\)+/, "");
+    const clean = normalize(relPath.replace(/^(\/|\\)+/, "")).replace(/\\/g, "/");
+    if (!clean || clean.startsWith("..")) return false;
     const slashIdx = clean.lastIndexOf("/");
     if (slashIdx <= 0) return false;
 
@@ -441,7 +455,7 @@ Notemate ist deine **hierarchische, ablenkungsfreie Markdown-Ablage** – direkt
     const filePath = resolve(this.attachmentsDir, normalize(clean));
 
     // Guard Clause: Prevent path traversal outside attachmentsDir
-    if (!filePath.startsWith(this.attachmentsDir)) {
+    if (!this.isWithinDir(filePath, this.attachmentsDir)) {
       return null;
     }
 
@@ -453,7 +467,7 @@ Notemate ist deine **hierarchische, ablenkungsfreie Markdown-Ablage** – direkt
       // Fallback: check legacy .attachments directory in baseDir
       const legacyBase = join(this.baseDir, ".attachments");
       const legacyPath = resolve(legacyBase, normalize(clean));
-      if (legacyPath.startsWith(legacyBase)) {
+      if (this.isWithinDir(legacyPath, legacyBase)) {
         try {
           const data = await Deno.readFile(legacyPath);
           const ext = extname(legacyPath).toLowerCase();
@@ -471,7 +485,6 @@ Notemate ist deine **hierarchische, ablenkungsfreie Markdown-Ablage** – direkt
     if (ext === ".jpg" || ext === ".jpeg") return "image/jpeg";
     if (ext === ".webp") return "image/webp";
     if (ext === ".gif") return "image/gif";
-    if (ext === ".svg") return "image/svg+xml";
     return "application/octet-stream";
   }
 

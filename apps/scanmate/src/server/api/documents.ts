@@ -19,6 +19,7 @@ import {
   listFolderPaths,
   listPendingScans,
   saveDocument,
+  savePendingPdf,
   savePendingScan,
   submitScanSession,
   updateDocumentMetadata,
@@ -32,7 +33,7 @@ const analyzeBodySchema = z.object({
   pages: z.array(z.string().min(1)).min(
     1,
     "Mindestens eine Seite erforderlich",
-  ),
+  ).max(50, "Maximal 50 Seiten pro Anfrage"),
   model: z.string().optional(),
 });
 
@@ -51,7 +52,7 @@ const saveBodySchema = z.object({
   pages: z.array(z.string().min(1)).min(
     1,
     "Mindestens eine Seite erforderlich",
-  ),
+  ).max(50, "Maximal 50 Seiten pro Dokument"),
 });
 
 // GET /api/folders - Liste aller vorhandenen Unterordner
@@ -68,6 +69,9 @@ api.post("/folders", async (c) => {
     return c.json({ ok: false, error: "Ordnerpfad fehlt" }, 400);
   }
   const created = await createFolder(path);
+  if (!created) {
+    return c.json({ ok: false, error: "Ungültiger Ordnerpfad" }, 400);
+  }
   return c.json({ ok: true, path: created });
 });
 
@@ -183,7 +187,12 @@ api.delete("/documents/:id", async (c) => {
 // GET /api/pdf/* - PDF-Datei streamen/herunterladen (auch in Unterordnern & mit basePath)
 api.get("/pdf/*", async (c) => {
   const match = c.req.path.match(/\/(?:api\/)?pdf\/(.+)$/);
-  const fullPath = match ? decodeURIComponent(match[1]) : "";
+  let fullPath = "";
+  try {
+    fullPath = match ? decodeURIComponent(match[1]) : "";
+  } catch {
+    return c.text("Ungültige URL-Kodierung", 400);
+  }
   if (!fullPath || !fullPath.endsWith(".pdf")) {
     return c.text("Ungültiger Dateiname", 400);
   }
@@ -193,7 +202,7 @@ api.get("/pdf/*", async (c) => {
     return c.text("PDF nicht gefunden", 404);
   }
 
-  const baseFileName = fullPath.split("/").pop() || "document.pdf";
+  const baseFileName = (fullPath.split("/").pop() || "document.pdf").replace(/[^a-zA-Z0-9._-]/g, "_");
 
   return new Response(bytes as unknown as BodyInit, {
     status: 200,
@@ -207,7 +216,12 @@ api.get("/pdf/*", async (c) => {
 // GET /api/preview/* - Seite-1-Vorschaubild eines archivierten PDFs
 api.get("/preview/*", async (c) => {
   const match = c.req.path.match(/\/(?:api\/)?preview\/(.+)$/);
-  const fullPath = match ? decodeURIComponent(match[1]) : "";
+  let fullPath = "";
+  try {
+    fullPath = match ? decodeURIComponent(match[1]) : "";
+  } catch {
+    return c.text("Ungültige URL-Kodierung", 400);
+  }
   if (!fullPath || !fullPath.endsWith(".pdf")) {
     return c.text("Ungültiger Dateiname", 400);
   }
@@ -227,9 +241,13 @@ api.get("/preview/*", async (c) => {
 });
 
 const pendingBodySchema = z.object({
-  pages: z.array(z.string().min(1)).min(1, "Mindestens eine Seite erforderlich"),
+  pages: z.array(z.string().min(1)).max(50, "Maximal 50 Seiten").optional(),
+  pdfBase64: z.string().min(1).max(35_000_000, "PDF überschreitet Größenlimit").optional(),
   label: z.string().optional(),
-});
+}).refine(
+  (d) => (Array.isArray(d.pages) && d.pages.length > 0) || Boolean(d.pdfBase64),
+  "Mindestens eine Seite oder pdfBase64 erforderlich",
+);
 
 // GET /api/pending - Offene Roh-Scans in der Agent-Inbox auflisten
 api.get("/pending", async (c) => {
@@ -237,7 +255,7 @@ api.get("/pending", async (c) => {
   return c.json({ ok: true, items });
 });
 
-// POST /api/pending - Roh-Scan für Agent-Analyse in der Inbox ablegen
+// POST /api/pending - Roh-Scan oder PDF für Agent-Analyse in der Inbox ablegen
 api.post("/pending", async (c) => {
   const raw = await c.req.json().catch(() => undefined);
   const parsed = pendingBodySchema.safeParse(raw);
@@ -245,8 +263,17 @@ api.post("/pending", async (c) => {
     return c.json({ ok: false, error: parsed.error.issues[0]?.message || "Ungültige Eingabe" }, 400);
   }
 
-  const item = await savePendingScan(parsed.data.pages, parsed.data.label);
-  return c.json({ ok: true, item }, 201);
+  try {
+    const item = parsed.data.pdfBase64
+      ? await savePendingPdf(parsed.data.pdfBase64, parsed.data.label)
+      : await savePendingScan(parsed.data.pages ?? [], parsed.data.label);
+    return c.json({ ok: true, item }, 201);
+  } catch (err) {
+    return c.json(
+      { ok: false, error: err instanceof Error ? err.message : "Fehler beim Ablegen in Queue" },
+      400,
+    );
+  }
 });
 
 // DELETE /api/pending/:id - Offenen Roh-Scan verwerfen
@@ -278,7 +305,7 @@ api.post("/sessions/:token/submit", async (c) => {
 
   const result = await submitScanSession(
     c.req.param("token"),
-    parsed.data.pages,
+    parsed.data.pages ?? [],
     parsed.data.label,
   );
   if (!result) {

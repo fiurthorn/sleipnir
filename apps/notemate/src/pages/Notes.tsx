@@ -431,6 +431,20 @@ export const NotesPage = () => {
                 </button>
               </div>
 
+              {/* TTS Read Aloud (Notes only) */}
+              <button
+                type="button"
+                x-show="appMode === 'notes' && notePath"
+                class="btn btn-ghost btn-xs sm:btn-sm px-2 gap-1"
+                x-bind:class="isSpeakingNote ? 'btn-primary text-primary-content' : ''"
+                x-on:click="toggleSpeakNote()"
+                x-bind:title="isSpeakingNote ? 'Vorlesen stoppen' : 'Notiz / Geschichte vorlesen (mit Stimmen aus YAML-Header)'"
+                style="display: none;"
+              >
+                <span x-text="isSpeakingNote ? '⏹' : '🔊'" />
+                <span class="hidden sm:inline text-xs" x-text="isSpeakingNote ? 'Stopp' : 'Vorlesen'" />
+              </button>
+
               {/* Copy Markdown Note Link (Notes only) */}
               <button
                 type="button"

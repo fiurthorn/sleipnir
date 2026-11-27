@@ -128,6 +128,7 @@ export async function streamChatCompletion(
   try {
     const upstreamResponse = await fetch(endpoint, {
       method: "POST",
+      signal: AbortSignal.timeout(90_000),
       headers,
       body: JSON.stringify({
         model: targetModel || req.model,
@@ -196,6 +197,7 @@ export async function generateImage(
     const endpoint = `${provider.baseUrl}/image/generate`;
     const res = await fetch(endpoint, {
       method: "POST",
+      signal: AbortSignal.timeout(90_000),
       headers: {
         "Authorization": `Bearer ${provider.apiKey}`,
         "Content-Type": "application/json",
@@ -231,6 +233,7 @@ export async function generateImage(
   // OpenRouter / OpenAI-compatible image-capable chat/completions endpoint
   const res = await fetch(`${provider.baseUrl}/chat/completions`, {
     method: "POST",
+    signal: AbortSignal.timeout(90_000),
     headers: {
       "Authorization": `Bearer ${provider.apiKey}`,
       "Content-Type": "application/json",

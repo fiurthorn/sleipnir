@@ -5,13 +5,22 @@
  * Architektur & Review: Stefan | Implementation & Synthese: Sam
  */
 
+function escapeCodeHtml(raw) {
+  return String(raw ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 // Configure marked with highlight.js for syntax highlighting
 function configureMarkedHighlight() {
   if (typeof globalThis.marked !== "undefined") {
     globalThis.marked.use({
       renderer: {
         code({ text, lang }) {
-          let highlighted = text;
+          let highlighted = escapeCodeHtml(text);
           const hasHljs = typeof globalThis.hljs !== "undefined";
           const validLang = lang && hasHljs && globalThis.hljs.getLanguage(lang) ? lang : null;
 
@@ -26,16 +35,18 @@ function configureMarkedHighlight() {
                 highlighted = globalThis.hljs.highlightAuto(text).value;
               }
             } catch {
-              highlighted = text;
+              highlighted = escapeCodeHtml(text);
             }
           }
 
           const langBadge = lang
-            ? `<span class="text-[10px] uppercase font-mono opacity-60 px-1.5 py-0.5 rounded bg-base-300/80 select-none">${lang}</span>`
+            ? `<span class="text-[10px] uppercase font-mono opacity-60 px-1.5 py-0.5 rounded bg-base-300/80 select-none">${
+              escapeCodeHtml(lang)
+            }</span>`
             : "";
           const copyBtn =
             `<button type="button" data-copy-code class="btn btn-ghost btn-xs h-6 min-h-0 px-2 text-[10px] font-mono bg-base-300/90 hover:bg-base-300 border border-base-content/15 opacity-80 md:opacity-0 md:group-hover:opacity-100 transition" title="Code kopieren">📋 Kopieren</button>`;
-          const langClass = validLang ? ` language-${validLang}` : "";
+          const langClass = validLang ? ` language-${escapeCodeHtml(validLang)}` : "";
 
           return `<div class="relative group my-3"><pre class="hljs rounded-lg p-4 overflow-x-auto text-xs font-mono leading-relaxed"><code class="${langClass}">${highlighted}</code></pre><div class="absolute top-2 right-2 flex items-center gap-1.5">${langBadge}${copyBtn}</div></div>`;
         },
@@ -126,6 +137,8 @@ document.addEventListener("alpine:init", () => {
     mobileMenuOpen: false,
     isLoading: false,
     isSaving: false,
+    isSpeakingNote: false,
+    speechQueueTimer: null,
     toastMessage: null,
     toastTimeout: null,
 
@@ -497,6 +510,7 @@ document.addEventListener("alpine:init", () => {
 
     async loadNote(path, checkDirty = true) {
       if (!path) return false;
+      this.stopSpeakingNote();
       if (checkDirty && this.isDirty) {
         const confirmSwitch = confirm(
           "Du hast ungespeicherte Änderungen. Möchtest du trotzdem wechseln?",
@@ -1610,6 +1624,175 @@ document.addEventListener("alpine:init", () => {
           this.loadNote(noteParam);
         }
       }
+    },
+
+    parseNoteVoices(raw) {
+      const text = String(raw || "");
+      const match = text.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?/);
+      if (!match) return { voiceMap: {}, body: text };
+      const fm = match[1];
+      const body = text.slice(match[0].length);
+      const voiceMap = {};
+      const lines = fm.split(/\r?\n/);
+      let inVoices = false;
+      for (const line of lines) {
+        if (/^voices:\s*$/.test(line)) {
+          inVoices = true;
+          continue;
+        }
+        if (inVoices) {
+          const kv = line.match(/^\s+([^:]+):\s*(.*)$/);
+          if (!kv) {
+            if (/^\S/.test(line)) inVoices = false;
+            continue;
+          }
+          const speaker = kv[1].trim().replace(/^["']|["']$/g, "");
+          const gender = kv[2].trim().replace(/^["']|["']$/g, "");
+          if (speaker) voiceMap[speaker] = gender;
+        }
+      }
+      return { voiceMap, body };
+    },
+
+    cleanSpeakText(text) {
+      return String(text || "")
+        .replace(/!\[[^\]]*\]\([^)]+\)/g, "")
+        .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+        .replace(/`([^`]+)`/g, "$1")
+        .replace(/\*\*([^*\n]+)\*\*/g, "$1")
+        .replace(/\*([^*\n]+)\*/g, "$1")
+        .replace(/^#+\s+/gm, "")
+        .replace(/^>\s?/gm, "")
+        .trim();
+    },
+
+    buildSpeakSegments(raw) {
+      const { voiceMap, body } = this.parseNoteVoices(raw);
+      const blocks = body.split(/\r?\n\s*\r?\n/);
+      const segments = [];
+      let inCodeBlock = false;
+      for (const rawBlock of blocks) {
+        const block = rawBlock.trim();
+        if (!block) continue;
+        if (block.startsWith("```")) {
+          inCodeBlock = !inCodeBlock;
+          continue;
+        }
+        if (inCodeBlock || /^[-*_]{3,}$/.test(block)) continue;
+
+        const narratorMatch = block.match(/^>\s*\*([^*:\n]+):\*\s*([\s\S]+)$/);
+        if (narratorMatch) {
+          const speaker = narratorMatch[1].trim();
+          const text = this.cleanSpeakText(narratorMatch[2]);
+          if (text) segments.push({ speaker, gender: voiceMap[speaker] || "", text });
+          continue;
+        }
+
+        const speakerMatch = block.match(/^\*\*([^*:\n]+):\*\*\s*([\s\S]+)$/);
+        if (speakerMatch) {
+          const speaker = speakerMatch[1].trim();
+          const text = this.cleanSpeakText(speakerMatch[2]);
+          if (text) segments.push({ speaker, gender: voiceMap[speaker] || "", text });
+          continue;
+        }
+
+        const plainSpeakerMatch = block.match(/^([A-Za-zÄÖÜäöüß0-9 _-]{2,40}):\s+([\s\S]+)$/);
+        if (plainSpeakerMatch && voiceMap[plainSpeakerMatch[1].trim()] !== undefined) {
+          const speaker = plainSpeakerMatch[1].trim();
+          const text = this.cleanSpeakText(plainSpeakerMatch[2]);
+          if (text) segments.push({ speaker, gender: voiceMap[speaker] || "", text });
+          continue;
+        }
+
+        const text = this.cleanSpeakText(block);
+        if (text) segments.push({ speaker: "", gender: "", text });
+      }
+      return segments;
+    },
+
+    pickGermanVoice(voices, gender) {
+      const deVoices = (voices || []).filter((v) => v.lang && v.lang.toLowerCase().startsWith("de"));
+      if (deVoices.length === 0) return { voice: null, matchedGender: false };
+      if (gender === "female") {
+        const match = deVoices.find((v) =>
+          /anna|helena|petra|katja|hedda|marlene|vicki|claire|gisela|sabine|lisa|female|frau|weiblich|deg|deb|dea/i.test(
+            `${v.name} ${v.voiceURI}`,
+          )
+        );
+        if (match) return { voice: match, matchedGender: true };
+        return { voice: deVoices[0], matchedGender: false };
+      }
+      if (gender === "male") {
+        const match = deVoices.find((v) =>
+          /markus|martin|yannick|stefan|conrad|hans|daniel|frank|klaus|male|mann|männlich|ded|def/i.test(
+            `${v.name} ${v.voiceURI}`,
+          )
+        );
+        if (match) return { voice: match, matchedGender: true };
+        return { voice: deVoices[1] || deVoices[0], matchedGender: deVoices.length > 1 };
+      }
+      return { voice: deVoices[0], matchedGender: true };
+    },
+
+    stopSpeakingNote() {
+      if (this.speechQueueTimer) {
+        clearTimeout(this.speechQueueTimer);
+        this.speechQueueTimer = null;
+      }
+      if (typeof window !== "undefined" && "speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
+      }
+      this.isSpeakingNote = false;
+    },
+
+    toggleSpeakNote() {
+      if (typeof window === "undefined" || !("speechSynthesis" in window)) {
+        this.showToast("Sprachausgabe wird von diesem Browser nicht unterstützt.");
+        return;
+      }
+      if (this.isSpeakingNote) {
+        this.stopSpeakingNote();
+        return;
+      }
+      const segments = this.buildSpeakSegments(this.noteContent);
+      if (segments.length === 0) {
+        this.showToast("Kein vorlesbarer Text in dieser Notiz.");
+        return;
+      }
+      window.speechSynthesis.cancel();
+      this.isSpeakingNote = true;
+
+      const speakAt = (idx) => {
+        if (!this.isSpeakingNote || idx >= segments.length) {
+          this.isSpeakingNote = false;
+          return;
+        }
+        const seg = segments[idx];
+        const utter = new SpeechSynthesisUtterance(seg.text);
+        utter.lang = "de-DE";
+        const { voice, matchedGender } = this.pickGermanVoice(window.speechSynthesis.getVoices(), seg.gender);
+        if (voice) utter.voice = voice;
+        if (!matchedGender && seg.gender) {
+          utter.pitch = seg.gender === "female" ? 1.12 : 0.86;
+        }
+        utter.onend = () => {
+          if (!this.isSpeakingNote) return;
+          if (idx + 1 >= segments.length) {
+            this.isSpeakingNote = false;
+            return;
+          }
+          this.speechQueueTimer = setTimeout(() => {
+            this.speechQueueTimer = null;
+            speakAt(idx + 1);
+          }, 450);
+        };
+        utter.onerror = () => {
+          this.isSpeakingNote = false;
+        };
+        window.speechSynthesis.speak(utter);
+      };
+
+      speakAt(0);
     },
   }));
 });

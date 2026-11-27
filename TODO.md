@@ -107,3 +107,19 @@
   - YAML-Frontmatter-Tags in der UI als Chips anzeigen und in der Sidebar danach filtern können.
 - [ ] **ScanMate Optionale Tesseract-Vorab-OCR (bei > N Seiten):**
   - Bei sehr langen Dokumenten optional Text per lokalem `tesseract` vorab extrahieren, um Vision-Tokens zu sparen (zusätzlich zur seitenweisen `page`-Abfrage in `scanmate_get_pending_images`).
+
+---
+
+## 5. Sicherheit, Authentifizierung & Auth-Server (Post-VPN)
+
+> **Kontext:** Aktuell laufen alle Sleipnir-Dienste geschützt im lokalen Netz / VPN (Tailscale + ACLs). Sobald Dienste darüber hinaus exponiert werden, ist eine zentrale Auth-Schicht nötig.
+
+- [ ] **Zentraler Auth-Server / Identity Provider (Optionen für privat):**
+  - _Option A (Proxy-Ebene, geringster Aufwand):_ **Caddy / Traefik + `Tinyauth`** (minimalistisch, 1 Container) oder **`Authelia`** (Passkeys/WebAuthn, 2FA, OIDC) per `forward_auth`; interne Calls über `sleipnir-net` laufen am Proxy vorbei, `/mcp` und `/calendar.ics` über Bearer-Token-Regeln.
+  - _Option B (Sleipnir-nativ, volle Kontrolle):_ Eigener schlanker **`authmate`** (Deno + Hono, Port `3001`) mit **Passkey (WebAuthn) / Passwort** → signiertes `HttpOnly`-Session-Cookie für Browser-UIs plus generierbare/widerrufbare **API-Bearer-Tokens** für MCP-Clients, `agentmate` und `scanmate`-Sessions.
+  - _Option C (Passkey-only OIDC):_ **`Pocket ID`** (~20 MB Container) hinter OAuth2-Proxy/Caddy (für MCP-Clients zusätzlich statische Bearer-Tokens nötig).
+  - _Bewusst ausgeschlossen:_ Keycloak (zu schwer für privat), Cloud-SaaS-Auth wie Auth0/Clerk.
+- [ ] **Zentrale Auth-Middleware in `@sleipnir/core`:**
+  - Einheitliche Prüfung von Session-Cookies (Browser-UI) und Bearer-Tokens (REST-API & `/mcp`-Endpunkte) inkl. `CORS_ORIGIN`-Restriktion statt Wildcard `*`.
+- [ ] **DNS-Rebinding- & Host-Schutz für MCP:**
+  - `Origin`-/`Host`-Header-Validierung in `mountMcp` (`packages/sleipnir/src/mcp.ts`).

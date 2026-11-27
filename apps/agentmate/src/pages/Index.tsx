@@ -31,6 +31,7 @@ export const Index = ({
         <script defer src="./static/sleipnir-client.min.js"></script>
         <script defer src="./static/client.js"></script>
         <script defer src="./static/vendor/alpine.min.js"></script>
+        <script async defer src="https://accounts.google.com/gsi/client"></script>
 
         <script
           dangerouslySetInnerHTML={{

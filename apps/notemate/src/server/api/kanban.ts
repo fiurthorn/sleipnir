@@ -20,12 +20,24 @@ async function computeWeakOrStrongEtag(content: string): Promise<string> {
   return `"${hex}"`;
 }
 
+function constantTimeEqual(a: string, b: string): boolean {
+  const enc = new TextEncoder();
+  const ab = enc.encode(a);
+  const bb = enc.encode(b);
+  const maxLen = Math.max(ab.length, bb.length);
+  let diff = ab.length ^ bb.length;
+  for (let i = 0; i < maxLen; i++) {
+    diff |= (ab[i] ?? 0) ^ (bb[i] ?? 0);
+  }
+  return diff === 0;
+}
+
 export function kanbanApi(app: Sleipnir, kanban: KanbanStorage, basePath?: string) {
   const calendarHandler = async (c: SleipnirContext) => {
     const expectedToken = Deno.env.get("NOTEMATE_CALENDAR_TOKEN")?.trim();
     if (expectedToken) {
-      const providedToken = c.req.query("token")?.trim();
-      if (providedToken !== expectedToken) {
+      const providedToken = c.req.query("token")?.trim() ?? "";
+      if (!providedToken || !constantTimeEqual(providedToken, expectedToken)) {
         return c.json({ error: "Unauthorized" }, 401);
       }
     }
@@ -38,7 +50,7 @@ export function kanbanApi(app: Sleipnir, kanban: KanbanStorage, basePath?: strin
     try {
       const ics = await buildKanbanCalendarIcs(kanban, {
         baseUrl,
-        includeNsfw: true,
+        includeNsfw: false,
       });
       const etag = await computeWeakOrStrongEtag(ics);
       const ifNoneMatch = c.req.header("if-none-match");
@@ -217,6 +229,17 @@ export function kanbanApi(app: Sleipnir, kanban: KanbanStorage, basePath?: strin
     } catch (e) {
       const err = e instanceof Error ? e.message : "Failed to delete card";
       return c.json({ error: err }, 404);
+    }
+  });
+
+  app.get("/api/kanban/overdue", async (c: SleipnirContext) => {
+    const boardId = c.req.query("boardId")?.trim() || undefined;
+    try {
+      const result = await kanban.listOverdueCards({ boardId });
+      return c.json({ count: result.items.length, ...result });
+    } catch (e) {
+      const err = e instanceof Error ? e.message : "Failed to list overdue cards";
+      return c.json({ error: err }, 500);
     }
   });
 }

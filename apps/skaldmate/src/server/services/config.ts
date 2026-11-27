@@ -46,9 +46,9 @@ function ensureEnvLoaded(): void {
   if (envLoaded) return;
   envLoaded = true;
 
+  // Load .env from skaldmate, fallback to workspace root .env (entkoppelt von anderen Apps)
   const candidates = [
     new URL("../../../.env", import.meta.url).pathname,
-    new URL("../../../../chatmate/.env", import.meta.url).pathname,
     new URL("../../../../../.env", import.meta.url).pathname,
   ];
 

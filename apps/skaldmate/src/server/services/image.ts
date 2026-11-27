@@ -12,8 +12,16 @@ import type { Character, Location, Persona, StorySession } from "./types.ts";
 function decodeDataUrl(dataUrl: string): { bytes: Uint8Array; ext: string } {
   const match = dataUrl.match(/^data:image\/([a-zA-Z0-9+.-]+);base64,(.+)$/);
   const extRaw = match ? match[1].toLowerCase() : "png";
+  if (extRaw.includes("svg")) {
+    throw new Error("SVG-Bilder werden aus Sicherheitsgründen nicht unterstützt.");
+  }
   const b64 = match ? match[2] : dataUrl;
-  const bin = atob(b64);
+  let bin: string;
+  try {
+    bin = atob(b64);
+  } catch {
+    throw new Error("Ungültige Base64-Bilddaten.");
+  }
   const bytes = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i++) {
     bytes[i] = bin.charCodeAt(i);
@@ -44,32 +52,24 @@ function findImageProvider(
   return { provider, modelId };
 }
 
-/**
- * Generates an image via Venice AI or OpenRouter and persists it to ./data/skaldmate/assets/.
- */
-export async function generateAndSaveImage(options: {
-  prompt: string;
-  modelId?: string;
-  filePrefix: string;
-  aspectRatio?: "1:1" | "16:9";
-}): Promise<string> {
-  const providers = loadProviderConfig();
-  const { provider, modelId } = findImageProvider(providers, options.modelId);
-  const width = options.aspectRatio === "16:9" ? 1024 : 768;
-  const height = options.aspectRatio === "16:9" ? 576 : 768;
-
-  let dataUrl = "";
-
+async function fetchProviderImageDataUrl(
+  provider: ResolvedProvider,
+  modelId: string,
+  prompt: string,
+  width: number,
+  height: number,
+): Promise<string> {
   if (provider.id === "venice") {
     const res = await fetch(`${provider.baseUrl}/image/generate`, {
       method: "POST",
+      signal: AbortSignal.timeout(90_000),
       headers: {
         "Authorization": `Bearer ${provider.apiKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
         model: modelId,
-        prompt: options.prompt,
+        prompt,
         width,
         height,
         hide_watermark: true,
@@ -84,35 +84,56 @@ export async function generateAndSaveImage(options: {
     if (!Array.isArray(data.images) || data.images.length === 0) {
       throw new Error("Venice AI hat kein Bild zurückgegeben.");
     }
-    dataUrl = `data:image/webp;base64,${data.images[0]}`;
-  } else {
-    // OpenRouter image-capable chat/completions endpoint
-    const res = await fetch(`${provider.baseUrl}/chat/completions`, {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${provider.apiKey}`,
-        "Content-Type": "application/json",
-        "HTTP-Referer": "https://sleipnir.local",
-        "X-Title": "Sleipnir Skaldmate",
-      },
-      body: JSON.stringify({
-        model: modelId,
-        modalities: ["image", "text"],
-        messages: [{ role: "user", content: options.prompt }],
-      }),
-    });
-
-    if (!res.ok) {
-      throw new Error(`${provider.name} Bildfehler: HTTP ${res.status}`);
-    }
-    const data = await res.json();
-    const imgUrl = data?.choices?.[0]?.message?.images?.[0]?.image_url?.url;
-    if (typeof imgUrl !== "string" || !imgUrl.startsWith("data:image/")) {
-      throw new Error(`${provider.name} hat kein Base64-Bild zurückgegeben.`);
-    }
-    dataUrl = imgUrl;
+    return `data:image/webp;base64,${data.images[0]}`;
   }
 
+  // OpenRouter image-capable chat/completions endpoint
+  const res = await fetch(`${provider.baseUrl}/chat/completions`, {
+    method: "POST",
+    signal: AbortSignal.timeout(90_000),
+    headers: {
+      "Authorization": `Bearer ${provider.apiKey}`,
+      "Content-Type": "application/json",
+      "HTTP-Referer": "https://sleipnir.local",
+      "X-Title": "Sleipnir Skaldmate",
+    },
+    body: JSON.stringify({
+      model: modelId,
+      modalities: ["image", "text"],
+      messages: [{ role: "user", content: prompt }],
+    }),
+  });
+
+  if (!res.ok) {
+    throw new Error(`${provider.name} Bildfehler: HTTP ${res.status}`);
+  }
+  const data = await res.json();
+  const imgUrl = data?.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+  if (
+    typeof imgUrl !== "string" ||
+    !imgUrl.startsWith("data:image/") ||
+    imgUrl.startsWith("data:image/svg")
+  ) {
+    throw new Error(`${provider.name} hat kein Base64-Bild zurückgegeben.`);
+  }
+  return imgUrl;
+}
+
+/**
+ * Generates an image via Venice AI or OpenRouter and persists it to ./data/skaldmate/assets/.
+ */
+export async function generateAndSaveImage(options: {
+  prompt: string;
+  modelId?: string;
+  filePrefix: string;
+  aspectRatio?: "1:1" | "16:9";
+}): Promise<string> {
+  const providers = loadProviderConfig();
+  const { provider, modelId } = findImageProvider(providers, options.modelId);
+  const width = options.aspectRatio === "16:9" ? 1024 : 768;
+  const height = options.aspectRatio === "16:9" ? 576 : 768;
+
+  const dataUrl = await fetchProviderImageDataUrl(provider, modelId, options.prompt, width, height);
   const { bytes, ext } = decodeDataUrl(dataUrl);
   const fileName = `${options.filePrefix}_${crypto.randomUUID().slice(0, 8)}.${ext}`;
   return saveAssetBytes(fileName, bytes);
@@ -158,6 +179,26 @@ export function buildLocationImagePrompt(location: Location): string {
     location.atmosphere ? `Atmosphere: ${location.atmosphere}` : "",
     location.details ? `Details: ${location.details}` : "",
     "wide shot, detailed environment art, cinematic lighting, no people, no text, no watermark",
+  ]
+    .filter(Boolean)
+    .join(". ");
+}
+
+/**
+ * Builds a top-down cartography or floorplan prompt from a location and its child locations.
+ */
+export function buildLocationMapPrompt(location: Location, childLocations: Location[] = []): string {
+  const landmarks = childLocations
+    .map((child) => child.description ? `${child.name} (${child.description.slice(0, 80)})` : child.name)
+    .join("; ");
+
+  return [
+    `Detailed top-down RPG map or architectural floorplan of ${location.name}`,
+    location.mapPrompt ? `Spatial layout: ${location.mapPrompt}` : "",
+    !location.mapPrompt && location.description ? `Area overview: ${location.description}` : "",
+    location.details ? `Key features and paths: ${location.details}` : "",
+    landmarks ? `Sub-locations and landmarks to place on the map: ${landmarks}` : "",
+    "bird's-eye view, clean hand-drawn cartography or blueprint layout, clear paths, entrances and landmarks, high readability, no characters, no watermark",
   ]
     .filter(Boolean)
     .join(". ");

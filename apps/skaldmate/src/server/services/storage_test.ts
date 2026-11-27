@@ -5,18 +5,25 @@
  * Architektur & Review: Stefan | Implementation & Synthese: Sam
  */
 
-import { assertEquals, assertRejects } from "@std/assert";
+import { assertEquals, assertRejects, assertStringIncludes } from "@std/assert";
+import { buildLocationMapPrompt } from "./image.ts";
 import {
   deleteCharacter,
   deleteGameMaster,
   deleteLocation,
+  deleteScene,
   deleteSession,
   EntityInUseError,
   getCharacter,
+  getLocation,
+  getScene,
   getSession,
   listGameMasters,
   listLocations,
+  listScenes,
   saveCharacter,
+  saveLocation,
+  saveScene,
   saveSession,
   slugifyName,
 } from "./storage.ts";
@@ -48,6 +55,20 @@ Deno.test("storage - seeds default chronist and locations and saves character", 
 
     const loaded = await getCharacter("lena");
     assertEquals(loaded?.name, "Lena");
+
+    // 1:1 Name-Match auch wenn ID abweicht
+    await saveCharacter({
+      id: "hotel_succubus",
+      name: "Elena Nightshade",
+      role: "Hotelbesitzerin",
+      appearance: "",
+      personality: "",
+      goals: "",
+      speechStyle: "",
+      voiceGender: "female",
+    });
+    const byName = await getCharacter("Elena Nightshade");
+    assertEquals(byName?.id, "hotel_succubus");
 
     const now = new Date().toISOString();
     await saveSession({
@@ -83,6 +104,48 @@ Deno.test("storage - seeds default chronist and locations and saves character", 
     // Nach Löschen der Session ist das Entfernen des Charakters erlaubt
     assertEquals(await deleteSession("szene-1"), true);
     assertEquals(await deleteCharacter("lena"), true);
+
+    // Location mit Landkarte (mapPrompt + mapFile) und Unter-Orten
+    const hafen = await saveLocation({
+      id: "hafenstadt",
+      name: "Hafenstadt",
+      description: "Küstenstadt mit alten Mauern",
+      atmosphere: "Salzige Brise",
+      details: "Pier, Leuchtturm",
+      mapPrompt: "Norden: Altstadt, Süden: Pier und Leuchtturm",
+      mapFile: "locmap_hafenstadt_1234.png",
+    });
+    const taverne = await saveLocation({
+      id: "hafen-taverne",
+      name: "Zum Rostigen Anker",
+      parentId: hafen.id,
+      description: "Kleine Hafenkneipe am Pier",
+      atmosphere: "Rauchig und laut",
+      details: "Holztresen",
+    });
+    const loadedHafen = await getLocation("hafenstadt");
+    assertEquals(loadedHafen?.mapFile, "locmap_hafenstadt_1234.png");
+    assertEquals(loadedHafen?.mapPrompt, "Norden: Altstadt, Süden: Pier und Leuchtturm");
+
+    const mapPrompt = buildLocationMapPrompt(hafen, [taverne]);
+    assertStringIncludes(mapPrompt, "Norden: Altstadt, Süden: Pier und Leuchtturm");
+    assertStringIncludes(mapPrompt, "Zum Rostigen Anker");
+
+    // Szenen-Vorlage speichern, laden, auflisten und löschen
+    const savedScene = await saveScene({
+      id: "hafenkrimi",
+      title: "Hafenkrimi",
+      locationId: hafen.id,
+      characterIds: [],
+      gameMasterId: "chronist",
+      openingMessage: "Nebel liegt über dem Pier.",
+      sceneState: "Später Abend",
+      gmNotes: "Der Kapitän schweigt.",
+    });
+    assertEquals(savedScene.id, "hafenkrimi");
+    assertEquals((await getScene("hafenkrimi"))?.title, "Hafenkrimi");
+    assertEquals((await listScenes()).some((s) => s.id === "hafenkrimi"), true);
+    assertEquals(await deleteScene("hafenkrimi"), true);
   } finally {
     if (previousDataDir === undefined) {
       Deno.env.delete("SKALDMATE_DATA_DIR");

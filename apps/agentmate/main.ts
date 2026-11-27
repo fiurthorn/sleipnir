@@ -7,6 +7,9 @@
 
 import app from "./src/server/router.tsx";
 import { getTriageCronSchedule, runTriageJob } from "./src/server/services/agent.ts";
+import { ensureEnvLoaded } from "./src/server/services/config.ts";
+
+ensureEnvLoaded();
 
 const rawPort = Deno.env.get("PORT") ?? "3005";
 const parsedPort = Number(rawPort);

@@ -5,7 +5,7 @@
  * Architektur & Review: Stefan | Implementation & Synthese: Sam
  */
 
-import { assertEquals } from "@std/assert";
+import { assertEquals, assertThrows } from "@std/assert";
 import { JSONPath } from "./jsonpath.ts";
 
 const sampleData = {
@@ -64,7 +64,7 @@ Deno.test("JSONPath - filter expression", () => {
   const jp = new JSONPath(sampleData);
   const cheapBooks = jp.query("$.store.book[?(@.price < 10)]");
   assertEquals(Array.isArray(cheapBooks), true);
-  assertEquals(cheapBooks.length, 2);
+  assertEquals(Array.isArray(cheapBooks) ? cheapBooks.length : -1, 2);
 });
 
 Deno.test("JSONPath - custom function transformation", () => {
@@ -90,5 +90,17 @@ Deno.test("JSONPath - collector functions (coalesce & join)", () => {
   assertEquals(
     joined,
     "Nigel Rees, Evelyn Waugh, Herman Melville, J. R. R. Tolkien",
+  );
+});
+
+Deno.test("JSONPath - blocks arbitrary code execution in filter expressions", () => {
+  const jp = new JSONPath(sampleData);
+  assertThrows(
+    () => jp.query("$.store.book[?(Deno.exit(1))]"),
+    SyntaxError,
+  );
+  assertThrows(
+    () => jp.query("$.store.book[?(globalThis.pwned = true)]"),
+    SyntaxError,
   );
 });

@@ -50,5 +50,7 @@ export interface SaveDocumentPayload {
   ocrText?: string;
   targetPath?: string; // Optionaler Zielordner
   reviewed?: boolean; // Optional: false für Agent-Ablage ("Zu prüfen")
-  pages: string[]; // Base64 Data URLs (PNG oder JPEG)
+  pages?: string[]; // Base64 Data URLs (PNG oder JPEG)
+  pdfBytes?: Uint8Array; // Optional: direktes Original-PDF (z. B. aus E-Mail-Anhang)
+  pageCount?: number; // Optional: Seitenanzahl bei direktem PDF
 }

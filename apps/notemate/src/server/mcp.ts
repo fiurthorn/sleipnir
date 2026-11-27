@@ -381,9 +381,14 @@ export function createNotemateMcpServer(
           .string()
           .optional()
           .describe("Optionales Fälligkeitsdatum im Format YYYY-MM-DD"),
+        recurrence: z
+          .enum(["weekly", "monthly", "quarterly", "yearly"])
+          .nullable()
+          .optional()
+          .describe("Optionale Wiederholung (weekly, monthly, quarterly, yearly)"),
       },
       MCP_ANNOTATIONS.write,
-      async ({ boardId, title, column, tags, description, dueDate }) => {
+      async ({ boardId, title, column, tags, description, dueDate, recurrence }) => {
         try {
           const card = await kanban.addCard(boardId, {
             title,
@@ -391,6 +396,7 @@ export function createNotemateMcpServer(
             tags,
             description,
             dueDate,
+            recurrence,
           });
           return mcpJson({ created: true, card });
         } catch (err) {
@@ -459,6 +465,11 @@ export function createNotemateMcpServer(
           .describe(
             "Fälligkeitsdatum YYYY-MM-DD (oder null / '' zum Entfernen)",
           ),
+        recurrence: z
+          .enum(["weekly", "monthly", "quarterly", "yearly"])
+          .nullable()
+          .optional()
+          .describe("Wiederholung (weekly, monthly, quarterly, yearly oder null zum Entfernen)"),
       },
       MCP_ANNOTATIONS.writeIdempotent,
       async ({
@@ -469,6 +480,7 @@ export function createNotemateMcpServer(
         tags,
         description,
         dueDate,
+        recurrence,
       }) => {
         try {
           const card = await kanban.updateCard(boardId, cardId, {
@@ -477,6 +489,7 @@ export function createNotemateMcpServer(
             tags,
             description,
             dueDate,
+            recurrence,
           });
           return mcpJson({ updated: true, card });
         } catch (err) {

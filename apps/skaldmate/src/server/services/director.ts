@@ -116,9 +116,27 @@ function formatHistoryForPrompt(session: StorySession, keepRecent = 12): string 
   return blocks.join("\n\n");
 }
 
+function formatMessagesForCompression(
+  messages: SessionMessage[],
+  personaName?: string,
+): string {
+  return messages
+    .map((m) => {
+      if (m.kind === "image") return `[Szene-Bild: ${m.imagePrompt ?? ""}]`;
+      if (m.kind === "narrator") return `[Erzähler]: ${m.content}`;
+      if (m.kind === "user" && personaName) return `${personaName}: ${m.content}`;
+      return `${m.speakerName}: ${m.content}`;
+    })
+    .join("\n");
+}
+
 async function compressSessionHistoryIfNeeded(
   session: StorySession,
-  modelId?: string,
+  options?: {
+    modelId?: string;
+    personaName?: string;
+    gmName?: string;
+  },
 ): Promise<void> {
   const keepRecent = 10;
   const triggerThreshold = 16;
@@ -132,11 +150,24 @@ async function compressSessionHistoryIfNeeded(
   const chunk = session.messages.slice(session.compressedUntilIndex, compressEnd);
   if (chunk.length === 0) return;
 
+  const personaName = options?.personaName?.trim();
+  const gmName = options?.gmName?.trim();
+
   try {
-    const model = resolveTextModel(modelId);
+    const model = resolveTextModel(options?.modelId);
+    const roleHint = [
+      personaName
+        ? `Protagonist (Spieler-Persönlichkeit): "${personaName}". Nutze diesen Namen für den Spieler/Protagonisten (nicht "Du" und niemals den Erzählernamen).`
+        : "",
+      gmName
+        ? `WICHTIG: "${gmName}" ist ausschließlich der Name des Erzählers/Spielleiters, KEINE Figur in der Geschichte — verwende "${gmName}" niemals als Namen für den Protagonisten oder eine andere Figur.`
+        : "",
+    ].filter(Boolean).join("\n");
+
     const prompt = [
+      roleHint,
       session.compressedSummary ? `Bisherige Zusammenfassung:\n${session.compressedSummary}` : "",
-      `Neue Abschnitte, die integriert werden sollen:\n${formatMessagesList(chunk)}`,
+      `Neue Abschnitte, die integriert werden sollen:\n${formatMessagesForCompression(chunk, personaName)}`,
       "Fasse die gesamte Vorgeschichte kompakt, faktentreu und chronologisch in maximal 6 Sätzen zusammen (wichtige Handlungen, Entscheidungen, Stimmungen, neue Fakten). Keine Meta-Kommentare.",
     ]
       .filter(Boolean)
@@ -171,6 +202,24 @@ function resolveLocationChain(locationId: string, allLocations: Location[]): Loc
   return chain;
 }
 
+function getDirectlyConnectedLocations(currentLocation: Location, allLocations: Location[]): Location[] {
+  const parentId = currentLocation.parentId || "";
+  const seen = new Set<string>([currentLocation.id]);
+  const connected: Location[] = [];
+
+  for (const loc of allLocations) {
+    if (seen.has(loc.id)) continue;
+    const isParent = Boolean(parentId) && loc.id === parentId;
+    const isChild = loc.parentId === currentLocation.id;
+    const isSibling = (loc.parentId || "") === parentId;
+    if (isParent || isChild || isSibling) {
+      seen.add(loc.id);
+      connected.push(loc);
+    }
+  }
+  return connected;
+}
+
 function buildContextHeader(
   locationChain: Location[],
   allLocations: Location[],
@@ -191,8 +240,7 @@ function buildContextHeader(
       .filter(Boolean)
       .join(" | ");
 
-    const otherLocs = allLocations
-      .filter((l) => l.id !== currentLocation.id)
+    const connectedLocs = getDirectlyConnectedLocations(currentLocation, allLocations)
       .map((l) => `[${l.id}] ${l.name}`)
       .join(", ");
 
@@ -202,8 +250,9 @@ function buildContextHeader(
         `Beschreibung: ${currentLocation.description}`,
         `Atmosphäre: ${currentLocation.atmosphere}`,
         currentLocation.details ? `Details: ${currentLocation.details}` : "",
+        currentLocation.mapPrompt ? `Räumlicher Aufbau / Karte: ${currentLocation.mapPrompt}` : "",
         parentNotes ? `Übergeordneter Kontext: ${parentNotes}` : "",
-        otherLocs ? `Weitere bekannte Orte (für Ortswechsel): ${otherLocs}` : "",
+        connectedLocs ? `Direkt erreichbare Orte (für Ortswechsel): ${connectedLocs}` : "",
       ]
         .filter(Boolean)
         .join("\n"),
@@ -218,21 +267,25 @@ function buildContextHeader(
     );
   }
 
+  const formatCharacterLine = (c: Character, badge = ""): string => {
+    const details = [
+      c.appearance ? `Aussehen=${c.appearance}` : "",
+      `Persönlichkeit=${c.personality || "—"}`,
+      `Ziele=${c.goals || "—"}`,
+      `Stil=${c.speechStyle || "natürlich"}`,
+    ]
+      .filter(Boolean)
+      .join("; ");
+    return `- [${c.id}] ${c.name}${c.role ? ` (${c.role})` : ""}${badge ? ` ${badge}` : ""}: ${details}`;
+  };
+
   if (partyCharacters.length > 0) {
-    const partyLines = partyCharacters.map((c) =>
-      `- [${c.id}] ${c.name}${c.role ? ` (${c.role})` : ""}: Persönlichkeit=${c.personality || "—"}; Ziele=${c.goals || "—"}; Stil=${
-        c.speechStyle || "natürlich"
-      }`
-    );
+    const partyLines = partyCharacters.map((c) => formatCharacterLine(c));
     parts.push(`REISEGRUPPE (Begleiter, die mitreisen):\n${partyLines.join("\n")}`);
   }
 
   if (residentCharacters.length > 0) {
-    const resLines = residentCharacters.map((c) =>
-      `- [${c.id}] ${c.name}${c.role ? ` (${c.role})` : ""} [Orts-NPC]: Persönlichkeit=${c.personality || "—"}; Ziele=${c.goals || "—"}; Stil=${
-        c.speechStyle || "natürlich"
-      }`
-    );
+    const resLines = residentCharacters.map((c) => formatCharacterLine(c, "[Orts-NPC]"));
     parts.push(`ORTS-BEWOHNER (fest an '${currentLocation?.name ?? "diesem Ort"}' gebunden):\n${resLines.join("\n")}`);
   }
 
@@ -285,7 +338,7 @@ async function runGameMasterDirector(
         session.sceneState,
         session.inventory,
       ),
-      { userName: persona?.name },
+      { userName: persona?.name, vars: session.variables },
     );
   const historyBlock = formatHistoryForPrompt(session);
 
@@ -302,7 +355,7 @@ async function runGameMasterDirector(
     "Deine Aufgabe als Regisseur:",
     "1. Entscheide autark, welche anwesenden Charaktere (aus REISEGRUPPE oder ORTS-BEWOHNER) auf die aktuelle Situation wirklich reagieren (0, 1 oder 2 – NICHT stumpf alle der Reihe nach!).",
     "2. Wenn ein Charakter direkt angesprochen/erwähnt wird, gehört seine ID in `speakers`.",
-    "3. Text in eckigen Klammern [...] sind direkte OOC-Regieanweisungen des Spielers an dich (z. B. Zeitsprung, Ereignis, Ortswechsel). Setze sie in `narrationBefore` / `nextLocationId` / `sceneStateUpdate` um.",
+    "3. Text in eckigen Klammern [...] sind direkte OOC-Regieanweisungen des Spielers an dich (z. B. Zeitsprung, Ereignis, Ortswechsel). Setze sie in `narrationBefore` / `nextLocationId` / `sceneStateUpdate` um. Text in runden Klammern (...) sind stille, unausgesprochene Gedanken (andere Charaktere können sie nicht hören).",
     "4. Wenn die Gruppe explizit an einen anderen bekannten Ort geht, setze `nextLocationId` auf dessen exakte ID.",
     "5. Falls situativ ein spontaner Statist/Gast (z. B. Kellnerin, Passant) etwas sagen sollte, nutze optional `extras` (max. 2).",
     narrationRule,
@@ -385,7 +438,7 @@ async function generateCharacterReply(
     char.exampleDialogue ? `Typische Beispielsätze:\n${char.exampleDialogue}` : "",
     char.relationships ? `Beziehungen zu anderen: ${char.relationships}` : "",
     "Regeln: Antworte auf Deutsch direkt aus der Perspektive von " + char.name +
-    " (Dialog und kurze Handlungen/Gesten, z. B. *sieht sich um*). Sprich niemals für den Spieler oder andere Charaktere. Beginne deine Antwort nicht mit deinem eigenen Namen.",
+    " (Dialog und kurze Handlungen/Gesten, z. B. *sieht sich um*). Text in runden Klammern (...) in Nachrichten des Spielers oder anderer Figuren sind stille, unausgesprochene Gedanken – du kannst sie nicht hören und darfst nicht auf sie reagieren, als wären sie laut gesagt worden. Sprich niemals für den Spieler oder andere Charaktere. Beginne deine Antwort nicht mit deinem eigenen Namen.",
   ]
     .filter(Boolean)
     .join("\n");
@@ -396,16 +449,21 @@ async function generateCharacterReply(
       historyBlock,
       `Wie reagiert ${char.name} jetzt?`,
     ].join("\n\n"),
-    { userName: persona?.name, charName: char.name },
+    { userName: persona?.name, charName: char.name, vars: session.variables },
   );
 
-  const result = await generateText({
-    model,
-    system: systemPrompt,
-    prompt,
-  });
-
-  return result.text.trim();
+  try {
+    const result = await generateText({
+      model,
+      system: systemPrompt,
+      prompt,
+    });
+    return result.text.trim();
+  } catch (err) {
+    const modelLabel = char.modelId || session.modelId || "Standardmodell";
+    const reason = err instanceof Error ? err.message : String(err);
+    throw new Error(`${char.name} (${modelLabel}): ${reason}`);
+  }
 }
 
 /**
@@ -420,6 +478,7 @@ export async function runStoryTurn(options: {
 }): Promise<{ session: StorySession; addedMessages: SessionMessage[] }> {
   const session: StorySession = {
     ...options.session,
+    variables: { ...(options.session.variables || {}) },
     messages: [...options.session.messages],
   };
 
@@ -447,7 +506,7 @@ export async function runStoryTurn(options: {
   const now = () => new Date().toISOString();
 
   const rawUserText = (options.userMessage ?? "").trim();
-  const cleanUserText = rawUserText ? expandMacros(rawUserText, { userName: persona?.name }) : "";
+  const cleanUserText = rawUserText ? expandMacros(rawUserText, { userName: persona?.name, vars: session.variables }) : "";
   if (cleanUserText) {
     const userMsg: SessionMessage = {
       id: crypto.randomUUID(),
@@ -552,7 +611,7 @@ export async function runStoryTurn(options: {
         session.sceneState,
         session.inventory,
       ),
-      { userName: persona?.name },
+      { userName: persona?.name, vars: session.variables },
     );
   }
 
@@ -632,11 +691,15 @@ export async function runStoryTurn(options: {
         session.sceneState,
         session.inventory,
       ),
-      { userName: persona?.name },
+      { userName: persona?.name, vars: session.variables },
     );
   }
 
-  await compressSessionHistoryIfNeeded(session, gm?.modelId || session.modelId);
+  await compressSessionHistoryIfNeeded(session, {
+    modelId: gm?.modelId || session.modelId,
+    personaName: persona?.name,
+    gmName: gm?.name,
+  });
 
   const saved = await saveSession(session);
   return { session: saved, addedMessages };
@@ -681,13 +744,13 @@ export async function initializeSceneSession(
       id: crypto.randomUUID(),
       kind: "narrator",
       speakerName: currentLocation.name,
-      content: expandMacros(currentLocation.openingMessage.trim(), { userName: persona?.name }),
+      content: expandMacros(currentLocation.openingMessage.trim(), { userName: persona?.name, vars: session.variables }),
       createdAt: now(),
     });
   }
 
   // Optional custom opening dialog/prompt provided when creating the scene
-  const cleanCustomOpening = customOpening?.trim() ? expandMacros(customOpening.trim(), { userName: persona?.name }) : "";
+  const cleanCustomOpening = customOpening?.trim() ? expandMacros(customOpening.trim(), { userName: persona?.name, vars: session.variables }) : "";
   if (cleanCustomOpening) {
     session.messages.push({
       id: crypto.randomUUID(),
@@ -701,7 +764,10 @@ export async function initializeSceneSession(
   try {
     const model = resolveTextModel(gm?.modelId || session.modelId);
     if (session.sceneState) {
-      session.sceneState = expandMacros(session.sceneState, { userName: persona?.name });
+      session.sceneState = expandMacros(session.sceneState, { userName: persona?.name, vars: session.variables });
+    }
+    if (session.gmNotes) {
+      session.gmNotes = expandMacros(session.gmNotes, { userName: persona?.name, vars: session.variables });
     }
     const contextBlock = session.resolvedContext ||
       expandMacros(
@@ -714,7 +780,7 @@ export async function initializeSceneSession(
           session.sceneState,
           session.inventory,
         ),
-        { userName: persona?.name },
+        { userName: persona?.name, vars: session.variables },
       );
     session.resolvedContext = contextBlock;
 
@@ -767,10 +833,106 @@ export async function initializeSceneSession(
       speakerId: char.id,
       speakerName: char.name,
       portraitFile: char.portraitFile,
-      content: expandMacros(char.greeting.trim(), { userName: persona?.name, charName: char.name }),
+      content: expandMacros(char.greeting.trim(), { userName: persona?.name, charName: char.name, vars: session.variables }),
       createdAt: now(),
     });
   }
 
   return saveSession(session);
+}
+
+/**
+ * Builds a complete human-readable preview of the initial/current prompt parameters
+ * sent to the Game Master and active characters for a session.
+ */
+export async function buildSessionPromptPreview(session: StorySession): Promise<string> {
+  const [allLocations, persona, gm, allCharacters] = await Promise.all([
+    listLocations(),
+    session.personaId ? getPersona(session.personaId) : Promise.resolve(null),
+    getGameMaster(session.gameMasterId),
+    listCharacters(),
+  ]);
+
+  const locationChain = resolveLocationChain(session.locationId, allLocations);
+  const currentLocation = locationChain[locationChain.length - 1] ?? null;
+  const partyCharacters = allCharacters.filter((c) => session.characterIds.includes(c.id));
+  const partySet = new Set(session.characterIds);
+  const residentCharacters = currentLocation && Array.isArray(currentLocation.residentIds)
+    ? allCharacters.filter((c) => currentLocation.residentIds.includes(c.id) && !partySet.has(c.id))
+    : [];
+  const allPresent = [...partyCharacters, ...residentCharacters];
+
+  const vars = { ...(session.variables || {}) };
+  const macroCtx = { userName: persona?.name, vars };
+
+  const sessionMetaSection = [
+    `=== SZENE & PARAMETER: ${session.title} ===`,
+    `Text-Modell: ${session.modelId || "(Standard)"}`,
+    `Bild-Modell: ${session.imageModelId || "(Standard)"}`,
+    Object.keys(vars).length > 0 ? `Variablen: ${Object.entries(vars).map(([k, v]) => `${k}=${v}`).join(", ")}` : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  const hasResolvedContext = Boolean(session.resolvedContext?.trim());
+  const activeContextBlock = hasResolvedContext ? session.resolvedContext.trim() : expandMacros(
+    buildContextHeader(
+      locationChain,
+      allLocations,
+      persona,
+      partyCharacters,
+      residentCharacters,
+      session.sceneState,
+      session.inventory,
+    ),
+    macroCtx,
+  );
+
+  const gmSection = gm
+    ? [
+      `=== SPIELLEITER: ${gm.name} (Stil: ${gm.style || "neutral"}, Frequenz: ${gm.narrationFrequency}, Modell: ${gm.modelId || "Standard"}) ===`,
+      expandMacros(gm.systemPrompt || "(Standard-Spielleiter-Prompt)", macroCtx),
+    ].join("\n")
+    : "";
+
+  const personaSection = persona
+    ? expandMacros(
+      [
+        `=== MEINE PERSONA: ${persona.name}${persona.role ? ` (${persona.role})` : ""} ===`,
+        persona.appearance ? `Aussehen: ${persona.appearance}` : "",
+        persona.traits ? `Eigenschaften: ${persona.traits}` : "",
+        persona.background ? `Hintergrund: ${persona.background}` : "",
+      ]
+        .filter(Boolean)
+        .join("\n"),
+      macroCtx,
+    )
+    : "";
+
+  const charMetaLines = allPresent.map((c) => {
+    const rel = c.relationships ? ` | Beziehungen: ${expandMacros(c.relationships, { userName: persona?.name, charName: c.name, vars })}` : "";
+    return `- ${c.name}${c.role ? ` (${c.role})` : ""}: Modell=${c.modelId || "(Session-Standard)"}${rel}`;
+  });
+  const charMetaSection = charMetaLines.length > 0 ? `=== CHARAKTER-PARAMETER ===\n${charMetaLines.join("\n")}` : "";
+
+  const locationMapNote = currentLocation?.mapPrompt
+    ? `=== ORTSKARTE / LAGE (${currentLocation.name}) ===\n${expandMacros(currentLocation.mapPrompt, macroCtx)}`
+    : "";
+
+  const summarySection = session.compressedSummary?.trim() ? `=== KOMPRIMIERTE VORGESCHICHTE ===\n${session.compressedSummary.trim()}` : "";
+
+  const gmNotesSection = session.gmNotes?.trim() ? `=== GEHEIME SL-NOTIZEN ===\n${expandMacros(session.gmNotes.trim(), macroCtx)}` : "";
+
+  return [
+    sessionMetaSection,
+    gmSection,
+    personaSection,
+    charMetaSection,
+    `=== GELADENER KONTEXT (aufgelöste Makros) ===\n${activeContextBlock}`,
+    locationMapNote,
+    summarySection,
+    gmNotesSection,
+  ]
+    .filter(Boolean)
+    .join("\n\n");
 }

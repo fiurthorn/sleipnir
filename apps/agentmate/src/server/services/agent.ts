@@ -165,6 +165,67 @@ export function getAvailableAgentModels(): AgentModelOption[] {
   return list;
 }
 
+export interface PendingQueueStatus {
+  available: boolean;
+  count: number;
+  items: PendingScanSummary[];
+  error?: string;
+}
+
+/**
+ * Inspects MCP server connectivity and fetches the current ScanMate pending queue
+ * in a single MCP pool pass.
+ */
+export async function getMcpAndQueueStatus(): Promise<{
+  mcpServers: Awaited<ReturnType<typeof connectMcpPool>>["statuses"];
+  pendingQueue: PendingQueueStatus;
+}> {
+  const config = loadAgentConfig();
+  const pool = await connectMcpPool(config.mcpServers);
+  try {
+    const scanmateStatus = pool.statuses.find((s) => s.id === "scanmate");
+    if (!scanmateStatus?.connected) {
+      return {
+        mcpServers: pool.statuses,
+        pendingQueue: {
+          available: false,
+          count: 0,
+          items: [],
+          error: scanmateStatus?.error ?? "ScanMate MCP offline",
+        },
+      };
+    }
+
+    try {
+      const pendingRes = await invokeMcpTool(pool.tools, "scanmate_list_pending", {});
+      const pendingData = parseMcpJsonText<{ count: number; items: PendingScanSummary[] }>(
+        pendingRes,
+      );
+      const items = Array.isArray(pendingData.items) ? pendingData.items : [];
+      return {
+        mcpServers: pool.statuses,
+        pendingQueue: {
+          available: true,
+          count: typeof pendingData.count === "number" ? pendingData.count : items.length,
+          items,
+        },
+      };
+    } catch (err) {
+      return {
+        mcpServers: pool.statuses,
+        pendingQueue: {
+          available: false,
+          count: 0,
+          items: [],
+          error: err instanceof Error ? err.message : "Queue konnte nicht geladen werden",
+        },
+      };
+    }
+  } finally {
+    await pool.closeAll();
+  }
+}
+
 /**
  * Inspects MCP server connectivity and returns available tool counts.
  */
@@ -216,6 +277,19 @@ async function archiveAllPendingScans(modelId?: string): Promise<TriageItemResul
         const imgRes = await invokeMcpTool(pool.tools, "scanmate_get_pending_images", {
           id: item.id,
         });
+        const textPart = (imgRes.content ?? []).find((p) => p.type === "text" && typeof p.text === "string");
+        let pendingPdfBase64 = "";
+        if (textPart?.text) {
+          try {
+            const meta = JSON.parse(textPart.text) as { sourceType?: string; pdfBase64?: string };
+            if (meta.sourceType === "pdf" && typeof meta.pdfBase64 === "string" && meta.pdfBase64) {
+              pendingPdfBase64 = meta.pdfBase64;
+            }
+          } catch {
+            // ignore non-json
+          }
+        }
+
         const imageParts = (imgRes.content ?? [])
           .filter((part) => part.type === "image" && typeof part.data === "string")
           .map((part) => ({
@@ -223,7 +297,15 @@ async function archiveAllPendingScans(modelId?: string): Promise<TriageItemResul
             image: `data:${part.mimeType ?? "image/jpeg"};base64,${part.data}`,
           }));
 
-        if (imageParts.length === 0) {
+        const mediaParts = pendingPdfBase64
+          ? [{
+            type: "file" as const,
+            data: pendingPdfBase64,
+            mediaType: "application/pdf",
+          }]
+          : imageParts;
+
+        if (mediaParts.length === 0) {
           results.push({
             pendingId: item.id,
             label: item.label,
@@ -231,9 +313,9 @@ async function archiveAllPendingScans(modelId?: string): Promise<TriageItemResul
             title: item.label || `Scan ${item.id}`,
             category: "Sonstiges",
             targetPath: "Sonstiges",
-            summary: "Keine Bilddaten gefunden.",
+            summary: "Keine Bild- oder PDF-Daten gefunden.",
             archived: false,
-            error: "Keine Bilddaten im Pending-Scan",
+            error: "Keine Bild- oder PDF-Daten im Pending-Scan",
           });
           continue;
         }
@@ -270,7 +352,7 @@ async function archiveAllPendingScans(modelId?: string): Promise<TriageItemResul
                 role: "user",
                 content: [
                   { type: "text", text: promptText },
-                  ...imageParts,
+                  ...mediaParts,
                 ],
               },
             ],
@@ -296,7 +378,7 @@ async function archiveAllPendingScans(modelId?: string): Promise<TriageItemResul
                 role: "user",
                 content: [
                   { type: "text", text: jsonFallbackPrompt },
-                  ...imageParts,
+                  ...mediaParts,
                 ],
               },
             ],
@@ -412,6 +494,7 @@ export async function runAssistantChat(options: {
   try {
     const result = await generateText({
       model,
+      abortSignal: AbortSignal.timeout(90_000),
       system:
         "Du bist Agentmate, ein hilfreicher persönlicher Assistent im Sleipnir-System. Du hast über MCP Zugriff auf ScanMate (Belege & Dokumente) und NoteMate (Notizen & Kanban). Antworte präzise auf Deutsch und nutze die verfügbaren Tools, wenn der Nutzer nach Dokumenten, Belegen, Notizen oder Aufgaben fragt.",
       tools: pool.tools,

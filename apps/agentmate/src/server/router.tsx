@@ -30,11 +30,12 @@ export default function App(basePath?: string, developMode: boolean = false) {
       crossOriginResourcePolicy: false,
       contentSecurityPolicy: {
         defaultSrc: ["'self'"],
-        scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
-        styleSrc: ["'self'", "'unsafe-inline'"],
+        scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://accounts.google.com"],
+        styleSrc: ["'self'", "'unsafe-inline'", "https://accounts.google.com"],
         imgSrc: ["'self'", "data:", "blob:"],
         fontSrc: ["'self'"],
-        connectSrc: ["'self'", "*"],
+        connectSrc: ["'self'", "https://accounts.google.com", "*"],
+        frameSrc: ["'self'", "https://accounts.google.com"],
       },
     }),
   );

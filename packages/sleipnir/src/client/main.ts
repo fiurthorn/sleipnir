@@ -10,6 +10,7 @@
 import { themeStore } from "./theme.ts";
 import { createDialogSystem, showAlert } from "./alerts.ts";
 import { cookiePersistPlugin } from "./cookie-persist.ts";
+import { sanitizeHtml } from "./sanitize.ts";
 import type { AlpineInstance, SleipnirWindow } from "./types.ts";
 
 export function blurOut(
@@ -80,15 +81,16 @@ export function initSleipnirClient(): void {
       },
     }));
 
-    // Safe x-html directive for Alpine CSP
+    // Safe x-html directive for Alpine CSP (sanitized against XSS)
     Alpine.directive(
       "html",
       (el, { expression }, { effect, evaluateLater }) => {
         const evaluate = evaluateLater(expression);
         effect(() => {
           evaluate((value) => {
+            const safe = sanitizeHtml(typeof value === "string" ? value : "");
             Alpine.mutateDom(() => {
-              el.innerHTML = (value as string) ?? "";
+              el.innerHTML = safe;
             });
           });
         });

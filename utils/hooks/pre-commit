@@ -34,8 +34,8 @@ fi
 echo -e "${GREEN}✓ Linting bestanden.${NC}"
 
 # 3. TypeScript Type-Check
-echo -e "${YELLOW}⚙️  Prüfe Typ-Sicherheit (deno check)...${NC}"
-if ! deno check packages/sleipnir/mod.ts packages/sleipnir/src/client/main.ts apps/chatmate/main.ts apps/notemate/main.ts; then
+echo -e "${YELLOW}⚙️  Prüfe Typ-Sicherheit (deno task check)...${NC}"
+if ! deno task check; then
   echo -e "${RED}❌ TypeScript Type-Check fehlgeschlagen!${NC}"
   exit 1
 fi

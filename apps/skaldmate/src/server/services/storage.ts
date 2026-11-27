@@ -17,6 +17,8 @@ import {
   locationSchema,
   type Persona,
   personaSchema,
+  type SceneTemplate,
+  sceneTemplateSchema,
   sessionSchema,
   type StorySession,
 } from "./types.ts";
@@ -35,6 +37,7 @@ function getDirs() {
     charactersDir: join(dataDir, "characters"),
     locationsDir: join(dataDir, "locations"),
     gamemastersDir: join(dataDir, "gamemasters"),
+    scenesDir: join(dataDir, "scenes"),
     sessionsDir: join(dataDir, "sessions"),
     assetsDir: join(dataDir, "assets"),
   };
@@ -123,6 +126,7 @@ export async function initSkaldStorage(): Promise<void> {
   await ensureDir(dirs.charactersDir);
   await ensureDir(dirs.locationsDir);
   await ensureDir(dirs.gamemastersDir);
+  await ensureDir(dirs.scenesDir);
   await ensureDir(dirs.sessionsDir);
   await ensureDir(dirs.assetsDir);
   initializedDir = dirs.dataDir;
@@ -155,17 +159,31 @@ async function listYamlEntities<T>(dir: string, schema: SchemaParser<T>): Promis
   return items;
 }
 
-async function readYamlEntity<T>(dir: string, id: string, schema: SchemaParser<T>): Promise<T | null> {
-  const safe = sanitizeId(id);
-  if (!safe) return null;
-  try {
-    const raw = await Deno.readTextFile(join(dir, `${safe}.yaml`));
-    const parsed = parseYaml(raw);
-    const validated = schema.safeParse(parsed);
-    return validated.success ? validated.data : null;
-  } catch {
-    return null;
+async function readYamlEntity<T extends { name?: string; title?: string }>(
+  dir: string,
+  idOrName: string,
+  schema: SchemaParser<T>,
+): Promise<T | null> {
+  const safe = sanitizeId(idOrName);
+  if (safe) {
+    try {
+      const raw = await Deno.readTextFile(join(dir, `${safe}.yaml`));
+      const parsed = parseYaml(raw);
+      const validated = schema.safeParse(parsed);
+      if (validated.success) return validated.data;
+    } catch {
+      // Fallback: 1:1 Name-/Titel-Match
+    }
   }
+
+  const needle = idOrName.trim().toLowerCase();
+  if (!needle) return null;
+  const all = await listYamlEntities(dir, schema);
+  return all.find(
+    (item) =>
+      item.name?.trim().toLowerCase() === needle ||
+      item.title?.trim().toLowerCase() === needle,
+  ) ?? null;
 }
 
 function stripUndefined(value: unknown): unknown {
@@ -214,7 +232,11 @@ export async function getPersona(id: string): Promise<Persona | null> {
 }
 
 export async function savePersona(
-  input: Omit<Persona, "updatedAt" | "isDefault"> & { isDefault?: boolean; updatedAt?: string },
+  input: Omit<Persona, "updatedAt" | "isDefault" | "voiceGender"> & {
+    isDefault?: boolean;
+    voiceGender?: Persona["voiceGender"];
+    updatedAt?: string;
+  },
 ): Promise<Persona> {
   await initSkaldStorage();
   const { personasDir } = getDirs();
@@ -307,11 +329,12 @@ export async function getCharacter(id: string): Promise<Character | null> {
 }
 
 export async function saveCharacter(
-  input: Omit<Character, "updatedAt" | "greeting" | "exampleDialogue" | "relationships" | "portraitPrompt"> & {
+  input: Omit<Character, "updatedAt" | "greeting" | "exampleDialogue" | "relationships" | "portraitPrompt" | "voiceGender"> & {
     greeting?: string;
     exampleDialogue?: string;
     relationships?: string;
     portraitPrompt?: string;
+    voiceGender?: Character["voiceGender"];
     updatedAt?: string;
   },
 ): Promise<Character> {
@@ -345,11 +368,12 @@ export async function getLocation(id: string): Promise<Location | null> {
 }
 
 export async function saveLocation(
-  input: Omit<Location, "updatedAt" | "openingMessage" | "defaultSceneState" | "imagePrompt" | "residentIds"> & {
+  input: Omit<Location, "updatedAt" | "openingMessage" | "defaultSceneState" | "imagePrompt" | "mapPrompt" | "residentIds"> & {
     residentIds?: string[];
     openingMessage?: string;
     defaultSceneState?: string;
     imagePrompt?: string;
+    mapPrompt?: string;
     updatedAt?: string;
   },
 ): Promise<Location> {
@@ -387,8 +411,9 @@ export async function getGameMaster(id: string): Promise<GameMaster | null> {
 }
 
 export async function saveGameMaster(
-  input: Omit<GameMaster, "updatedAt" | "narrationFrequency"> & {
+  input: Omit<GameMaster, "updatedAt" | "narrationFrequency" | "voiceGender"> & {
     narrationFrequency?: GameMaster["narrationFrequency"];
+    voiceGender?: GameMaster["voiceGender"];
     updatedAt?: string;
   },
 ): Promise<GameMaster> {
@@ -407,6 +432,39 @@ export async function deleteGameMaster(id: string): Promise<boolean> {
   if (!safe) return false;
   await assertEntityUnused("gamemaster", safe);
   return deleteFileIfExists(join(getDirs().gamemastersDir, `${safe}.yaml`));
+}
+
+// Scene Templates
+export async function listScenes(): Promise<SceneTemplate[]> {
+  await initSkaldStorage();
+  const list = await listYamlEntities(getDirs().scenesDir, sceneTemplateSchema);
+  return list.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+}
+
+export async function getScene(id: string): Promise<SceneTemplate | null> {
+  await initSkaldStorage();
+  return readYamlEntity(getDirs().scenesDir, id, sceneTemplateSchema);
+}
+
+export async function saveScene(
+  input: Omit<SceneTemplate, "updatedAt"> & { updatedAt?: string },
+): Promise<SceneTemplate> {
+  await initSkaldStorage();
+  const id = sanitizeId(input.id) || slugifyName(input.title, "scene");
+  const data = sceneTemplateSchema.parse({
+    ...input,
+    id,
+    characterIds: Array.isArray(input.characterIds) ? input.characterIds : [],
+    updatedAt: input.updatedAt ?? new Date().toISOString(),
+  });
+  return writeYamlEntity(getDirs().scenesDir, data);
+}
+
+export async function deleteScene(id: string): Promise<boolean> {
+  await initSkaldStorage();
+  const safe = sanitizeId(id);
+  if (!safe) return false;
+  return deleteFileIfExists(join(getDirs().scenesDir, `${safe}.yaml`));
 }
 
 // Sessions (stored as YAML, with legacy .json read compatibility)
@@ -445,31 +503,42 @@ export async function listSessions(): Promise<StorySession[]> {
   return Array.from(byId.values()).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 }
 
-export async function getSession(id: string): Promise<StorySession | null> {
+export async function getSession(idOrTitle: string): Promise<StorySession | null> {
   await initSkaldStorage();
-  const safe = sanitizeId(id);
-  if (!safe) return null;
+  const safe = sanitizeId(idOrTitle);
   const { sessionsDir } = getDirs();
-  for (const ext of ["yaml", "json"] as const) {
-    try {
-      const raw = await Deno.readTextFile(join(sessionsDir, `${safe}.${ext}`));
-      const session = parseSessionContent(`${safe}.${ext}`, raw);
-      if (session) return session;
-    } catch {
-      // Try next extension
+  if (safe) {
+    for (const ext of ["yaml", "json"] as const) {
+      try {
+        const raw = await Deno.readTextFile(join(sessionsDir, `${safe}.${ext}`));
+        const session = parseSessionContent(`${safe}.${ext}`, raw);
+        if (session) return session;
+      } catch {
+        // Try next extension
+      }
     }
   }
-  return null;
+
+  const needle = idOrTitle.trim().toLowerCase();
+  if (!needle) return null;
+  const all = await listSessions();
+  return all.find((s) => s.title.trim().toLowerCase() === needle) ?? null;
 }
 
 export async function saveSession(
-  session: Omit<StorySession, "compressedSummary" | "compressedUntilIndex" | "resolvedContext" | "inventory" | "gmNotes"> & {
-    inventory?: string[];
-    gmNotes?: string;
-    resolvedContext?: string;
-    compressedSummary?: string;
-    compressedUntilIndex?: number;
-  },
+  session:
+    & Omit<
+      StorySession,
+      "compressedSummary" | "compressedUntilIndex" | "resolvedContext" | "inventory" | "variables" | "gmNotes"
+    >
+    & {
+      inventory?: string[];
+      variables?: Record<string, string>;
+      gmNotes?: string;
+      resolvedContext?: string;
+      compressedSummary?: string;
+      compressedUntilIndex?: number;
+    },
 ): Promise<StorySession> {
   await initSkaldStorage();
   const safe = sanitizeId(session.id) || crypto.randomUUID();

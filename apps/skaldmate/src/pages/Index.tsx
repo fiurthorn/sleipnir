@@ -8,6 +8,8 @@
 import { AlertZone, LOGO, proxyRedirect, themeInit } from "@sleipnir/core";
 import type { Child } from "hono/jsx";
 
+const ASSET_BUSTER = Date.now();
+
 interface PageProps {
   title?: string;
   basePath?: string;
@@ -26,10 +28,10 @@ export const Index = ({
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <link rel="icon" type="image/svg+xml" href={LOGO} />
-        <link href="./static/styles.css" rel="stylesheet" />
+        <link href={`./static/styles.css?v=${ASSET_BUSTER}`} rel="stylesheet" />
 
         <script defer src="./static/sleipnir-client.min.js"></script>
-        <script defer src="./static/client.js"></script>
+        <script defer src={`./static/client.js?v=${ASSET_BUSTER}`}></script>
         <script defer src="./static/vendor/alpine.min.js"></script>
 
         <script

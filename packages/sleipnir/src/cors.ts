@@ -61,7 +61,6 @@ export function cors(options?: SleipnirCorsOptions): MiddlewareHandler {
       "Authorization",
       "X-Requested-With",
       "Accept",
-      "X-Requested-With",
       "ETag",
       "Cache-Control",
     ],

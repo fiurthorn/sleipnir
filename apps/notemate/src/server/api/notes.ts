@@ -23,6 +23,22 @@ function isHttpsRequest(c: SleipnirContext): boolean {
   );
 }
 
+const MAX_ATTACHMENT_BYTES = 15 * 1024 * 1024; // 15 MB
+
+async function isExistingNoteLocked(
+  c: SleipnirContext,
+  storage: NoteStorage,
+  relPath: string,
+): Promise<boolean> {
+  if (isNsfwUnlocked(c)) return false;
+  try {
+    const existing = await storage.getNote(relPath);
+    return hasNsfwTag(existing.tags);
+  } catch {
+    return false;
+  }
+}
+
 export function notesApi(app: Sleipnir, storage: NoteStorage, basePath?: string) {
   const cookiePath = getCookiePath(basePath);
 
@@ -103,6 +119,9 @@ export function notesApi(app: Sleipnir, storage: NoteStorage, basePath?: string)
     }
 
     try {
+      if (await isExistingNoteLocked(c, storage, path.trim())) {
+        return c.json({ error: "NSFW_LOCKED", message: "Diese Notiz ist als NSFW markiert." }, 403);
+      }
       const note = await storage.saveNote(path.trim(), content);
       return c.json({ ok: true, note });
     } catch (e) {
@@ -118,6 +137,9 @@ export function notesApi(app: Sleipnir, storage: NoteStorage, basePath?: string)
     }
 
     try {
+      if (await isExistingNoteLocked(c, storage, path)) {
+        return c.json({ error: "NSFW_LOCKED", message: "Diese Notiz ist als NSFW markiert." }, 403);
+      }
       await storage.deleteItem(path);
       return c.json({ ok: true });
     } catch (e) {
@@ -166,11 +188,14 @@ export function notesApi(app: Sleipnir, storage: NoteStorage, basePath?: string)
     }
 
     const { oldPath, newPath } = body as Record<string, unknown>;
-    if (typeof oldPath !== "string" || typeof newPath !== "string") {
+    if (typeof oldPath !== "string" || typeof newPath !== "string" || !oldPath.trim() || !newPath.trim()) {
       return c.json({ error: "Both oldPath and newPath are required" }, 400);
     }
 
     try {
+      if (await isExistingNoteLocked(c, storage, oldPath.trim())) {
+        return c.json({ error: "NSFW_LOCKED", message: "Diese Notiz ist als NSFW markiert." }, 403);
+      }
       await storage.renameItem(oldPath.trim(), newPath.trim());
       return c.json({ ok: true });
     } catch (e) {
@@ -227,6 +252,9 @@ export function notesApi(app: Sleipnir, storage: NoteStorage, basePath?: string)
     }
 
     try {
+      if (await isExistingNoteLocked(c, storage, path.trim())) {
+        return c.json({ error: "NSFW_LOCKED", message: "Diese Notiz ist als NSFW markiert." }, 403);
+      }
       const note = await storage.setNoteTags(path.trim(), tags);
       return c.json({ ok: true, note });
     } catch (e) {
@@ -241,13 +269,21 @@ export function notesApi(app: Sleipnir, storage: NoteStorage, basePath?: string)
       const contentType = c.req.header("content-type") || "";
 
       if (contentType.includes("application/json")) {
-        const body = await c.req.json() as {
-          filename?: string;
-          dataUrl?: string;
-          notePath?: string;
-        };
+        let rawBody: unknown;
+        try {
+          rawBody = await c.req.json();
+        } catch {
+          return c.json({ error: "Invalid JSON" }, 400);
+        }
+        if (typeof rawBody !== "object" || rawBody === null || Array.isArray(rawBody)) {
+          return c.json({ error: "Body must be an object" }, 400);
+        }
+        const body = rawBody as Record<string, unknown>;
         if (!body.dataUrl || typeof body.dataUrl !== "string") {
           return c.json({ error: "Missing 'dataUrl'" }, 400);
+        }
+        if (body.dataUrl.length > MAX_ATTACHMENT_BYTES * 1.4) {
+          return c.json({ error: "Attachment exceeds 15 MB limit" }, 413);
         }
 
         // Parse data URL: data:image/png;base64,....
@@ -258,23 +294,35 @@ export function notesApi(app: Sleipnir, storage: NoteStorage, basePath?: string)
           return c.json({ error: "Invalid data URL format" }, 400);
         }
 
-        const mime = matches[1];
+        const mime = matches[1].toLowerCase();
         const base64Data = matches[2];
-        const rawBytes = Uint8Array.from(
-          atob(base64Data),
-          (char) => char.charCodeAt(0),
-        );
+        let rawBytes: Uint8Array;
+        try {
+          rawBytes = Uint8Array.from(
+            atob(base64Data),
+            (char) => char.charCodeAt(0),
+          );
+        } catch {
+          return c.json({ error: "Invalid base64 payload" }, 400);
+        }
+        if (rawBytes.byteLength > MAX_ATTACHMENT_BYTES) {
+          return c.json({ error: "Attachment exceeds 15 MB limit" }, 413);
+        }
 
         let ext = ".png";
-        if (mime.includes("jpeg")) ext = ".jpg";
-        else if (mime.includes("webp")) ext = ".webp";
-        else if (mime.includes("gif")) ext = ".gif";
+        if (mime === "image/jpeg" || mime === "image/jpg") ext = ".jpg";
+        else if (mime === "image/webp") ext = ".webp";
+        else if (mime === "image/gif") ext = ".gif";
+        else if (mime !== "image/png") {
+          return c.json({ error: `Unsupported image MIME type: ${mime}` }, 400);
+        }
 
-        const filename = body.filename || `pasted_image${ext}`;
+        const filename = typeof body.filename === "string" && body.filename.trim() ? body.filename.trim() : `pasted_image${ext}`;
+        const notePath = typeof body.notePath === "string" ? body.notePath : undefined;
         const result = await storage.saveAttachment(
           filename,
           rawBytes,
-          body.notePath,
+          notePath,
         );
 
         return c.json({
@@ -290,6 +338,9 @@ export function notesApi(app: Sleipnir, storage: NoteStorage, basePath?: string)
       const file = form.get("file");
       if (!(file instanceof File)) {
         return c.json({ error: "No file uploaded" }, 400);
+      }
+      if (file.size > MAX_ATTACHMENT_BYTES) {
+        return c.json({ error: "Attachment exceeds 15 MB limit" }, 413);
       }
 
       const notePath = form.get("notePath");
@@ -308,14 +359,20 @@ export function notesApi(app: Sleipnir, storage: NoteStorage, basePath?: string)
       });
     } catch (e) {
       const err = e instanceof Error ? e.message : "Failed to save attachment";
-      return c.json({ error: err }, 500);
+      const status = err.startsWith("Unsupported attachment") || err.startsWith("Access denied") ? 400 : 500;
+      return c.json({ error: err }, status);
     }
   });
 
   // Serve Attachments directly (including nested paths e.g. /attachments/Rezepte/Pasta/Carbonara/img.png)
   const attachmentHandler = async (c: SleipnirContext) => {
     const rawPath = c.req.path.replace(/^\/(?:api\/)?attachments\/?/, "");
-    const decoded = decodeURIComponent(rawPath);
+    let decoded: string;
+    try {
+      decoded = decodeURIComponent(rawPath);
+    } catch {
+      return c.text("Bad request", 400);
+    }
     if (!decoded) {
       return c.text("Not found", 404);
     }
@@ -334,6 +391,7 @@ export function notesApi(app: Sleipnir, storage: NoteStorage, basePath?: string)
       status: 200,
       headers: {
         "Content-Type": attachment.contentType,
+        "X-Content-Type-Options": "nosniff",
         "Cache-Control": isNsfw ? "private, no-store" : "public, max-age=31536000, immutable",
       },
     });

@@ -31,7 +31,8 @@ function isValidContent(content: unknown): content is MessageContent {
       record.image_url !== null &&
       typeof (record.image_url as Record<string, unknown>).url === "string"
     ) {
-      return true;
+      const url = ((record.image_url as Record<string, unknown>).url as string).trim();
+      return /^https:\/\//i.test(url) || /^data:image\/(png|jpeg|jpg|gif|webp);base64,/i.test(url);
     }
     return false;
   });
@@ -50,14 +51,25 @@ async function handleChat(c: SleipnirContext) {
   }
 
   // Bouncer-Pattern
-  if (typeof body !== "object" || body === null) {
+  if (typeof body !== "object" || body === null || Array.isArray(body)) {
     return c.text("Request body must be an object", 400);
   }
 
   const raw = body as Record<string, unknown>;
-  const model = typeof raw.model === "string" ? raw.model : "";
+  const model = typeof raw.model === "string" ? raw.model.trim() : "";
   const messages = Array.isArray(raw.messages) ? raw.messages : [];
-  const temperature = typeof raw.temperature === "number" ? raw.temperature : 0.7;
+  let temperature = 0.7;
+  if (raw.temperature !== undefined) {
+    if (
+      typeof raw.temperature !== "number" ||
+      !Number.isFinite(raw.temperature) ||
+      raw.temperature < 0 ||
+      raw.temperature > 2
+    ) {
+      return c.text("Invalid 'temperature' (must be finite number between 0 and 2)", 400);
+    }
+    temperature = raw.temperature;
+  }
 
   if (!model) {
     return c.text("Missing 'model' field", 400);

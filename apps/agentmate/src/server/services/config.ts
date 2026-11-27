@@ -51,14 +51,13 @@ export interface AgentConfig {
 
 let envLoaded = false;
 
-function ensureEnvLoaded(): void {
+export function ensureEnvLoaded(): void {
   if (envLoaded) return;
   envLoaded = true;
 
-  // Load .env from agentmate, fallback to chatmate/.env and workspace root .env
+  // Load .env from agentmate, fallback to workspace root .env (entkoppelt von anderen Apps)
   const candidates = [
     new URL("../../../.env", import.meta.url).pathname,
-    new URL("../../../../chatmate/.env", import.meta.url).pathname,
     new URL("../../../../../.env", import.meta.url).pathname,
   ];
 

@@ -120,6 +120,7 @@ Gib keinen Markdown-Codeblock und keine Einleitung oder Erklärung aus, nur das 
   const endpoint = `${targetProvider.baseUrl}/chat/completions`;
   const response = await fetch(endpoint, {
     method: "POST",
+    signal: AbortSignal.timeout(90_000),
     headers: {
       "Content-Type": "application/json",
       "Authorization": `Bearer ${targetProvider.apiKey}`,
@@ -151,9 +152,8 @@ Gib keinen Markdown-Codeblock und keine Einleitung oder Erklärung aus, nur das 
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(
-      `KI-Analyse fehlgeschlagen (${response.status}): ${errorText}`,
-    );
+    console.error(`[Scanmate AI] Upstream error (${response.status}):`, errorText);
+    throw new Error(`KI-Analyse fehlgeschlagen (HTTP ${response.status})`);
   }
 
   const result = await response.json();

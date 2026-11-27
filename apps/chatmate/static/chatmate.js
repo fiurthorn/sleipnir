@@ -5,13 +5,22 @@
  * Architektur & Review: Stefan | Implementation & Synthese: Sam
  */
 
+function escapeCodeHtml(raw) {
+  return String(raw ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 // Configure marked with highlight.js for syntax highlighting
 function configureMarkedHighlight() {
   if (typeof globalThis.marked !== "undefined") {
     globalThis.marked.use({
       renderer: {
         code({ text, lang }) {
-          let highlighted = text;
+          let highlighted = escapeCodeHtml(text);
           const hasHljs = typeof globalThis.hljs !== "undefined";
           const validLang = lang && hasHljs && globalThis.hljs.getLanguage(lang) ? lang : null;
 
@@ -26,14 +35,16 @@ function configureMarkedHighlight() {
                 highlighted = globalThis.hljs.highlightAuto(text).value;
               }
             } catch {
-              highlighted = text;
+              highlighted = escapeCodeHtml(text);
             }
           }
 
           const langBadge = lang
-            ? `<span class="absolute top-2 right-2 text-[10px] uppercase font-mono opacity-50 px-1.5 py-0.5 rounded bg-base-300/80 select-none">${lang}</span>`
+            ? `<span class="absolute top-2 right-2 text-[10px] uppercase font-mono opacity-50 px-1.5 py-0.5 rounded bg-base-300/80 select-none">${
+              escapeCodeHtml(lang)
+            }</span>`
             : "";
-          const langClass = validLang ? ` language-${validLang}` : "";
+          const langClass = validLang ? ` language-${escapeCodeHtml(validLang)}` : "";
 
           return `<div class="relative group my-3"><pre class="hljs rounded-lg p-4 overflow-x-auto text-xs font-mono leading-relaxed"><code class="${langClass}">${highlighted}</code></pre>${langBadge}</div>`;
         },

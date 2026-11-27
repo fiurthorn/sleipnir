@@ -12,12 +12,15 @@ import {
   archivePendingScan,
   createFolder,
   createScanSession,
+  deleteDocument,
   deletePendingScan,
   getDocumentById,
   getPendingScan,
   listAllDocuments,
   listFolderPaths,
   listPendingScans,
+  savePendingPdf,
+  savePendingScan,
   searchDocuments,
   updateDocumentMetadata,
 } from "./services/storage.ts";
@@ -129,6 +132,45 @@ export function createScanmateMcpServer(
   );
 
   server.tool(
+    "scanmate_enqueue_pending",
+    "Legt einen neuen Roh-Scan (Seitenbilder) oder ein PDF-Dokument (z. B. aus E-Mail-Anhang) in der Agent-Inbox ab.",
+    {
+      pages: z
+        .array(z.string().min(1))
+        .max(50)
+        .optional()
+        .describe("Optionale Base64-Data-URLs der gescannten Seitenbilder"),
+      pdfBase64: z
+        .string()
+        .min(1)
+        .optional()
+        .describe("Optionales Base64-kodiertes Original-PDF"),
+      label: z
+        .string()
+        .optional()
+        .describe("Optionales Label/Betreff für die Inbox"),
+    },
+    MCP_ANNOTATIONS.write,
+    async ({ pages, pdfBase64, label }) => {
+      try {
+        if (pdfBase64) {
+          const item = await savePendingPdf(pdfBase64, label);
+          return mcpJson({ queued: true, item });
+        }
+        if (Array.isArray(pages) && pages.length > 0) {
+          const item = await savePendingScan(pages, label);
+          return mcpJson({ queued: true, item });
+        }
+        return mcpError("Weder 'pages' noch 'pdfBase64' angegeben.");
+      } catch (err) {
+        return mcpError(
+          err instanceof Error ? err.message : "Fehler beim Einreihen in die Inbox",
+        );
+      }
+    },
+  );
+
+  server.tool(
     "scanmate_get_pending_images",
     "Lädt die Seitenbilder eines offenen Roh-Scans aus der Inbox als Bild-Content zur Vision-Analyse. Optional per page (1-basiert) einzeln abrufbar bei großen Scans.",
     {
@@ -154,6 +196,24 @@ export function createScanmateMcpServer(
           return mcpError(
             `Seite ${page} existiert nicht (Dokument hat ${scan.pages.length} Seite(n))`,
           );
+        }
+
+        if (scan.pdfBase64) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify({
+                  id: scan.id,
+                  label: scan.label,
+                  createdAt: scan.createdAt,
+                  pageCount: scan.pageCount,
+                  sourceType: "pdf",
+                  pdfBase64: scan.pdfBase64,
+                }),
+              },
+            ],
+          };
         }
 
         const selectedPages = page !== undefined ? [scan.pages[page - 1]] : scan.pages;
@@ -382,6 +442,7 @@ export function createScanmateMcpServer(
         .describe("Neue Tag-Liste (ersetzt bisherige Tags)"),
       summary: z.string().optional().describe("Aktualisierte Zusammenfassung"),
       ocrText: z.string().optional().describe("Aktualisierter OCR-Text"),
+      reviewed: z.boolean().optional().describe("Review-Status (true/false)"),
     },
     MCP_ANNOTATIONS.writeIdempotent,
     async ({ id, ...updates }) => {
@@ -397,6 +458,28 @@ export function createScanmateMcpServer(
       } catch (err) {
         return mcpError(
           err instanceof Error ? err.message : "Aktualisierung fehlgeschlagen",
+        );
+      }
+    },
+  );
+
+  server.tool(
+    "scanmate_delete_document",
+    "Löscht ein archiviertes Dokument samt PDF, Sidecar-Metadaten und Vorschaubild unwiderruflich.",
+    {
+      id: z.string().min(1).describe("Dokument-ID"),
+    },
+    MCP_ANNOTATIONS.destructive,
+    async ({ id }) => {
+      try {
+        const deleted = await deleteDocument(id);
+        if (!deleted) {
+          return mcpError(`Dokument '${id}' nicht gefunden`);
+        }
+        return mcpJson({ deleted: true, id });
+      } catch (err) {
+        return mcpError(
+          err instanceof Error ? err.message : "Löschen fehlgeschlagen",
         );
       }
     },

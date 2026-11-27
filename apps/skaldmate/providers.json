@@ -37,8 +37,20 @@
       "apiKey": "{{VENICE_API_KEY}}",
       "textModels": [
         {
-          "id": "e2ee-gemma-4-26b-a4b-uncensored-p",
-          "name": "Gemma 4 26B/4B (uncensored)"
+          "id": "gemma-4-uncensored",
+          "name": "Gemma 4 (uncensored)"
+        },
+        {
+          "id": "google-gemma-4-26b-a4b-it",
+          "name": "Gemma 4 26B/4B"
+        },
+        {
+          "id": "google-gemma-4-31b-it",
+          "name": "Gemma 4 31B"
+        },
+        {
+          "id": "google-gemma-3-27b-it",
+          "name": "Gemma 3 27B"
         },
         {
           "id": "venice-uncensored-1-2",

@@ -71,11 +71,18 @@ export const AgentPage = () => {
           <button
             type="button"
             role="tab"
-            class="tab"
+            class="tab gap-1.5"
             x-bind:class="tab === 'triage' ? 'tab-active' : ''"
             x-on:click="setTabTriage"
           >
-            Beleg-Triage (ScanMate)
+            <span>Beleg-Triage (ScanMate)</span>
+            <span
+              x-show="pendingQueue && pendingQueue.available"
+              class="badge badge-xs font-mono"
+              x-bind:class="pendingQueue && pendingQueue.count > 0 ? 'badge-warning' : 'badge-ghost'"
+              x-text="pendingQueue ? pendingQueue.count : 0"
+              style="display: none;"
+            />
           </button>
           <button
             type="button"
@@ -93,9 +100,14 @@ export const AgentPage = () => {
           <div class="card bg-base-100 border border-base-content/10 shadow-sm">
             <div class="card-body flex-row flex-wrap items-center justify-between gap-4 py-4">
               <div class="flex flex-col gap-1">
-                <div class="flex items-center gap-2">
+                <div class="flex flex-wrap items-center gap-2">
                   <h2 class="card-title text-base">Automatische Beleg-Triage</h2>
                   <span class="badge badge-ghost badge-sm font-mono" x-text="'Cron: ' + cronSchedule" />
+                  <span
+                    class="badge badge-sm font-mono"
+                    x-bind:class="!pendingQueue || !pendingQueue.available ? 'badge-error badge-outline' : (pendingQueue.count > 0 ? 'badge-warning' : 'badge-success badge-outline')"
+                    x-text="!pendingQueue || !pendingQueue.available ? 'Queue: offline' : ('Queue: ' + pendingQueue.count + (pendingQueue.count === 1 ? ' Dokument' : ' Dokumente'))"
+                  />
                 </div>
                 <p class="text-xs text-base-content/70">
                   Läuft automatisch per Deno.cron und archiviert offene Scans nach ScanMate (Status „Zu prüfen“).
@@ -113,12 +125,75 @@ export const AgentPage = () => {
             </div>
           </div>
 
+          <div class="card bg-base-100 border border-base-content/10 shadow-sm">
+            <div class="card-body flex-row flex-wrap items-center justify-between gap-4 py-4">
+              <div class="flex flex-col gap-1">
+                <div class="flex flex-wrap items-center gap-2">
+                  <h2 class="card-title text-base">Gmail-Label importieren</h2>
+                  <span
+                    class="badge badge-sm font-mono"
+                    x-bind:class="googleClientId ? 'badge-info badge-outline' : 'badge-ghost'"
+                    x-text="googleClientId ? (gmailAccessToken ? 'Google: verbunden' : 'Google: bereit') : 'GOOGLE_CLIENT_ID fehlt'"
+                  />
+                </div>
+                <p class="text-xs text-base-content/70">
+                  Holt alle E-Mails mit dem angegebenen Gmail-Label, schiebt echte Anhänge (ohne Inline-Bilder) nach ScanMate und entfernt das Label
+                  nach Erfolg.
+                </p>
+              </div>
+              <div class="flex flex-wrap items-center gap-2">
+                <input
+                  type="text"
+                  class="input input-bordered input-sm w-40 font-mono text-xs"
+                  placeholder="Label (z. B. ScanMate)"
+                  x-model="gmailLabel"
+                  x-bind:disabled="gmailLoading"
+                />
+                <button
+                  type="button"
+                  class="btn btn-secondary btn-sm"
+                  x-bind:disabled="gmailLoading || !googleClientId"
+                  x-on:click="importFromGmail"
+                >
+                  <span x-show="gmailLoading" class="loading loading-spinner loading-xs" style="display: none;" />
+                  <span>Aus Gmail holen &amp; archivieren</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
           <div x-show="triageError" class="alert alert-error text-sm" style="display: none;">
             <span x-text="triageError" />
           </div>
 
           <div x-show="triageNotice" class="alert alert-info text-sm" style="display: none;">
             <span x-text="triageNotice" />
+          </div>
+
+          <div
+            x-show="pendingQueue && pendingQueue.items && pendingQueue.items.length > 0"
+            class="card bg-base-100 border border-base-content/10 shadow-sm"
+            style="display: none;"
+          >
+            <div class="card-body gap-2.5 py-4">
+              <div class="flex flex-wrap justify-between items-center gap-2 border-b border-base-content/10 pb-2">
+                <span class="text-xs font-semibold uppercase tracking-wider text-base-content/70">
+                  In der Agent-Queue wartend
+                </span>
+                <span
+                  class="badge badge-warning badge-sm font-mono"
+                  x-text="pendingQueue.count + (pendingQueue.count === 1 ? ' Dokument' : ' Dokumente')"
+                />
+              </div>
+              <div class="flex flex-col gap-1.5">
+                <template x-for="qitem in (pendingQueue ? pendingQueue.items : [])" x-bind:key="qitem.id">
+                  <div class="flex flex-wrap justify-between items-center gap-2 px-3 py-2 rounded-lg bg-base-200/60 border border-base-content/10 text-xs">
+                    <span class="font-medium" x-text="qitem.label || qitem.id" />
+                    <span class="font-mono text-base-content/60" x-text="qitem.pageCount + ' Seite(n) · ' + qitem.createdAt" />
+                  </div>
+                </template>
+              </div>
+            </div>
           </div>
 
           <div x-show="lastTriageRun" class="card bg-base-100 border border-base-content/10 shadow-sm" style="display: none;">

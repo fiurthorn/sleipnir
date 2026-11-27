@@ -31,3 +31,16 @@ Deno.test("expandMacros - expands random, random_of, roll, rand", () => {
   const ranged = Number(expandMacros("{{rand:10-20}}"));
   assertEquals(ranged >= 10 && ranged <= 20, true);
 });
+
+Deno.test("expandMacros - supports session variables with :=, silent -:=", () => {
+  const vars: Record<string, string> = {};
+  const first = expandMacros("Wetter: {{wetter:=random:Regen,Nebel}}", { vars });
+  assertEquals(["Wetter: Regen", "Wetter: Nebel"].includes(first), true);
+  assertEquals(["Regen", "Nebel"].includes(vars.wetter), true);
+  assertEquals(expandMacros("Immer noch {{$wetter}}.", { vars }), `Immer noch ${vars.wetter}.`);
+
+  const silent = expandMacros("{{-taeter:=random:Butler,Gärtner}}Start", { vars });
+  assertEquals(silent, "Start");
+  assertEquals(["Butler", "Gärtner"].includes(vars.taeter), true);
+  assertEquals(expandMacros("Täter ist {{$taeter}}", { vars }), `Täter ist ${vars.taeter}`);
+});
