@@ -353,6 +353,7 @@ const gmBody = z.object({
   systemPrompt: z.string().default(""),
   voiceGender: z.enum(["", "female", "male"]).optional().default(""),
   modelId: z.string().optional(),
+  allowExtras: z.boolean().default(true),
 });
 
 skaldApi.get("/gamemasters", async (c) => c.json({ items: await listGameMasters() }));

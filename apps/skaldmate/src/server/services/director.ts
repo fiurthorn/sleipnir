@@ -349,6 +349,11 @@ async function runGameMasterDirector(
     ? "6. Füge `narrationBefore` oder `narrationAfter` NUR dann hinzu, wenn sich an der Umgebung, Handlung oder Situation etwas Wesentliches ändert (sonst leer lassen)."
     : "6. Streue ab und zu (etwa alle 2-4 Züge oder bei Stimmungswechseln) eine kurze Stimme aus dem Off (Atmosphäre, Umgebungsdetail, kleine Beobachtung) in `narrationBefore` oder `narrationAfter` ein – nicht in jeder Runde, aber so, dass die Szene lebendig bleibt.";
 
+  const allowExtras = gm?.allowExtras !== false;
+  const extrasRule = allowExtras
+    ? "5. Falls situativ ein spontaner Statist/Gast (z. B. Kellnerin, Passant) etwas sagen sollte, nutze optional `extras` (max. 2)."
+    : "5. WICHTIG: Es dürfen KEINE spontanen Statisten oder neuen Nebenfiguren erzeugt werden – lasse `extras` immer leer ([]).";
+
   const systemPrompt = [
     gm?.systemPrompt ||
     "Du bist ein neutraler, aufmerksamer Spielleiter einer interaktiven Geschichte.",
@@ -357,7 +362,7 @@ async function runGameMasterDirector(
     "2. Wenn ein Charakter direkt angesprochen/erwähnt wird, gehört seine ID in `speakers`.",
     "3. Text in eckigen Klammern [...] sind direkte OOC-Regieanweisungen des Spielers an dich (z. B. Zeitsprung, Ereignis, Ortswechsel). Setze sie in `narrationBefore` / `nextLocationId` / `sceneStateUpdate` um. Text in runden Klammern (...) sind stille, unausgesprochene Gedanken (andere Charaktere können sie nicht hören).",
     "4. Wenn die Gruppe explizit an einen anderen bekannten Ort geht, setze `nextLocationId` auf dessen exakte ID.",
-    "5. Falls situativ ein spontaner Statist/Gast (z. B. Kellnerin, Passant) etwas sagen sollte, nutze optional `extras` (max. 2).",
+    extrasRule,
     narrationRule,
     "7. Nutze in `speakers` ausschließlich exakte IDs aus REISEGRUPPE oder ORTS-BEWOHNER.",
     "8. Pflege `inventoryAdd` / `inventoryRemove`, wenn die Gruppe oder der Spieler Gegenstände findet, erhält, abgibt oder verbraucht.",
@@ -395,7 +400,7 @@ async function runGameMasterDirector(
     return {
       ...result.output,
       speakers: filteredSpeakers,
-      extras: (result.output.extras ?? []).slice(0, 2),
+      extras: allowExtras ? (result.output.extras ?? []).slice(0, 2) : [],
       nextLocationId: nextLoc,
     };
   } catch {

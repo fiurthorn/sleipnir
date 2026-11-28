@@ -411,9 +411,10 @@ export async function getGameMaster(id: string): Promise<GameMaster | null> {
 }
 
 export async function saveGameMaster(
-  input: Omit<GameMaster, "updatedAt" | "narrationFrequency" | "voiceGender"> & {
+  input: Omit<GameMaster, "updatedAt" | "narrationFrequency" | "voiceGender" | "allowExtras"> & {
     narrationFrequency?: GameMaster["narrationFrequency"];
     voiceGender?: GameMaster["voiceGender"];
+    allowExtras?: boolean;
     updatedAt?: string;
   },
 ): Promise<GameMaster> {

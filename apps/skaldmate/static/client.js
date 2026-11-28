@@ -5,6 +5,22 @@
  * Architektur & Review: Stefan | Implementation & Synthese: Sam
  */
 
+const WORKSHOP_STORAGE_KEY = "skaldmate_workshop_messages_v1";
+
+function loadWorkshopMessages() {
+  try {
+    const raw = sessionStorage.getItem(WORKSHOP_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(
+      (m) => m && typeof m === "object" && (m.role === "user" || m.role === "assistant") && typeof m.content === "string",
+    );
+  } catch {
+    return [];
+  }
+}
+
 document.addEventListener("alpine:init", () => {
   Alpine.data("skaldmate", () => ({
     mobileMenuOpen: false,
@@ -28,7 +44,7 @@ document.addEventListener("alpine:init", () => {
     cloneLoading: false,
     cloneForm: { title: "", includeHistory: true },
     showWorkshop: false,
-    workshopMessages: [],
+    workshopMessages: loadWorkshopMessages(),
     workshopInput: "",
     workshopLoading: false,
     workshopModelId: localStorage.getItem("skaldmate_workshop_model_v1") || "",
@@ -49,6 +65,9 @@ document.addEventListener("alpine:init", () => {
     chatInput: "",
     turnLoading: false,
     imageLoading: false,
+    pullStartY: 0,
+    pullDistance: 0,
+    pullSyncing: false,
     freshMessageDelays: {},
     freshMessageTimer: null,
     portraitLoading: false,
@@ -246,6 +265,22 @@ document.addEventListener("alpine:init", () => {
       if (!this.activeSession) return "";
       const loc = this.locations.find((l) => l.id === this.activeSession.locationId);
       return loc ? loc.name : this.activeSession.locationId;
+    },
+    get headerTitle() {
+      if (this.viewMode === "chat" && this.activeSession) {
+        return this.activeSession.title;
+      }
+      if (this.viewMode === "editor") {
+        const labels = {
+          character: "Charakter",
+          persona: "Meine Persona",
+          location: "Ort",
+          gamemaster: "Spielleiter",
+          scene: "Szene (Vorlage)",
+        };
+        return labels[this.editorType] || "Editor";
+      }
+      return "Skaldmate";
     },
 
     get activeLocation() {
@@ -851,8 +886,82 @@ document.addEventListener("alpine:init", () => {
       this.showWorkshop = !this.showWorkshop;
     },
 
+    persistWorkshopMessages() {
+      try {
+        sessionStorage.setItem(WORKSHOP_STORAGE_KEY, JSON.stringify(this.workshopMessages));
+      } catch {
+        // ignore storage quota errors
+      }
+    },
+
+    onThreadTouchStart(event) {
+      if (!this.activeSession || this.pullSyncing) return;
+      const el = document.getElementById("skald-thread");
+      if (!el) return;
+      const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= 4;
+      if (!atBottom) return;
+      const touch = event?.touches?.[0];
+      if (!touch) return;
+      this.pullStartY = touch.clientY;
+      this.pullDistance = 0;
+    },
+
+    onThreadTouchMove(event) {
+      if (!this.pullStartY || this.pullSyncing) return;
+      const el = document.getElementById("skald-thread");
+      if (!el) return;
+      const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= 8;
+      if (!atBottom && this.pullDistance === 0) {
+        this.pullStartY = 0;
+        return;
+      }
+      const touch = event?.touches?.[0];
+      if (!touch) return;
+      const dy = this.pullStartY - touch.clientY;
+      this.pullDistance = dy > 0 ? Math.min(80, Math.round(dy * 0.45)) : 0;
+    },
+
+    async onThreadTouchEnd() {
+      const shouldSync = this.pullDistance >= 48 && Boolean(this.activeSession) && !this.pullSyncing;
+      this.pullStartY = 0;
+      this.pullDistance = 0;
+      if (shouldSync) {
+        await this.syncActiveSession();
+      }
+    },
+
+    async syncActiveSession() {
+      const sessionId = this.activeSession?.id;
+      if (!sessionId || this.pullSyncing) return;
+      this.pullSyncing = true;
+      try {
+        await this.loadAll();
+        const updated = this.sessions.find((s) => s.id === sessionId);
+        if (updated) {
+          this.activeSession = updated;
+          this.sessionTitleDraft = updated.title || "";
+          this.sessionModelIdDraft = updated.modelId || "";
+          this.sessionImageModelIdDraft = updated.imageModelId || "";
+          this.sceneStateDraft = updated.sceneState || "";
+          this.gmNotesDraft = updated.gmNotes || "";
+          this.compressedSummaryDraft = updated.compressedSummary || "";
+          this.scrollToBottom();
+        }
+        this.notify("Chat synchronisiert.");
+      } catch {
+        this.notify("Synchronisation fehlgeschlagen.");
+      } finally {
+        this.pullSyncing = false;
+      }
+    },
+
     clearWorkshop() {
       this.workshopMessages = [];
+      try {
+        sessionStorage.removeItem(WORKSHOP_STORAGE_KEY);
+      } catch {
+        // ignore
+      }
     },
 
     async sendWorkshop(event) {
@@ -863,6 +972,7 @@ document.addEventListener("alpine:init", () => {
         localStorage.setItem("skaldmate_workshop_model_v1", this.workshopModelId);
       }
       this.workshopMessages = [...this.workshopMessages, { role: "user", content: text }];
+      this.persistWorkshopMessages();
       this.workshopInput = "";
       this.workshopLoading = true;
       try {
@@ -888,6 +998,7 @@ document.addEventListener("alpine:init", () => {
         const data = await res.json();
         if (!res.ok) {
           this.workshopMessages = [...this.workshopMessages, { role: "assistant", content: "Fehler: " + (data.error || "Unbekannt") }];
+          this.persistWorkshopMessages();
           return;
         }
         this.workshopMessages = [...this.workshopMessages, {
@@ -895,6 +1006,7 @@ document.addEventListener("alpine:init", () => {
           content: data.reply,
           toolsUsed: data.toolsUsed || [],
         }];
+        this.persistWorkshopMessages();
         if (data.mutated) {
           await this.loadBootstrap();
         }
@@ -1367,7 +1479,16 @@ document.addEventListener("alpine:init", () => {
 
     // GameMaster CRUD
     newGmForm() {
-      this.gmForm = { id: "", name: "", style: "neutral", narrationFrequency: "dann_und_wann", systemPrompt: "", voiceGender: "", modelId: "" };
+      this.gmForm = {
+        id: "",
+        name: "",
+        style: "neutral",
+        narrationFrequency: "dann_und_wann",
+        systemPrompt: "",
+        voiceGender: "",
+        modelId: "",
+        allowExtras: true,
+      };
       this.editorType = "gamemaster";
       this.viewMode = "editor";
       this.mobileMenuOpen = false;
@@ -1376,7 +1497,13 @@ document.addEventListener("alpine:init", () => {
       const id = event?.currentTarget?.dataset?.id;
       const g = this.gameMasters.find((x) => x.id === id);
       if (!g) return;
-      this.gmForm = { ...g, narrationFrequency: g.narrationFrequency || "dann_und_wann", voiceGender: g.voiceGender || "", modelId: g.modelId || "" };
+      this.gmForm = {
+        ...g,
+        narrationFrequency: g.narrationFrequency || "dann_und_wann",
+        voiceGender: g.voiceGender || "",
+        modelId: g.modelId || "",
+        allowExtras: g.allowExtras !== false,
+      };
       this.editorType = "gamemaster";
       this.viewMode = "editor";
       this.mobileMenuOpen = false;
@@ -1386,7 +1513,11 @@ document.addEventListener("alpine:init", () => {
       const res = await fetch("./api/gamemasters", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...this.gmForm, modelId: this.gmForm.modelId || undefined }),
+        body: JSON.stringify({
+          ...this.gmForm,
+          modelId: this.gmForm.modelId || undefined,
+          allowExtras: Boolean(this.gmForm.allowExtras),
+        }),
       });
       if (res.ok) {
         const data = await res.json();

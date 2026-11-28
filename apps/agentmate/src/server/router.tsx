@@ -28,6 +28,7 @@ export default function App(basePath?: string, developMode: boolean = false) {
     secureHeaders({
       xFrameOptions: false,
       crossOriginResourcePolicy: false,
+      crossOriginOpenerPolicy: "same-origin-allow-popups",
       contentSecurityPolicy: {
         defaultSrc: ["'self'"],
         scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://accounts.google.com"],

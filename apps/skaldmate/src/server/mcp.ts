@@ -276,6 +276,7 @@ const SKALD_TOOLS = [
       systemPrompt: z.string().optional().describe("Regie-Anweisung / System-Prompt für den Spielleiter"),
       voiceGender: z.enum(["", "female", "male"]).optional().describe("Stimm-Geschlecht für Browser-TTS ('female', 'male' oder '')"),
       modelId: z.string().optional().describe("Optionales Text-Modell für diesen Spielleiter"),
+      allowExtras: z.boolean().optional().describe("Darf der Spielleiter spontane Statisten/Nebenfiguren spawnen? (Standard: true)"),
     },
     annotations: MCP_ANNOTATIONS.writeIdempotent,
     mutatesData: true,
@@ -290,6 +291,7 @@ const SKALD_TOOLS = [
         systemPrompt: args.systemPrompt ?? existing?.systemPrompt ?? "",
         voiceGender: args.voiceGender ?? existing?.voiceGender ?? "",
         modelId: args.modelId ?? existing?.modelId,
+        allowExtras: args.allowExtras ?? existing?.allowExtras ?? true,
       });
       return { saved: true, item };
     },

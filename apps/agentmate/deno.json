@@ -15,6 +15,7 @@
     "daisyui": "npm:daisyui@^5.7.46",
     "hono": "npm:hono@^4.13.10",
     "tailwindcss": "npm:tailwindcss@^4.3.3",
+    "unpdf": "npm:unpdf@^2.2.3",
     "zod": "npm:zod@^3.24.2"
   },
   "permissions": {

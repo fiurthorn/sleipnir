@@ -209,7 +209,7 @@ export const SkaldPage = () => {
                     <img
                       x-show="c.portraitFile"
                       x-bind:src="'./api/assets/' + c.portraitFile"
-                      class="w-7 h-7 rounded-full object-cover shrink-0"
+                      class="w-7 h-7 rounded-lg object-cover shrink-0"
                       style="display: none;"
                     />
                     <span class="truncate" x-text="c.name" />
@@ -255,7 +255,7 @@ export const SkaldPage = () => {
                     <img
                       x-show="p.portraitFile"
                       x-bind:src="'./api/assets/' + p.portraitFile"
-                      class="w-7 h-7 rounded-full object-cover shrink-0"
+                      class="w-7 h-7 rounded-lg object-cover shrink-0"
                       style="display: none;"
                     />
                     <span class="truncate" x-text="(p.isDefault ? '★ ' : '') + p.name" />
@@ -321,10 +321,10 @@ export const SkaldPage = () => {
               </button>
               <span
                 class="font-bold text-base sm:text-sm md:text-base truncate"
-                x-text="activeSession ? activeSession.title : 'Skaldmate'"
+                x-text="headerTitle"
               />
               <span
-                x-show="activeSession"
+                x-show="viewMode === 'chat' && activeSession"
                 class="badge badge-sm badge-outline font-mono hidden sm:inline-flex shrink-0"
                 x-text="'📍 ' + activeLocationName"
                 style="display: none;"
@@ -333,7 +333,7 @@ export const SkaldPage = () => {
 
             {/* Desktop Header Actions */}
             <div class="hidden sm:flex items-center gap-1.5 shrink-0">
-              <template x-if="activeSession">
+              <template x-if="viewMode === 'chat' && activeSession">
                 <div class="flex items-center gap-1.5">
                   <button
                     type="button"
@@ -378,7 +378,7 @@ export const SkaldPage = () => {
             {/* Mobile Header Actions (kompakt im Menü) */}
             <div class="flex sm:hidden items-center gap-1.5 shrink-0">
               <button
-                x-show="activeSession"
+                x-show="viewMode === 'chat' && activeSession"
                 type="button"
                 class="btn btn-sm btn-outline px-2.5"
                 x-bind:disabled="turnLoading"
@@ -916,6 +916,10 @@ export const SkaldPage = () => {
                         </template>
                       </select>
                     </label>
+                    <label class="label cursor-pointer justify-start gap-2.5 py-1">
+                      <input type="checkbox" class="checkbox checkbox-sm checkbox-primary" x-model="gmForm.allowExtras" />
+                      <span class="label-text text-xs">Spontane Statisten / Nebenfiguren spawnen erlauben</span>
+                    </label>
                     <div class="flex justify-end gap-2 pt-2">
                       <button x-show="gmForm.id" type="button" class="btn btn-xs btn-error btn-outline mr-auto" x-on:click="deleteGmForm">
                         Löschen
@@ -1163,7 +1167,7 @@ export const SkaldPage = () => {
           </section>
 
           {/* VIEW C: ACTIVE GROUP CHAT */}
-          <section x-show="viewMode === 'chat'" class="flex-1 min-h-0 flex flex-col overflow-hidden" style="display: none;">
+          <section x-show="viewMode === 'chat'" class="relative flex-1 min-h-0 flex flex-col overflow-hidden" style="display: none;">
             {/* Active Cast Bar (location switch + party + location residents) */}
             <div class="shrink-0 px-3 sm:px-4 py-2 bg-base-200/60 border-b border-base-content/10 flex flex-nowrap overflow-x-auto sm:flex-wrap items-center gap-2 text-xs">
               <select
@@ -1208,7 +1212,7 @@ export const SkaldPage = () => {
                   <img
                     x-show="c.portraitFile"
                     x-bind:src="'./api/assets/' + c.portraitFile"
-                    class="w-4 h-4 rounded-full object-cover"
+                    class="w-4 h-4 rounded object-cover"
                     style="display: none;"
                   />
                   <span x-text="c.name" />
@@ -1228,7 +1232,7 @@ export const SkaldPage = () => {
                   <img
                     x-show="r.portraitFile"
                     x-bind:src="'./api/assets/' + r.portraitFile"
-                    class="w-4 h-4 rounded-full object-cover"
+                    class="w-4 h-4 rounded object-cover"
                     style="display: none;"
                   />
                   <span x-text="'📍 ' + r.name" />
@@ -1252,7 +1256,7 @@ export const SkaldPage = () => {
             {/* Optional Scene State, Inventory, GM Notes & Compressed Summary Drawer */}
             <div
               x-show="showNotesPanel"
-              class="flex-1 min-h-0 sm:flex-none sm:shrink-0 block p-4 pb-10 sm:px-4 sm:py-3 bg-base-200 border-b border-base-content/10 space-y-3.5 sm:space-y-3 sm:max-h-[65vh] overflow-y-auto overscroll-y-contain"
+              class="flex-1 min-h-0 sm:flex-none sm:shrink-0 block p-4 pb-10 sm:px-4 sm:py-3 bg-base-200 border-b border-base-content/10 space-y-3.5 sm:space-y-3 sm:max-h-[65vh] overflow-y-auto"
               style="display: none;"
             >
               <div class="flex flex-wrap justify-between items-center text-sm sm:text-xs gap-2">
@@ -1408,7 +1412,11 @@ export const SkaldPage = () => {
             <div
               id="skald-thread"
               x-bind:class="showNotesPanel ? 'hidden sm:block' : ''"
-              class="flex-1 min-h-0 overflow-y-auto overscroll-y-contain px-2.5 py-3 sm:p-4 md:p-6 space-y-4 sm:space-y-5 max-w-4xl w-full mx-auto"
+              class="flex-1 min-h-0 overflow-y-auto px-2.5 py-3 sm:p-4 md:p-6 space-y-4 sm:space-y-5 max-w-4xl w-full mx-auto"
+              x-on:touchstart="onThreadTouchStart"
+              x-on:touchmove="onThreadTouchMove"
+              x-on:touchend="onThreadTouchEnd"
+              x-on:touchcancel="onThreadTouchEnd"
             >
               <template x-for="msg in (activeSession ? activeSession.messages : [])" x-bind:key="msg.id">
                 <div
@@ -1421,8 +1429,8 @@ export const SkaldPage = () => {
                   <template x-if="msg.kind === 'user'">
                     <div class="chat chat-end">
                       <div x-show="msg.portraitFile" class="chat-image avatar" style="display: none;">
-                        <div class="w-7 sm:w-9 rounded-full">
-                          <img x-bind:src="msg.portraitFile ? './api/assets/' + msg.portraitFile : ''" />
+                        <div class="w-7 h-7 sm:w-9 sm:h-9 rounded-xl overflow-hidden">
+                          <img x-bind:src="msg.portraitFile ? './api/assets/' + msg.portraitFile : ''" class="object-cover" />
                         </div>
                       </div>
                       <div class="chat-header text-xs opacity-70 mb-1 flex items-center gap-2">
@@ -1537,8 +1545,8 @@ export const SkaldPage = () => {
                   <template x-if="msg.kind === 'character'">
                     <div class="chat chat-start">
                       <div x-show="msg.portraitFile" class="chat-image avatar" style="display: none;">
-                        <div class="w-7 sm:w-9 rounded-full">
-                          <img x-bind:src="msg.portraitFile ? './api/assets/' + msg.portraitFile : ''" />
+                        <div class="w-7 h-7 sm:w-9 sm:h-9 rounded-xl overflow-hidden">
+                          <img x-bind:src="msg.portraitFile ? './api/assets/' + msg.portraitFile : ''" class="object-cover" />
                         </div>
                       </div>
                       <div class="chat-header text-xs opacity-70 mb-1 flex items-center gap-2">
@@ -1635,6 +1643,16 @@ export const SkaldPage = () => {
                 <span class="loading loading-dots loading-sm" />
                 <span>Spielleiter &amp; Charaktere reagieren...</span>
               </div>
+            </div>
+
+            {/* Pull-up Sync Indicator (schwebend über der Eingabebox) */}
+            <div
+              x-show="pullDistance > 8 || pullSyncing"
+              class="pointer-events-none absolute bottom-20 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 px-3 py-1.5 rounded-full bg-base-300/95 border border-base-content/15 shadow-lg text-xs font-medium backdrop-blur-sm"
+              style="display: none;"
+            >
+              <span x-show="pullSyncing" class="loading loading-spinner loading-xs" style="display: none;" />
+              <span x-text="pullSyncing ? 'Synchronisiere Chat...' : (pullDistance >= 48 ? '↑ Loslassen zum Synchronisieren' : '↑ Hochziehen zum Synchronisieren')" />
             </div>
 
             {/* Input */}

@@ -71,6 +71,7 @@ export const gameMasterSchema = z.object({
   systemPrompt: z.string().default(""),
   voiceGender: voiceGenderSchema,
   modelId: z.string().optional(),
+  allowExtras: z.boolean().default(true),
   updatedAt: z.string(),
 });
 

@@ -7,6 +7,7 @@
 
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { generateText, Output, stepCountIs } from "ai";
+import { extractText, getDocumentProxy } from "unpdf";
 import { z } from "zod";
 import { loadAgentConfig, type ResolvedAgentProvider } from "./config.ts";
 import { connectMcpPool, invokeMcpTool, parseMcpJsonText } from "./mcp-client.ts";
@@ -239,6 +240,23 @@ export async function getMcpStatuses() {
   }
 }
 
+async function extractPdfTextSafe(pdfBase64: string): Promise<string> {
+  try {
+    const clean = pdfBase64.replace(/^data:application\/pdf;base64,/, "").replace(/\s/g, "");
+    const bin = atob(clean);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) {
+      bytes[i] = bin.charCodeAt(i);
+    }
+    const pdf = await getDocumentProxy(bytes);
+    const { text } = await extractText(pdf, { mergePages: true });
+    return typeof text === "string" ? text.trim() : "";
+  } catch (err) {
+    console.warn("[Agentmate] PDF-Textextraktion fehlgeschlagen:", err instanceof Error ? err.message : err);
+    return "";
+  }
+}
+
 /**
  * Analyzes all pending scans in ScanMate and archives them automatically
  * with `reviewed: false` so the user can review them in ScanMate.
@@ -297,7 +315,12 @@ async function archiveAllPendingScans(modelId?: string): Promise<TriageItemResul
             image: `data:${part.mimeType ?? "image/jpeg"};base64,${part.data}`,
           }));
 
-        const mediaParts = pendingPdfBase64
+        let pdfExtractedText = "";
+        if (pendingPdfBase64) {
+          pdfExtractedText = await extractPdfTextSafe(pendingPdfBase64);
+        }
+
+        const mediaParts = pendingPdfBase64 && pdfExtractedText.length < 20
           ? [{
             type: "file" as const,
             data: pendingPdfBase64,
@@ -305,7 +328,7 @@ async function archiveAllPendingScans(modelId?: string): Promise<TriageItemResul
           }]
           : imageParts;
 
-        if (mediaParts.length === 0) {
+        if (mediaParts.length === 0 && !pdfExtractedText) {
           results.push({
             pendingId: item.id,
             label: item.label,
@@ -326,6 +349,7 @@ async function archiveAllPendingScans(modelId?: string): Promise<TriageItemResul
           existingFolders.length > 0
             ? `Bestehende Archiv-Ordner (bevorzuge konsistente Schreibweisen): ${existingFolders.join(", ")}`
             : "Es existieren noch keine Unterordner.",
+          pdfExtractedText ? `\n--- EXTRAHIERTER PDF-TEXT ---\n${pdfExtractedText.slice(0, 12_000)}\n--- ENDE PDF-TEXT ---` : "",
           "Wichtige Extraktionsregeln:",
           "- `sender`: Extrahiere den vollständigen Absender/Aussteller aus dem Briefkopf oder Text.",
           "- `recipient`: Extrahiere den Empfänger falls angegeben.",
@@ -342,6 +366,7 @@ async function archiveAllPendingScans(modelId?: string): Promise<TriageItemResul
         try {
           const result = await generateText({
             model,
+            abortSignal: AbortSignal.timeout(45_000),
             system:
               "Du bist ein präziser deutscher Dokumenten-Archivar. Extrahiere alle relevanten Metadaten vollständig aus den Belegbildern (insbesondere Absender, Empfänger, Datum, Fälligkeit/Zahlungstermin, Betrag und 3-5 deutsche Tags). Antworte strikt im geforderten JSON-Schema.",
             output: Output.object({
@@ -372,6 +397,7 @@ async function archiveAllPendingScans(modelId?: string): Promise<TriageItemResul
 
           const fallbackRes = await generateText({
             model,
+            abortSignal: AbortSignal.timeout(45_000),
             system: "Du bist ein präziser deutscher Dokumenten-Archivar. Antworte ausschließlich mit einem validen JSON-Objekt.",
             messages: [
               {

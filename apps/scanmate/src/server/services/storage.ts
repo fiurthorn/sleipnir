@@ -515,7 +515,7 @@ export async function listPendingScans(): Promise<PendingScanMeta[]> {
           id: parsed.id,
           createdAt: parsed.createdAt,
           label: parsed.label || "Unbenannter Scan",
-          pageCount: Array.isArray(parsed.pages) ? parsed.pages.length : (parsed.pageCount ?? 0),
+          pageCount: parsed.pageCount ?? (Array.isArray(parsed.pages) ? parsed.pages.length : 0),
         });
       } catch {
         // defekte Datei überspringen
