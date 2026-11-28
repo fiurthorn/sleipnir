@@ -354,6 +354,14 @@ export const SkaldPage = () => {
                     <span x-show="imageLoading" class="loading loading-spinner loading-xs" style="display: none;" />
                     <span>🖼 Szene</span>
                   </button>
+                  <button
+                    type="button"
+                    class="btn btn-xs btn-ghost"
+                    x-on:click="closeChat"
+                    title="Chat schließen und zum Startbildschirm zurückkehren"
+                  >
+                    ✕ Schließen
+                  </button>
                 </div>
               </template>
               <button
@@ -396,7 +404,7 @@ export const SkaldPage = () => {
                   tabindex={0}
                   class="dropdown-content menu bg-base-200 border border-base-content/15 rounded-box z-50 w-52 p-2 shadow-xl gap-1"
                 >
-                  <li x-show="activeSession" style="display: none;">
+                  <li x-show="viewMode === 'chat' && activeSession" style="display: none;">
                     <button
                       type="button"
                       x-bind:disabled="imageLoading"
@@ -404,6 +412,16 @@ export const SkaldPage = () => {
                     >
                       <span x-show="imageLoading" class="loading loading-spinner loading-xs" style="display: none;" />
                       <span>🖼 Szenenbild erstellen</span>
+                    </button>
+                  </li>
+                  <li x-show="viewMode === 'chat' && activeSession" style="display: none;">
+                    <button type="button" x-on:click="closeChat">
+                      <span>✕ Chat schließen</span>
+                    </button>
+                  </li>
+                  <li x-show="viewMode !== 'home'" style="display: none;">
+                    <button type="button" x-on:click="goHome">
+                      <span>🏠 Startbildschirm</span>
                     </button>
                   </li>
                   <li>
@@ -420,6 +438,123 @@ export const SkaldPage = () => {
               </div>
             </div>
           </header>
+
+          {/* VIEW 0: STARTBILDSCHIRM (HOME) */}
+          <section x-show="viewMode === 'home'" class="flex-1 overflow-y-auto p-4 md:p-6">
+            <div class="max-w-4xl mx-auto flex flex-col gap-6">
+              <div class="card bg-base-200 border border-base-content/10 shadow-sm">
+                <div class="card-body gap-4">
+                  <div class="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <h1 class="text-xl sm:text-2xl font-bold">Willkommen bei Skaldmate</h1>
+                      <p class="text-xs sm:text-sm opacity-70 mt-0.5">
+                        Wähle einen laufenden Chat, starte eine Szene oder verwalte Charaktere &amp; Orte.
+                      </p>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                      <button type="button" class="btn btn-primary btn-sm" x-on:click="openNewSession">
+                        + Neuer Chat
+                      </button>
+                      <button type="button" class="btn btn-outline btn-sm" x-on:click="toggleWorkshop">
+                        🧠 Werkstatt
+                      </button>
+                    </div>
+                  </div>
+
+                  <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1">
+                    <button
+                      type="button"
+                      class="btn btn-sm btn-ghost bg-base-100 border border-base-content/10 justify-start gap-2"
+                      x-on:click="newCharacterForm"
+                    >
+                      <span>+</span>
+                      <span>Charakter</span>
+                      <span class="badge badge-xs badge-ghost ml-auto" x-text="characters.length" />
+                    </button>
+                    <button
+                      type="button"
+                      class="btn btn-sm btn-ghost bg-base-100 border border-base-content/10 justify-start gap-2"
+                      x-on:click="newLocationForm"
+                    >
+                      <span>+</span>
+                      <span>Ort</span>
+                      <span class="badge badge-xs badge-ghost ml-auto" x-text="locations.length" />
+                    </button>
+                    <button
+                      type="button"
+                      class="btn btn-sm btn-ghost bg-base-100 border border-base-content/10 justify-start gap-2"
+                      x-on:click="newSceneForm"
+                    >
+                      <span>+</span>
+                      <span>Szene</span>
+                      <span class="badge badge-xs badge-ghost ml-auto" x-text="scenes.length" />
+                    </button>
+                    <button
+                      type="button"
+                      class="btn btn-sm btn-ghost bg-base-100 border border-base-content/10 justify-start gap-2"
+                      x-on:click="newPersonaForm"
+                    >
+                      <span>+</span>
+                      <span>Persona</span>
+                      <span class="badge badge-xs badge-ghost ml-auto" x-text="personas.length" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Letzte Chats */}
+              <div x-show="sessions.length > 0" class="flex flex-col gap-2.5" style="display: none;">
+                <h2 class="text-xs font-semibold uppercase tracking-wider opacity-60 px-1">
+                  Laufende Chats
+                </h2>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <template x-for="s in sessions.slice(0, 6)" x-bind:key="s.id">
+                    <button
+                      type="button"
+                      class="card bg-base-200/70 hover:bg-base-200 border border-base-content/10 text-left transition cursor-pointer"
+                      x-bind:data-id="s.id"
+                      x-on:click="selectSession"
+                    >
+                      <div class="card-body p-3.5 gap-1">
+                        <div class="flex items-center justify-between gap-2">
+                          <span class="font-semibold text-sm truncate" x-text="s.title" />
+                          <span class="badge badge-xs badge-ghost font-mono shrink-0" x-text="s.messages.length + ' Msg'" />
+                        </div>
+                        <span class="text-xs opacity-65 truncate" x-text="s.sceneState || 'Fortsetzen...'" />
+                      </div>
+                    </button>
+                  </template>
+                </div>
+              </div>
+
+              {/* Szenen-Vorlagen */}
+              <div x-show="scenes.length > 0" class="flex flex-col gap-2.5" style="display: none;">
+                <h2 class="text-xs font-semibold uppercase tracking-wider opacity-60 px-1">
+                  Szenen-Vorlagen (Schnellstart)
+                </h2>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <template x-for="sc in scenes.slice(0, 6)" x-bind:key="sc.id">
+                    <div class="card bg-base-200/70 border border-base-content/10">
+                      <div class="card-body p-3.5 flex-row items-center justify-between gap-3">
+                        <div class="min-w-0">
+                          <div class="font-semibold text-sm truncate" x-text="sc.title" />
+                          <div class="text-xs opacity-65 truncate" x-text="sc.sceneState || 'Szene starten'" />
+                        </div>
+                        <button
+                          type="button"
+                          class="btn btn-xs btn-primary shrink-0"
+                          x-bind:data-id="sc.id"
+                          x-on:click="startChatFromScene"
+                        >
+                          ▶ Starten
+                        </button>
+                      </div>
+                    </div>
+                  </template>
+                </div>
+              </div>
+            </div>
+          </section>
 
           {/* VIEW A: ENTITY EDITOR */}
           <section x-show="viewMode === 'editor'" class="flex-1 overflow-y-auto p-4 md:p-6" style="display: none;">
@@ -1055,7 +1190,7 @@ export const SkaldPage = () => {
           </section>
 
           {/* VIEW B: NEW SESSION SETUP */}
-          <section x-show="viewMode === 'new-session'" class="flex-1 overflow-y-auto p-4 md:p-6">
+          <section x-show="viewMode === 'new-session'" class="flex-1 overflow-y-auto p-4 md:p-6" style="display: none;">
             <form x-on:submit="createSession" class="max-w-2xl mx-auto card bg-base-200 border border-base-content/10">
               <div class="card-body gap-4">
                 <h2 class="card-title text-lg">Neue Szene zusammenklicken</h2>
@@ -1154,6 +1289,9 @@ export const SkaldPage = () => {
                 </label>
 
                 <div class="card-actions justify-end gap-2 pt-2">
+                  <button type="button" class="btn btn-ghost btn-sm mr-auto" x-on:click="goHome">
+                    Abbrechen
+                  </button>
                   <button type="button" class="btn btn-outline btn-sm" x-on:click="saveNewSessionAsScene">
                     💾 Als Szene speichern
                   </button>

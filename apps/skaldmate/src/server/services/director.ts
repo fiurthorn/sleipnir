@@ -76,10 +76,31 @@ export function resolveTextModel(requestedModelId?: string) {
     throw new Error(`Provider '${providerId}' nicht bereit.`);
   }
 
+  const veniceFetch: typeof fetch | undefined = provider.id === "venice"
+    ? (input, init) => {
+      if (typeof init?.body === "string") {
+        try {
+          const parsed = JSON.parse(init.body) as Record<string, unknown>;
+          parsed.venice_parameters = {
+            ...(typeof parsed.venice_parameters === "object" && parsed.venice_parameters !== null
+              ? parsed.venice_parameters as Record<string, unknown>
+              : {}),
+            include_venice_system_prompt: false,
+          };
+          return fetch(input, { ...init, body: JSON.stringify(parsed) });
+        } catch {
+          // Fallback auf unveränderten Body
+        }
+      }
+      return fetch(input, init);
+    }
+    : undefined;
+
   const client = createOpenAICompatible({
     name: provider.id,
     baseURL: provider.baseUrl,
     apiKey: provider.apiKey,
+    fetch: veniceFetch,
     headers: {
       "HTTP-Referer": "https://sleipnir.local",
       "X-Title": "Sleipnir Skaldmate",

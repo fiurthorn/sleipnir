@@ -135,6 +135,7 @@ export async function streamChatCompletion(
         messages: req.messages,
         temperature: req.temperature ?? 0.7,
         stream: true,
+        ...(provider.id === "venice" ? { venice_parameters: { include_venice_system_prompt: false } } : {}),
       }),
     });
 

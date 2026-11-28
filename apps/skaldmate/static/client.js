@@ -9,7 +9,7 @@ const WORKSHOP_STORAGE_KEY = "skaldmate_workshop_messages_v1";
 
 function loadWorkshopMessages() {
   try {
-    const raw = sessionStorage.getItem(WORKSHOP_STORAGE_KEY);
+    const raw = localStorage.getItem(WORKSHOP_STORAGE_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
@@ -25,7 +25,7 @@ document.addEventListener("alpine:init", () => {
   Alpine.data("skaldmate", () => ({
     mobileMenuOpen: false,
     sidebarTab: "sessions", // "sessions" | "characters" | "personas" | "locations" | "gamemasters"
-    viewMode: "new-session", // "new-session" | "chat" | "editor"
+    viewMode: "home", // "home" | "new-session" | "chat" | "editor"
     editorType: "",
 
     textModels: [],
@@ -355,6 +355,18 @@ document.addEventListener("alpine:init", () => {
 
     openNewSession() {
       this.viewMode = "new-session";
+      this.mobileMenuOpen = false;
+    },
+
+    goHome() {
+      this.viewMode = "home";
+      this.mobileMenuOpen = false;
+    },
+
+    closeChat() {
+      this.activeSession = null;
+      this.showNotesPanel = false;
+      this.viewMode = "home";
       this.mobileMenuOpen = false;
     },
 
@@ -888,7 +900,7 @@ document.addEventListener("alpine:init", () => {
 
     persistWorkshopMessages() {
       try {
-        sessionStorage.setItem(WORKSHOP_STORAGE_KEY, JSON.stringify(this.workshopMessages));
+        localStorage.setItem(WORKSHOP_STORAGE_KEY, JSON.stringify(this.workshopMessages));
       } catch {
         // ignore storage quota errors
       }
@@ -958,7 +970,7 @@ document.addEventListener("alpine:init", () => {
     clearWorkshop() {
       this.workshopMessages = [];
       try {
-        sessionStorage.removeItem(WORKSHOP_STORAGE_KEY);
+        localStorage.removeItem(WORKSHOP_STORAGE_KEY);
       } catch {
         // ignore
       }
@@ -1101,7 +1113,7 @@ document.addEventListener("alpine:init", () => {
     },
 
     closeEditor() {
-      this.viewMode = this.activeSession ? "chat" : "new-session";
+      this.viewMode = "home";
     },
 
     // Character CRUD
@@ -1259,6 +1271,7 @@ document.addEventListener("alpine:init", () => {
         this.personaForm = { ...data.item, portraitFile: data.item.portraitFile || "", isDefault: Boolean(data.item.isDefault) };
         await this.loadAll();
         this.notify(`Persona "${data.item.name}" gespeichert.`);
+        this.closeEditor();
       }
     },
     async generatePersonaPortrait() {
@@ -1385,6 +1398,7 @@ document.addEventListener("alpine:init", () => {
         };
         await this.loadAll();
         this.notify(`Ort "${data.item.name}" gespeichert.`);
+        this.closeEditor();
       }
     },
     async generateLocationImage() {
